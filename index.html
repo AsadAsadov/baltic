@@ -31,6 +31,7 @@
                     buildTimeRu: '2.5 месяца',
                     buildTimeEn: '2.5 months',
                     image: 'https://images.unsplash.com/photo-1510798831971-661eb04b3739?auto=format&fit=crop&q=80&w=800',
+                    images: ['https://images.unsplash.com/photo-1510798831971-661eb04b3739?auto=format&fit=crop&q=80&w=800'],
                     views: 520,
                     archived: false
                 },
@@ -53,14 +54,15 @@
                     buildTimeRu: '2 месяца',
                     buildTimeEn: '2 months',
                     image: 'https://images.unsplash.com/photo-1542718610-a1d656d1884c?auto=format&fit=crop&q=80&w=800',
+                    images: ['https://images.unsplash.com/photo-1542718610-a1d656d1884c?auto=format&fit=crop&q=80&w=800'],
                     views: 312,
                     archived: false
                 }
             ];
 
             const defaultGallery = [
-                { id: 1, src: 'https://images.unsplash.com/photo-1510798831971-661eb04b3739?auto=format&fit=crop&q=80&w=800', title: 'Eksteryer Dizayn', titleRu: 'Дизайн экстерьера', titleEn: 'Exterior Design', type: 'image', archived: false },
-                { id: 2, src: 'https://images.unsplash.com/photo-1542718610-a1d656d1884c?auto=format&fit=crop&q=80&w=800', title: 'Yay Villası', titleRu: 'Летняя вилла', titleEn: 'Summer Villa', type: 'image', archived: false },
+                { id: 1, src: 'https://images.unsplash.com/photo-1510798831971-661eb04b3739?auto=format&fit=crop&q=80&w=800', images: ['https://images.unsplash.com/photo-1510798831971-661eb04b3739?auto=format&fit=crop&q=80&w=800'], title: 'Eksteryer Dizayn', titleRu: 'Дизайн экстерьера', titleEn: 'Exterior Design', type: 'image', archived: false },
+                { id: 2, src: 'https://images.unsplash.com/photo-1542718610-a1d656d1884c?auto=format&fit=crop&q=80&w=800', images: ['https://images.unsplash.com/photo-1542718610-a1d656d1884c?auto=format&fit=crop&q=80&w=800'], title: 'Yay Villası', titleRu: 'Летняя вилла', titleEn: 'Summer Villa', type: 'image', archived: false },
                 { id: 3, src: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', title: 'Tanıtım Videosu', titleRu: 'Промо Видео', titleEn: 'Promo Video', type: 'video', archived: false }
             ];
 
@@ -164,12 +166,15 @@
 
                 // Preview images in creation
                 projectPreviewImg: '',
+                projectPreviewImages: [],
                 galleryPreviewImg: '',
+                galleryPreviewImages: [],
                 adPreviewImg: '',
                 heroPreviewImg: '',
 
                 toast: { show: false, title: '', msg: '' },
                 calc: { type: 'house', area: 120, stories: 2, timber: 'pine' },
+                viewedAdsThisSession: {},
                 selectedProject: {},
                 contactForm: { name: '', phone: '', email: '', message: '' },
 
@@ -362,12 +367,34 @@
                 },
 
                 contactFromCalculator() {
-                    this.isCalculatorOpen = false;
-                    let calcTypeText = this.calc.type === 'house' ? 'Taxta Ev / Wooden House' : 'Hamam & Sauna';
-                    let calcTimberText = this.calc.timber === 'pine' ? 'Sibir Şamı / Siberian Pine' : 'Massiv Palıd / Royal Oak';
-                    
-                    this.setPage('contact');
-                    this.contactForm.message = `Salam Baltic Caspian! Mən saytınızdakı kalkulyatordan istifadə etdim. \nTikili Növü: ${calcTypeText}, Sahə: ${this.calc.area} m², Mərtəbə: ${this.calc.stories}, Material: ${calcTimberText} parametrləri ilə mənə fərdi qiymət təklifi hazırlamağınızı xahiş edirəm.`;
+                    const calcTypeText = this.calc.type === 'house' ? this.t('woodenHouse') : 'Hamam & Sauna';
+                    const calcTimberText = this.calc.timber === 'pine' ? this.t('siberianPine') : (this.lang === 'ru' ? 'Массивный дуб' : (this.lang === 'en' ? 'Solid Oak' : 'Massiv Palıd'));
+                    const message = `Salam, Baltic Caspian.
+Mən taxta ev kalkulyatorundan istifadə etdim:
+Tikili növü: ${calcTypeText}
+Sahə: ${this.calc.area} m²
+Mərtəbə: ${this.calc.stories}
+Material: ${calcTimberText}
+Təxmini qiymət: ${this.calculatePrice()} AZN
+Zəhmət olmasa ətraflı məlumat göndərin.`;
+                    window.open(`https://wa.me/994553221109?text=${encodeURIComponent(message)}`, '_blank', 'noopener');
+                },
+
+                openProjectWhatsApp() {
+                    const p = this.selectedProject || {};
+                    const title = this.lang === 'en' ? (p.titleEn || p.title) : (this.lang === 'ru' ? (p.titleRu || p.title) : p.title);
+                    const catName = this.lang === 'en' ? (p.catNameEn || p.catName) : (this.lang === 'ru' ? (p.catNameRu || p.catName) : p.catName);
+                    const buildTime = this.lang === 'en' ? (p.buildTimeEn || p.buildTime) : (this.lang === 'ru' ? (p.buildTimeRu || p.buildTime) : p.buildTime);
+                    const message = `Salam, Baltic Caspian.
+Mən bu layihə ilə maraqlanıram:
+Layihə: ${title || ''}
+Kateqoriya: ${catName || ''}
+Sahə: ${p.area || ''} m²
+Mərtəbə: ${p.stories || ''}
+Otaq: ${p.rooms || ''}
+Tikinti müddəti: ${buildTime || ''}
+Zəhmət olmasa ətraflı məlumat göndərin.`;
+                    window.open(`https://wa.me/994553221109?text=${encodeURIComponent(message)}`, '_blank', 'noopener');
                 },
 
                 submitContactForm() {
@@ -396,15 +423,30 @@
                 handleFileSelect(event, previewProperty, targetProperty = null) {
                     const file = event.target.files[0];
                     if (!file) return;
-                    
                     const reader = new FileReader();
                     reader.onload = (e) => {
                         this[previewProperty] = e.target.result;
-                        if (targetProperty) {
-                            this[targetProperty] = e.target.result;
-                        }
+                        if (targetProperty) this[targetProperty] = e.target.result;
                     };
                     reader.readAsDataURL(file);
+                },
+
+                handleMultiFileSelect(event, previewProperty, collectionProperty) {
+                    const files = Array.from(event.target.files || []);
+                    if (!files.length) return;
+                    if (files.length > 20) {
+                        this.showToast('Limit', 'Maksimum 20 şəkil seçmək mümkündür.');
+                        event.target.value = '';
+                        return;
+                    }
+                    Promise.all(files.map(file => new Promise((resolve) => {
+                        const reader = new FileReader();
+                        reader.onload = e => resolve(e.target.result);
+                        reader.readAsDataURL(file);
+                    }))).then(images => {
+                        this[collectionProperty] = images;
+                        this[previewProperty] = images[0] || '';
+                    });
                 },
 
                 removeSelectedFile(previewProperty, targetProperty = null) {
@@ -424,11 +466,24 @@
                 },
 
                 incrementAdView(side) {
-                    if (this.banners[side]) {
-                        this.banners[side].views = (this.banners[side].views || 0) + 1;
-                    }
+                    const sessionKey = `bc_ad_viewed_${side}`;
+                    if (!this.banners[side] || this.viewedAdsThisSession[side] || sessionStorage.getItem(sessionKey)) return;
+                    this.viewedAdsThisSession[side] = true;
+                    sessionStorage.setItem(sessionKey, 'true');
+                    this.banners[side].views = (this.banners[side].views || 0) + 1;
                     this.stats.adViews = (this.banners.left?.views || 0) + (this.banners.right?.views || 0);
                     this.saveAll();
+                },
+
+                initAdObservers() {
+                    this.$nextTick(() => {
+                        const observer = new IntersectionObserver(entries => {
+                            entries.forEach(entry => {
+                                if (entry.isIntersecting) this.incrementAdView(entry.target.dataset.adSide);
+                            });
+                        }, { threshold: 0.5 });
+                        document.querySelectorAll('[data-ad-side]').forEach(el => observer.observe(el));
+                    });
                 },
 
                 incrementAdClick(side) {
@@ -465,12 +520,14 @@
 
                 setupEditProject(proj) {
                     this.newProj = { ...proj, titleAz: proj.title, titleRu: proj.titleRu, titleEn: proj.titleEn, descAz: proj.desc, descRu: proj.descRu, descEn: proj.descEn, buildTimeAz: proj.buildTime, buildTimeRu: proj.buildTimeRu, buildTimeEn: proj.buildTimeEn };
-                    this.projectPreviewImg = proj.image;
+                    this.projectPreviewImages = proj.images || (proj.image ? [proj.image] : []);
+                    this.projectPreviewImg = this.projectPreviewImages[0] || proj.image;
                 },
 
                 saveProject() {
                     this.triggerAction(() => {
-                        const finalImage = this.projectPreviewImg || 'https://images.unsplash.com/photo-1510798831971-661eb04b3739?auto=format&fit=crop&q=80&w=800';
+                        const finalImages = this.projectPreviewImages.length ? this.projectPreviewImages : (this.projectPreviewImg ? [this.projectPreviewImg] : ['https://images.unsplash.com/photo-1510798831971-661eb04b3739?auto=format&fit=crop&q=80&w=800']);
+                        const finalImage = finalImages[0];
                         const categoryMap = {
                             house: { az: 'Taxta Ev', ru: 'Деревянный Дом', en: 'Wooden House' },
                             restaurant: { az: 'Restoran', ru: 'Ресторан', en: 'Restaurant' },
@@ -500,7 +557,8 @@
                                         buildTime: this.newProj.buildTimeAz,
                                         buildTimeRu: this.newProj.buildTimeRu,
                                         buildTimeEn: this.newProj.buildTimeEn,
-                                        image: finalImage
+                                        image: finalImage,
+                                        images: finalImages
                                     };
                                 }
                                 return p;
@@ -527,6 +585,7 @@
                                 buildTimeRu: this.newProj.buildTimeRu || '2 месяца',
                                 buildTimeEn: this.newProj.buildTimeEn || '2 months',
                                 image: finalImage,
+                                images: finalImages,
                                 views: 0,
                                 archived: false
                             };
@@ -538,6 +597,7 @@
                         // Reset Form
                         this.newProj = { id: null, cat: 'house', titleAz: '', titleRu: '', titleEn: '', descAz: '', descRu: '', descEn: '', area: '100', stories: '1', rooms: '3', buildTimeAz: '2 ay', buildTimeRu: '2 месяца', buildTimeEn: '2 months', image: '' };
                         this.projectPreviewImg = '';
+                        this.projectPreviewImages = [];
                     });
                 },
 
@@ -559,12 +619,14 @@
 
                 setupEditGallery(item) {
                     this.newGallery = { ...item };
+                    this.galleryPreviewImages = item.images || (item.src ? [item.src] : []);
                     this.galleryPreviewImg = item.src;
                 },
 
                 saveGalleryItem() {
                     this.triggerAction(() => {
-                        const finalSrc = this.galleryPreviewImg || 'https://images.unsplash.com/photo-1542718610-a1d656d1884c?auto=format&fit=crop&q=80&w=800';
+                        const finalImages = this.newGallery.type === 'image' ? (this.galleryPreviewImages.length ? this.galleryPreviewImages : (this.galleryPreviewImg ? [this.galleryPreviewImg] : ['https://images.unsplash.com/photo-1542718610-a1d656d1884c?auto=format&fit=crop&q=80&w=800'])) : [];
+                        const finalSrc = this.newGallery.type === 'video' ? this.galleryPreviewImg : finalImages[0];
                         if (this.newGallery.id) {
                             // Edit
                             this.galleryItems = this.galleryItems.map(g => {
@@ -572,6 +634,7 @@
                                     return {
                                         ...g,
                                         src: finalSrc,
+                                        images: finalImages,
                                         title: this.newGallery.title,
                                         titleRu: this.newGallery.titleRu,
                                         titleEn: this.newGallery.titleEn,
@@ -586,6 +649,7 @@
                             const added = {
                                 id: Date.now(),
                                 src: finalSrc,
+                                images: finalImages,
                                 title: this.newGallery.title,
                                 titleRu: this.newGallery.titleRu || this.newGallery.title,
                                 titleEn: this.newGallery.titleEn || this.newGallery.title,
@@ -598,6 +662,7 @@
                         this.saveAll();
                         this.newGallery = { id: null, src: '', title: '', titleRu: '', titleEn: '', type: 'image' };
                         this.galleryPreviewImg = '';
+                        this.galleryPreviewImages = [];
                     });
                 },
 
@@ -689,31 +754,55 @@
                     });
                 },
 
-                // Youtube Link Parser helper
-                getYouTubeEmbed(url) {
+                getYouTubeId(url) {
                     if (!url) return '';
-                    let regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
-                    let match = url.match(regExp);
-                    if (match && match[2].length == 11) {
-                        return `https://www.youtube.com/embed/${match[2]}`;
+                    const patterns = [/(?:youtube\.com\/watch\?v=)([^&?#]{11})/, /(?:youtu\.be\/)([^&?#]{11})/, /(?:youtube\.com\/embed\/)([^&?#]{11})/, /(?:youtube\.com\/shorts\/)([^&?#]{11})/];
+                    for (const pattern of patterns) {
+                        const match = url.match(pattern);
+                        if (match) return match[1];
                     }
-                    return url;
+                    return '';
                 },
 
-                // Character-by-character real-time autocompletion logic
-                autocompleteFields() {
-                    this.newProj.titleRu = this.newProj.titleAz;
-                    this.newProj.titleEn = this.newProj.titleAz;
-                    this.newProj.descRu = this.newProj.descAz;
-                    this.newProj.descEn = this.newProj.descAz;
+                getYouTubeEmbed(url) {
+                    const id = this.getYouTubeId(url);
+                    return id ? `https://www.youtube.com/embed/${id}` : url;
+                },
+
+                getYouTubeThumbnail(url) {
+                    const id = this.getYouTubeId(url);
+                    return id ? `https://img.youtube.com/vi/${id}/hqdefault.jpg` : 'https://images.unsplash.com/photo-1542718610-a1d656d1884c?auto=format&fit=crop&q=80&w=800';
+                },
+
+                translateAzText(text) {
+                    const dictionary = {
+                        'salam': { ru: 'здравствуйте', en: 'hello' },
+                        'taxta ev': { ru: 'деревянный дом', en: 'wooden house' },
+                        'yay villası': { ru: 'летняя вилла', en: 'summer villa' },
+                        '2 ay': { ru: '2 месяца', en: '2 months' },
+                        '2.5 ay': { ru: '2.5 месяца', en: '2.5 months' },
+                        '3 ay': { ru: '3 месяца', en: '3 months' }
+                    };
+                    return dictionary[(text || '').trim().toLowerCase()] || { ru: '', en: '' };
+                },
+
+                autocompleteFields(field = 'all') {
+                    const apply = (azKey, ruKey, enKey) => {
+                        const tr = this.translateAzText(this.newProj[azKey]);
+                        this.newProj[ruKey] = tr.ru;
+                        this.newProj[enKey] = tr.en;
+                    };
+                    if (field === 'title' || field === 'all') apply('titleAz', 'titleRu', 'titleEn');
+                    if (field === 'desc' || field === 'all') apply('descAz', 'descRu', 'descEn');
+                    if (field === 'buildTime' || field === 'all') apply('buildTimeAz', 'buildTimeRu', 'buildTimeEn');
                 },
 
                 // Returns completely dynamic states derived from runtime object structures
                 getDynamicStats() {
                     return {
                         projectsCount: this.projects.length,
-                        projectViews: this.projects.reduce((acc, p) => acc + (p.views || 0), 0) + 120, // baseline offset + runtime views
-                        adViews: (this.banners.left?.views || 0) + (this.banners.right?.views || 0) + 1200, // baseline offset + runtime impressions
+                        projectViews: this.projects.reduce((acc, p) => acc + (p.views || 0), 0),
+                        adViews: (this.banners.left?.views || 0) + (this.banners.right?.views || 0),
                         messagesCount: this.messages.length
                     };
                 },
@@ -774,7 +863,7 @@
         }
     </style>
 </head>
-<body class="bg-stone-50 text-stone-800 antialiased font-sans" x-data="siteState()">
+<body class="bg-stone-50 text-stone-800 antialiased font-sans" x-data="siteState()" x-init="initAdObservers()">
 
     <div x-show="isLoading" x-cloak class="fixed inset-0 bg-stone-950/70 backdrop-blur-md z-[9999] flex flex-col items-center justify-center space-y-4" x-transition>
         <div class="w-16 h-16 border-4 border-wood-500 border-t-transparent rounded-full animate-spin"></div>
@@ -891,10 +980,10 @@
     </header>
 
     <!-- MASTER CONTENT WRAPPER -->
-    <div class="flex max-w-full overflow-hidden min-h-screen">
+    <div class="flex max-w-full overflow-visible min-h-screen">
         
         <!-- LEFT STICKY AD BANNER (Permanently visible under top-header. Clean styling with no scrolls) -->
-        <div x-show="banners.left.active" x-cloak class="hidden xl:flex flex-col items-center justify-start py-6 px-3 bg-stone-100 border-r border-stone-200 sticky top-20 h-[calc(100vh-5rem)] overflow-hidden shrink-0 z-30" :style="`width: ${banners.left.width ? banners.left.width + 24 : 184}px;`" @mouseenter="incrementAdView('left')">
+        <div x-show="banners.left.active" x-cloak class="hidden xl:flex flex-col items-center justify-start py-6 px-3 bg-stone-100 border-r border-stone-200 sticky top-20 h-[calc(100vh-5rem)] overflow-hidden shrink-0 z-30" :style="`width: ${banners.left.width ? banners.left.width + 24 : 184}px;`" data-ad-side="left">
             <div class="relative bg-white shadow-md rounded-2xl overflow-hidden border border-stone-200" :style="`width: ${banners.left.width}px; height: ${banners.left.height}px;`">
                 <a :href="banners.left.link" target="_blank" rel="noopener" class="block w-full h-full relative group" @click="incrementAdClick('left')">
                     <template x-if="banners.left.type === 'image'">
@@ -1023,7 +1112,7 @@
                             <div class="group bg-white rounded-3xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 border border-stone-200/60 flex flex-col justify-between">
                                 <div>
                                     <div class="relative h-64 overflow-hidden">
-                                        <img :src="proj.image" class="w-full h-full object-cover group-hover:scale-105 transition duration-500" :alt="proj.title">
+                                        <img :src="(proj.images && proj.images[0]) || proj.image" class="w-full h-full object-cover group-hover:scale-105 transition duration-500" :alt="proj.title">
                                         <span class="absolute top-4 left-4 bg-forest-950/80 text-white backdrop-blur text-xs font-bold px-3 py-1 rounded-full uppercase" x-text="lang === 'en' ? proj.catNameEn : (lang === 'ru' ? proj.catNameRu : proj.catName)">Taxta Ev</span>
                                     </div>
                                     <div class="p-6 space-y-4">
@@ -1064,7 +1153,7 @@
                         <div class="group bg-white rounded-3xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 border border-stone-200/60 flex flex-col justify-between">
                             <div>
                                 <div class="relative h-64 overflow-hidden">
-                                    <img :src="proj.image" class="w-full h-full object-cover group-hover:scale-105 transition duration-500" :alt="proj.title">
+                                    <img :src="(proj.images && proj.images[0]) || proj.image" class="w-full h-full object-cover group-hover:scale-105 transition duration-500" :alt="proj.title">
                                     <span class="absolute top-4 left-4 bg-forest-950/85 text-white backdrop-blur text-xs font-bold px-3 py-1 rounded-full uppercase" x-text="lang === 'en' ? proj.catNameEn : (lang === 'ru' ? proj.catNameRu : proj.catName)">Taxta Ev</span>
                                 </div>
                                 <div class="p-6 space-y-4">
@@ -1098,11 +1187,11 @@
                                     <div class="absolute inset-0 flex items-center justify-center bg-black/40 z-10 text-white group-hover:bg-black/20 transition">
                                         <i class="fa-regular fa-circle-play text-5xl"></i>
                                     </div>
-                                    <img src="https://images.unsplash.com/photo-1542718610-a1d656d1884c?auto=format&fit=crop&q=80&w=800" class="w-full h-full object-cover">
+                                    <img :src="getYouTubeThumbnail(img.src)" class="w-full h-full object-cover">
                                 </div>
                             </template>
                             <template x-if="img.type === 'image'">
-                                <img :src="img.src" class="w-full h-full object-cover group-hover:scale-105 transition duration-500" :alt="img.title">
+                                <img :src="(img.images && img.images[0]) || img.src" class="w-full h-full object-cover group-hover:scale-105 transition duration-500" :alt="img.title">
                             </template>
                             <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition duration-300 flex items-center justify-center z-20">
                                 <p class="text-white font-bold text-sm uppercase tracking-wider text-center px-2" x-text="lang === 'en' ? img.titleEn : (lang === 'ru' ? img.titleRu : img.title)">Görüntü</p>
@@ -1274,9 +1363,9 @@
                         <div>
                             <label class="flex justify-between">
                                 <span x-text="lang==='az'?'Başlıq (AZ)':(lang==='ru'?'Название (АЗ)':'Title (AZ)')">Başlıq (AZ)</span>
-                                <span class="text-wood-600 font-normal lowercase tracking-normal" x-text="lang==='az'?'(Avtomatik digər dillərə yazılır)':'(Авто-заполнение других языков)'"></span>
+                                <span class="text-wood-600 font-normal lowercase tracking-normal" x-text="lang==='az'?'(Lüğətdə varsa avtomatik tərcümə edilir)':'(Авто-заполнение других языков)'"></span>
                             </label>
-                            <input type="text" x-model="newProj.titleAz" @input="autocompleteFields()" class="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg text-stone-800 mt-1 font-medium tracking-normal">
+                            <input type="text" x-model="newProj.titleAz" @input="autocompleteFields('title')" class="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg text-stone-800 mt-1 font-medium tracking-normal">
                         </div>
                         <div class="grid grid-cols-2 gap-3">
                             <div>
@@ -1292,7 +1381,7 @@
                         <!-- Local Upload Input with visual preview panel and delete "x" -->
                         <div class="p-4 bg-stone-100 rounded-2xl border border-dashed border-stone-300">
                             <label class="block mb-2 text-stone-700" x-text="lang==='az'?'Şəkil seçin (Lokal Yaddaş / Telefon)':(lang==='ru'?'Выбрать фото':'Upload Image File')">Şəkil seçin</label>
-                            <input type="file" accept="image/*" @change="handleFileSelect($event, 'projectPreviewImg')" class="w-full text-stone-600 font-medium tracking-normal text-xs">
+                            <input type="file" accept="image/*" multiple @change="handleMultiFileSelect($event, 'projectPreviewImg', 'projectPreviewImages')" class="w-full text-stone-600 font-medium tracking-normal text-xs">
                             
                             <!-- Preview Box with X clear trigger -->
                             <template x-if="projectPreviewImg">
@@ -1308,7 +1397,7 @@
                         <!-- Description character-by-character synchronization -->
                         <div>
                             <label x-text="lang==='az'?'Təsvir (AZ)':(lang==='ru'?'Описание (АЗ)':'Description (AZ)')">Təsvir (AZ)</label>
-                            <textarea x-model="newProj.descAz" @input="autocompleteFields()" class="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg text-stone-800 mt-1 font-medium tracking-normal"></textarea>
+                            <textarea x-model="newProj.descAz" @input="autocompleteFields('desc')" class="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg text-stone-800 mt-1 font-medium tracking-normal"></textarea>
                         </div>
                         <div class="grid grid-cols-2 gap-3">
                             <div>
@@ -1332,6 +1421,21 @@
                             </div>
                         </div>
 
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                            <div>
+                                <label x-text="lang==='az'?'Tikinti müddəti (AZ)':(lang==='ru'?'Срок (АЗ)':'Build time (AZ)')">Tikinti müddəti (AZ)</label>
+                                <input type="text" x-model="newProj.buildTimeAz" @input="autocompleteFields('buildTime')" class="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg text-stone-800 mt-1 font-medium tracking-normal">
+                            </div>
+                            <div>
+                                <label x-text="lang==='az'?'Tikinti müddəti (RU)':(lang==='ru'?'Срок (РУ)':'Build time (RU)')">Tikinti müddəti (RU)</label>
+                                <input type="text" x-model="newProj.buildTimeRu" class="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg text-stone-800 mt-1 font-medium tracking-normal">
+                            </div>
+                            <div>
+                                <label x-text="lang==='az'?'Tikinti müddəti (EN)':(lang==='ru'?'Срок (EN)':'Build time (EN)')">Tikinti müddəti (EN)</label>
+                                <input type="text" x-model="newProj.buildTimeEn" class="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg text-stone-800 mt-1 font-medium tracking-normal">
+                            </div>
+                        </div>
+
                         <div class="flex gap-2">
                             <button @click="saveProject()" class="flex-1 py-3 bg-forest-700 text-white rounded-xl font-bold uppercase tracking-wider text-xs" x-text="lang==='az'?'Məlumatları Yadda Saxla':'Сохранить Layihə'">Yadda Saxla</button>
                             <template x-if="newProj.id">
@@ -1346,7 +1450,7 @@
                             <template x-for="proj in projects" :key="proj.id">
                                 <div class="p-3 bg-stone-50 rounded-2xl border border-stone-200/60 flex items-center justify-between gap-3">
                                     <div class="flex items-center gap-3">
-                                        <img :src="proj.image" class="w-14 h-14 object-cover rounded-xl shadow">
+                                        <img :src="(proj.images && proj.images[0]) || proj.image" class="w-14 h-14 object-cover rounded-xl shadow">
                                         <div>
                                             <h4 class="font-extrabold text-stone-900 text-sm tracking-normal" x-text="lang==='az'?proj.title:(lang==='ru'?proj.titleRu:proj.titleEn)">Başlıq</h4>
                                             <div class="flex gap-2 mt-1">
@@ -1384,7 +1488,7 @@
                             <template x-if="newGallery.type === 'image'">
                                 <div>
                                     <label class="block mb-2 text-stone-700" x-text="lang==='az'?'Lokal Şəkil Seçin':'Выбрать файл'">Şəkil faylı</label>
-                                    <input type="file" accept="image/*" @change="handleFileSelect($event, 'galleryPreviewImg')" class="w-full text-stone-600 font-medium tracking-normal text-xs">
+                                    <input type="file" accept="image/*" multiple @change="handleMultiFileSelect($event, 'galleryPreviewImg', 'galleryPreviewImages')" class="w-full text-stone-600 font-medium tracking-normal text-xs">
                                 </div>
                             </template>
                             <template x-if="newGallery.type === 'video'">
@@ -1632,9 +1736,9 @@
             </div>
 
             <!-- FOOTER -->
-            <footer class="bg-stone-950 text-stone-200 pt-20 pb-8 border-t border-forest-900 mt-20">
-                <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-16">
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-8">
+            <footer class="bg-stone-950 text-stone-200 pt-12 pb-8 border-t border-forest-900 mt-10">
+                <div class="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-10">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-10 mb-4">
                         <div class="space-y-6">
                             <a href="#" class="flex items-center gap-3">
                                 <div class="w-10 h-10 bg-forest-700 rounded-lg flex items-center justify-center text-white"><i class="fa-solid fa-tree-city text-xl"></i></div>
@@ -1674,7 +1778,7 @@
         </div>
 
         <!-- RIGHT STICKY AD BANNER (Clean fixed styling right below sticky top menu) -->
-        <div x-show="banners.right.active" x-cloak class="hidden xl:flex flex-col items-center justify-start py-6 px-3 bg-stone-100 border-l border-stone-200 sticky top-20 h-[calc(100vh-5rem)] overflow-hidden shrink-0 z-30" :style="`width: ${banners.right.width ? banners.right.width + 24 : 184}px;`" @mouseenter="incrementAdView('right')">
+        <div x-show="banners.right.active" x-cloak class="hidden xl:flex flex-col items-center justify-start py-6 px-3 bg-stone-100 border-l border-stone-200 sticky top-20 h-[calc(100vh-5rem)] overflow-hidden shrink-0 z-30" :style="`width: ${banners.right.width ? banners.right.width + 24 : 184}px;`" data-ad-side="right">
             <div class="relative bg-white shadow-md rounded-2xl overflow-hidden border border-stone-200" :style="`width: ${banners.right.width}px; height: ${banners.right.height}px;`">
                 <a :href="banners.right.link" target="_blank" rel="noopener" class="block w-full h-full relative group" @click="incrementAdClick('right')">
                     <template x-if="banners.right.type === 'image'">
@@ -1706,7 +1810,12 @@
             </div>
 
             <div class="p-6 sm:p-8 overflow-y-auto space-y-6 flex-1">
-                <input type="range" min="20" max="400" step="5" x-model="calc.area" class="w-full accent-wood-600 cursor-pointer">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <label class="space-y-2"><span class="text-xs font-bold uppercase text-stone-500" x-text="t('calcType')">Tikili növü</span><select x-model="calc.type" class="w-full px-4 py-3 rounded-xl border border-stone-200 bg-stone-50"><option value="house" x-text="t('woodenHouse')">Taxta Ev</option><option value="sauna">Hamam & Sauna</option></select></label>
+                    <label class="space-y-2"><span class="text-xs font-bold uppercase text-stone-500" x-text="t('calcStories')">Mərtəbə</span><select x-model.number="calc.stories" class="w-full px-4 py-3 rounded-xl border border-stone-200 bg-stone-50"><option :value="1">1</option><option :value="2">2</option><option :value="3">3</option></select></label>
+                    <label class="space-y-2 sm:col-span-2"><span class="text-xs font-bold uppercase text-stone-500" x-text="t('calcTimber')">Material</span><select x-model="calc.timber" class="w-full px-4 py-3 rounded-xl border border-stone-200 bg-stone-50"><option value="pine" x-text="t('siberianPine')">Sibir Şamı</option><option value="oak">Massiv Palıd / Solid Oak</option></select></label>
+                </div>
+                <input type="range" min="20" max="400" step="5" x-model.number="calc.area" class="w-full accent-wood-600 cursor-pointer">
                 <div class="flex justify-between items-center"><span x-text="t('calcArea')">Sahə</span><span class="font-extrabold text-forest-800" x-text="calc.area + ' m²'"></span></div>
             </div>
 
@@ -1725,18 +1834,26 @@
         <div class="absolute inset-0 bg-stone-950/80 backdrop-blur-sm" @click="isProjectModalOpen = false"></div>
         <div class="relative bg-white w-full max-w-3xl rounded-[2.5rem] shadow-2xl overflow-hidden border border-stone-200 z-10 flex flex-col max-h-[90vh]">
             <div class="relative h-72 sm:h-96 overflow-hidden">
-                <img :src="selectedProject.image" class="w-full h-full object-cover">
+                <img :src="(selectedProject.images && selectedProject.images[0]) || selectedProject.image" class="w-full h-full object-cover">
                 <button @click="isProjectModalOpen = false" class="absolute top-6 right-6 w-10 h-10 rounded-full bg-black/40 text-white hover:bg-black/85 flex items-center justify-center"><i class="fa-solid fa-xmark"></i></button>
             </div>
             <div class="p-6 sm:p-8 overflow-y-auto space-y-6 flex-1 text-sm">
                 <h3 class="text-2xl font-black" x-text="lang === 'en' ? selectedProject.titleEn : (lang === 'ru' ? selectedProject.titleRu : selectedProject.title)"></h3>
                 <p x-text="lang === 'en' ? selectedProject.descEn : (lang === 'ru' ? selectedProject.descRu : selectedProject.desc)"></p>
+                <template x-if="(selectedProject.images || []).length > 1">
+                    <div class="grid grid-cols-3 sm:grid-cols-5 gap-2">
+                        <template x-for="src in selectedProject.images" :key="src">
+                            <img :src="src" class="h-20 w-full object-cover rounded-xl border border-stone-200">
+                        </template>
+                    </div>
+                </template>
                 
                 <div class="grid grid-cols-3 gap-4 text-center mt-6">
                     <div class="p-3 bg-stone-50 rounded-xl"><span class="text-xs text-stone-400">Sahə</span><p class="font-bold" x-text="selectedProject.area + ' m²'"></p></div>
                     <div class="p-3 bg-stone-50 rounded-xl"><span class="text-xs text-stone-400">Mərtəbə</span><p class="font-bold" x-text="selectedProject.stories"></p></div>
                     <div class="p-3 bg-stone-50 rounded-xl"><span class="text-xs text-stone-400">Otaq</span><p class="font-bold" x-text="selectedProject.rooms"></p></div>
                 </div>
+                <button @click="openProjectWhatsApp()" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold px-6 py-4 rounded-2xl shadow-lg flex items-center justify-center gap-2"><i class="fa-brands fa-whatsapp text-xl"></i><span>WhatsApp ilə müraciət et</span></button>
             </div>
         </div>
     </div>
@@ -1748,7 +1865,7 @@
         <div class="max-w-4xl w-full flex flex-col items-center justify-center gap-4">
             <div class="relative w-full aspect-[4/3] max-h-[70vh] rounded-3xl overflow-hidden shadow-2xl bg-black">
                 <template x-if="galleryItems[activeGalleryIndex]?.type === 'image'">
-                    <img :src="galleryItems[activeGalleryIndex]?.src" class="w-full h-full object-cover">
+                    <img :src="((galleryItems[activeGalleryIndex]?.images || [])[0]) || galleryItems[activeGalleryIndex]?.src" class="w-full h-full object-cover">
                 </template>
                 <template x-if="galleryItems[activeGalleryIndex]?.type === 'video'">
                     <!-- Embedded YouTube responsive player inside visual lightbox -->
@@ -1756,8 +1873,15 @@
                 </template>
             </div>
             
-            <div class="text-center text-white">
+            <div class="text-center text-white space-y-4">
                 <h4 class="text-xl font-bold" x-text="lang === 'en' ? galleryItems[activeGalleryIndex]?.titleEn : (lang === 'ru' ? galleryItems[activeGalleryIndex]?.titleRu : galleryItems[activeGalleryIndex]?.title)"></h4>
+                <template x-if="galleryItems[activeGalleryIndex]?.type === 'image' && (galleryItems[activeGalleryIndex]?.images || []).length > 1">
+                    <div class="grid grid-cols-4 sm:grid-cols-6 gap-2 max-h-32 overflow-y-auto">
+                        <template x-for="src in galleryItems[activeGalleryIndex].images" :key="src">
+                            <img :src="src" class="w-20 h-16 object-cover rounded-lg border border-white/20">
+                        </template>
+                    </div>
+                </template>
             </div>
         </div>
     </div>
