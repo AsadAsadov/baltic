@@ -987,14 +987,11 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
             scrollbar-width: none;
         }
         @media (min-width: 1280px) {
-            .ad-safe-content {
-                padding-left: var(--ad-safe-space, 192px);
-                padding-right: var(--ad-safe-space, 192px);
-            }
+            .ad-safe-content { padding-left: 0; padding-right: 0; }
         }
     </style>
 </head>
-<body class="bg-stone-50 text-stone-800 antialiased font-sans min-h-screen flex flex-col overflow-x-hidden" x-data="siteState()" :style="`--ad-safe-space: ${(mainBanner.width || 160) + 32}px;`" x-init="initAdObservers(); initLayoutObservers()">
+<body class="bg-stone-50 text-stone-800 antialiased font-sans min-h-screen flex flex-col overflow-x-hidden" x-data="siteState()" x-init="initAdObservers(); initLayoutObservers()">
 
     <div x-show="isLoading" x-cloak class="fixed inset-0 bg-stone-950/70 backdrop-blur-md z-[9999] flex flex-col items-center justify-center space-y-4" x-transition>
         <div class="w-16 h-16 border-4 border-wood-500 border-t-transparent rounded-full animate-spin"></div>
@@ -1113,26 +1110,6 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
     <!-- MASTER CONTENT WRAPPER -->
     <div class="flex max-w-full flex-1 items-stretch">
         
-        <!-- MIRRORED FIXED AD BANNERS - single mainBanner rendered on both sides after hero -->
-        <template x-for="side in ['left', 'right']" :key="side">
-            <div x-show="showSideAds && mainBanner.active && mainBanner.src" x-cloak class="hidden xl:flex fixed flex-col items-center justify-start z-30" :class="side === 'left' ? 'left-4' : 'right-4'" :style="`top: ${(document.querySelector('header')?.offsetHeight || 80) + 24}px; width: ${mainBanner.width || 160}px;`" :data-ad-side="side">
-                <div class="relative bg-white shadow-xl rounded-2xl overflow-hidden border border-stone-200" :style="`width: ${mainBanner.width || 160}px; height: ${mainBanner.height || 400}px;`">
-                    <a :href="mainBanner.link || '#'" target="_blank" rel="noopener" class="block w-full h-full relative group" @click="incrementAdClick()">
-                        <template x-if="mainBanner.type === 'image'">
-                            <img :src="mainBanner.src" class="w-full h-full object-cover group-hover:scale-105 transition duration-500" alt="Reklam banneri">
-                        </template>
-                        <template x-if="mainBanner.type === 'video'">
-                            <video :src="mainBanner.src" autoplay loop muted playsinline class="w-full h-full object-cover"></video>
-                        </template>
-                        <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition duration-300 flex items-center justify-center">
-                            <i class="fa-solid fa-external-link text-white text-2xl"></i>
-                        </div>
-                    </a>
-                </div>
-                <p class="text-xs text-stone-500 font-bold mt-3 text-center max-w-full break-words px-1" x-text="mainBanner.title"></p>
-            </div>
-        </template>
-
         <!-- MAIN SITE VIEWPORT -->
         <div class="flex-1 min-w-0 bg-stone-50 flex flex-col min-h-[calc(100vh-5rem)]">
 
@@ -1191,6 +1168,21 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                         </div>
                     </div>
                 </section>
+
+                <div class="mx-auto w-full max-w-[calc(100vw-2rem)] xl:grid xl:grid-cols-[184px_minmax(0,1fr)_184px] xl:gap-6 xl:items-start" :class="mainBanner.active && mainBanner.src ? '' : 'xl:block'">
+                <aside x-show="mainBanner.active && mainBanner.src" x-cloak class="hidden xl:flex justify-center min-w-0" data-ad-side="left">
+                    <div class="sticky top-24 self-start w-[184px] flex flex-col items-center py-2">
+                        <div class="relative w-[160px] max-h-[calc(100vh-140px)] bg-white shadow-xl rounded-2xl overflow-hidden border border-stone-200">
+                            <a :href="mainBanner.link || '#'" target="_blank" rel="noopener" class="block w-full h-full relative group" @click="incrementAdClick()">
+                                <template x-if="mainBanner.type === 'image'"><img :src="mainBanner.src" class="w-full object-cover group-hover:scale-105 transition duration-500" :style="`height: min(${mainBanner.height || 400}px, calc(100vh - 140px));`" alt="Reklam banneri"></template>
+                                <template x-if="mainBanner.type === 'video'"><video :src="mainBanner.src" autoplay loop muted playsinline class="w-full object-cover" :style="`height: min(${mainBanner.height || 400}px, calc(100vh - 140px));`"></video></template>
+                            </a>
+                        </div>
+                        <p class="text-xs text-stone-500 font-bold mt-3 text-center max-w-[160px] break-words px-1" x-text="mainBanner.title"></p>
+                    </div>
+                </aside>
+
+                    <div class="min-w-0 space-y-16">
 
                 <!-- ADVANTAGES GRID CARD -->
                 <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-24 relative z-20 ad-safe-content">
@@ -1261,9 +1253,37 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                         </template>
                     </div>
                 </section>
+                    </div>
+                <aside x-show="mainBanner.active && mainBanner.src" x-cloak class="hidden xl:flex justify-center min-w-0" data-ad-side="right">
+                    <div class="sticky top-24 self-start w-[184px] flex flex-col items-center py-2">
+                        <div class="relative w-[160px] max-h-[calc(100vh-140px)] bg-white shadow-xl rounded-2xl overflow-hidden border border-stone-200">
+                            <a :href="mainBanner.link || '#'" target="_blank" rel="noopener" class="block w-full h-full relative group" @click="incrementAdClick()">
+                                <template x-if="mainBanner.type === 'image'"><img :src="mainBanner.src" class="w-full object-cover group-hover:scale-105 transition duration-500" :style="`height: min(${mainBanner.height || 400}px, calc(100vh - 140px));`" alt="Reklam banneri"></template>
+                                <template x-if="mainBanner.type === 'video'"><video :src="mainBanner.src" autoplay loop muted playsinline class="w-full object-cover" :style="`height: min(${mainBanner.height || 400}px, calc(100vh - 140px));`"></video></template>
+                            </a>
+                        </div>
+                        <p class="text-xs text-stone-500 font-bold mt-3 text-center max-w-[160px] break-words px-1" x-text="mainBanner.title"></p>
+                    </div>
+                </aside>
+
+                </div>
             </div>
 
             <!-- 2. PROJECTS CATALOGUE PAGE -->
+            <div x-show="page !== 'home'" x-cloak class="mx-auto w-full max-w-[calc(100vw-2rem)] xl:grid xl:grid-cols-[184px_minmax(0,1fr)_184px] xl:gap-6 xl:items-start" :class="mainBanner.active && mainBanner.src ? '' : 'xl:block'">
+                <aside x-show="mainBanner.active && mainBanner.src" x-cloak class="hidden xl:flex justify-center min-w-0" data-ad-side="left">
+                    <div class="sticky top-24 self-start w-[184px] flex flex-col items-center py-2">
+                        <div class="relative w-[160px] max-h-[calc(100vh-140px)] bg-white shadow-xl rounded-2xl overflow-hidden border border-stone-200">
+                            <a :href="mainBanner.link || '#'" target="_blank" rel="noopener" class="block w-full h-full relative group" @click="incrementAdClick()">
+                                <template x-if="mainBanner.type === 'image'"><img :src="mainBanner.src" class="w-full object-cover group-hover:scale-105 transition duration-500" :style="`height: min(${mainBanner.height || 400}px, calc(100vh - 140px));`" alt="Reklam banneri"></template>
+                                <template x-if="mainBanner.type === 'video'"><video :src="mainBanner.src" autoplay loop muted playsinline class="w-full object-cover" :style="`height: min(${mainBanner.height || 400}px, calc(100vh - 140px));`"></video></template>
+                            </a>
+                        </div>
+                        <p class="text-xs text-stone-500 font-bold mt-3 text-center max-w-[160px] break-words px-1" x-text="mainBanner.title"></p>
+                    </div>
+                </aside>
+
+                <div class="min-w-0">
             <div x-show="page === 'projects'" x-cloak class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-12 ad-safe-content">
                 <div class="text-center max-w-3xl mx-auto space-y-4">
                     <span class="text-wood-600 font-bold uppercase tracking-widest text-sm block" x-text="t('allProjects')">Layihələrimiz</span>
@@ -1690,20 +1710,34 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                 <div x-show="adminTab === 'hero'" x-transition class="bg-white p-6 rounded-3xl border border-stone-200/80 shadow-sm space-y-6 text-xs font-bold uppercase text-stone-500">
                     <h3 class="text-lg font-black text-stone-900 tracking-normal" x-text="lang==='az'?'Ana Səhifə Hero Slaydların İdarə Olunması':'Управление слайдами главной'">Slaydlar</h3>
                     <div class="grid grid-cols-1 lg:grid-cols-[60fr_40fr] gap-6 items-start">
-                        <div class="order-2 lg:order-1 space-y-5">
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <div class="space-y-4"><div><label x-text="lang==='az'?'Fon Şəkili':'Фоновое изображение'"></label><input type="file" accept="image/*" @change="handleFileSelect($event, 'heroPreviewImg')" class="w-full text-stone-600 font-medium text-xs mt-1"></div><template x-if="heroPreviewImg"><div class="relative w-full h-44 rounded-2xl overflow-hidden shadow"><img :src="heroPreviewImg" class="w-full h-full object-cover"><button @click="removeSelectedFile('heroPreviewImg')" class="absolute top-2 right-2 w-7 h-7 bg-black/60 text-white rounded-full flex items-center justify-center text-xs"><i class="fa-solid fa-x"></i></button></div></template></div>
-                                <div class="space-y-4">
-                                    <div><label>Teh/Tagline (AZ)</label><input type="text" x-model="newHero.tag" @input="autocompleteHeroField('tag')" class="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg text-stone-800 tracking-normal mt-1 font-medium"><p class="text-[10px] text-wood-600 mt-1 normal-case" x-text="translationStatusText('heroTag')"></p><div class="grid grid-cols-2 gap-2 mt-2"><input x-model="newHero.tagRu" @input="markManualTranslation('newHero.tagRu')" placeholder="RU" class="px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg text-stone-800 tracking-normal"><input x-model="newHero.tagEn" @input="markManualTranslation('newHero.tagEn')" placeholder="EN" class="px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg text-stone-800 tracking-normal"></div></div>
-                                    <div><label>Başlıq Sətir 1 (AZ)</label><input type="text" x-model="newHero.title1" @input="autocompleteHeroField('title1')" class="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg text-stone-800 tracking-normal mt-1 font-medium"><p class="text-[10px] text-wood-600 mt-1 normal-case" x-text="translationStatusText('heroTitle1')"></p><div class="grid grid-cols-2 gap-2 mt-2"><input x-model="newHero.title1Ru" @input="markManualTranslation('newHero.title1Ru')" placeholder="RU" class="px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg text-stone-800 tracking-normal"><input x-model="newHero.title1En" @input="markManualTranslation('newHero.title1En')" placeholder="EN" class="px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg text-stone-800 tracking-normal"></div></div>
-                                    <div><label>Başlıq Sətir 2 (AZ)</label><input type="text" x-model="newHero.title2" @input="autocompleteHeroField('title2')" class="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg text-stone-800 tracking-normal mt-1 font-medium"><p class="text-[10px] text-wood-600 mt-1 normal-case" x-text="translationStatusText('heroTitle2')"></p><div class="grid grid-cols-2 gap-2 mt-2"><input x-model="newHero.title2Ru" @input="markManualTranslation('newHero.title2Ru')" placeholder="RU" class="px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg text-stone-800 tracking-normal"><input x-model="newHero.title2En" @input="markManualTranslation('newHero.title2En')" placeholder="EN" class="px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg text-stone-800 tracking-normal"></div></div>
-                                    <div><label>Açıqlama Mətni (AZ)</label><textarea x-model="newHero.desc" @input="autocompleteHeroField('desc')" class="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg text-stone-800 tracking-normal mt-1 font-medium"></textarea><p class="text-[10px] text-wood-600 mt-1 normal-case" x-text="translationStatusText('heroDesc')"></p><div class="grid grid-cols-2 gap-2 mt-2"><textarea x-model="newHero.descRu" @input="markManualTranslation('newHero.descRu')" placeholder="RU" class="px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg text-stone-800 tracking-normal"></textarea><textarea x-model="newHero.descEn" @input="markManualTranslation('newHero.descEn')" placeholder="EN" class="px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg text-stone-800 tracking-normal"></textarea></div></div>
-                                </div>
+                        <div class="order-2 lg:order-1 bg-stone-50 border border-stone-200 rounded-3xl p-5 sm:p-6 space-y-5">
+                            <div class="bg-white border-2 border-dashed border-stone-300 hover:border-wood-500 rounded-3xl p-5 text-center transition">
+                                <label class="cursor-pointer block">
+                                    <input type="file" accept="image/*" @change="handleFileSelect($event, 'heroPreviewImg')" class="sr-only">
+                                    <span class="mx-auto w-12 h-12 rounded-2xl bg-wood-50 text-wood-700 flex items-center justify-center text-xl"><i class="fa-solid fa-cloud-arrow-up"></i></span>
+                                    <span class="block mt-3 text-stone-900 text-sm font-black normal-case">Fon şəkli seç</span>
+                                    <span class="block mt-1 text-[10px] text-stone-400 normal-case">Premium hero background üçün şəkil yükləyin</span>
+                                </label>
+                                <template x-if="heroPreviewImg"><div class="relative mt-4 w-full h-44 rounded-2xl overflow-hidden shadow bg-stone-900"><img :src="heroPreviewImg" class="w-full h-full object-cover"><button @click="removeSelectedFile('heroPreviewImg')" class="absolute top-2 right-2 w-8 h-8 bg-black/60 hover:bg-black/85 text-white rounded-full flex items-center justify-center text-xs"><i class="fa-solid fa-x"></i></button></div></template>
                             </div>
-                            <div class="flex justify-end border-t border-stone-100 pt-6"><button @click="saveHero()" class="px-6 py-3 bg-forest-700 text-white font-bold rounded-xl shadow hover:bg-forest-800" x-text="lang==='az'?'Slaydı Güncəllə':'Обновить слайд'"></button></div>
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                                <div><label>Tagline AZ</label><input type="text" x-model="newHero.tag" @input="autocompleteHeroField('tag')" class="w-full px-3 py-2 bg-white border border-stone-200 rounded-lg text-stone-800 tracking-normal mt-1 font-medium"><p class="text-[10px] text-wood-600 mt-1 normal-case" x-text="translationStatusText('heroTag')"></p></div>
+                                <div><label>Tagline RU</label><input x-model="newHero.tagRu" @input="markManualTranslation('newHero.tagRu')" class="w-full px-3 py-2 bg-white border border-stone-200 rounded-lg text-stone-800 tracking-normal mt-1 font-medium"></div>
+                                <div><label>Tagline EN</label><input x-model="newHero.tagEn" @input="markManualTranslation('newHero.tagEn')" class="w-full px-3 py-2 bg-white border border-stone-200 rounded-lg text-stone-800 tracking-normal mt-1 font-medium"></div>
+                                <div><label>Başlıq 1 AZ</label><input x-model="newHero.title1" @input="autocompleteHeroField('title1')" class="w-full px-3 py-2 bg-white border border-stone-200 rounded-lg text-stone-800 tracking-normal mt-1 font-medium"><p class="text-[10px] text-wood-600 mt-1 normal-case" x-text="translationStatusText('heroTitle1')"></p></div>
+                                <div><label>Başlıq 1 RU</label><input x-model="newHero.title1Ru" @input="markManualTranslation('newHero.title1Ru')" class="w-full px-3 py-2 bg-white border border-stone-200 rounded-lg text-stone-800 tracking-normal mt-1 font-medium"></div>
+                                <div><label>Başlıq 1 EN</label><input x-model="newHero.title1En" @input="markManualTranslation('newHero.title1En')" class="w-full px-3 py-2 bg-white border border-stone-200 rounded-lg text-stone-800 tracking-normal mt-1 font-medium"></div>
+                                <div><label>Başlıq 2 AZ</label><input x-model="newHero.title2" @input="autocompleteHeroField('title2')" class="w-full px-3 py-2 bg-white border border-stone-200 rounded-lg text-stone-800 tracking-normal mt-1 font-medium"><p class="text-[10px] text-wood-600 mt-1 normal-case" x-text="translationStatusText('heroTitle2')"></p></div>
+                                <div><label>Başlıq 2 RU</label><input x-model="newHero.title2Ru" @input="markManualTranslation('newHero.title2Ru')" class="w-full px-3 py-2 bg-white border border-stone-200 rounded-lg text-stone-800 tracking-normal mt-1 font-medium"></div>
+                                <div><label>Başlıq 2 EN</label><input x-model="newHero.title2En" @input="markManualTranslation('newHero.title2En')" class="w-full px-3 py-2 bg-white border border-stone-200 rounded-lg text-stone-800 tracking-normal mt-1 font-medium"></div>
+                                <div><label>Açıqlama AZ</label><textarea x-model="newHero.desc" @input="autocompleteHeroField('desc')" rows="3" class="w-full px-3 py-2 bg-white border border-stone-200 rounded-lg text-stone-800 tracking-normal mt-1 font-medium"></textarea><p class="text-[10px] text-wood-600 mt-1 normal-case" x-text="translationStatusText('heroDesc')"></p></div>
+                                <div><label>Açıqlama RU</label><textarea x-model="newHero.descRu" @input="markManualTranslation('newHero.descRu')" rows="3" class="w-full px-3 py-2 bg-white border border-stone-200 rounded-lg text-stone-800 tracking-normal mt-1 font-medium"></textarea></div>
+                                <div><label>Açıqlama EN</label><textarea x-model="newHero.descEn" @input="markManualTranslation('newHero.descEn')" rows="3" class="w-full px-3 py-2 bg-white border border-stone-200 rounded-lg text-stone-800 tracking-normal mt-1 font-medium"></textarea></div>
+                            </div>
+                            <button @click="saveHero()" class="w-full py-3 bg-forest-700 text-white font-bold rounded-xl shadow hover:bg-forest-800 normal-case" x-text="lang==='az'?'Slaydı Güncəllə':'Обновить слайд'"></button>
                         </div>
-                        <div class="order-1 lg:order-2 grid grid-cols-1 gap-4 lg:max-h-[680px] lg:overflow-y-auto pr-1 bg-stone-50 border border-stone-200 rounded-3xl p-4">
-                            <template x-for="(sld, sIdx) in slides" :key="sIdx"><div class="p-4 bg-stone-50 rounded-2xl border border-stone-200 hover:bg-stone-100 cursor-pointer flex flex-col justify-between space-y-3" :class="newHero.activeIndex === sIdx ? '!border-wood-600 !bg-wood-50/70 ring-2 ring-wood-200' : ''" @click="setupEditHero(sIdx)"><div class="flex justify-between items-center"><span class="font-black text-forest-900" x-text="`${sIdx + 1}-ci Slayd`"></span><span class="text-[9px] bg-wood-100 text-wood-700 px-1.5 py-0.5 rounded uppercase" x-text="sld.tag ? sld.tag.substring(0,15)+'...' : ''"></span></div><img :src="sld.image" class="w-full h-28 object-cover rounded-lg shadow"><button class="w-full py-1.5 bg-forest-700 text-white rounded text-[10px] font-bold" x-text="lang==='az'?'Redaktə et':'Редактировать'"></button></div></template>
+                        <div class="order-1 lg:order-2 grid grid-cols-1 gap-3 bg-stone-50 border border-stone-200 rounded-3xl p-4">
+                            <template x-for="(sld, sIdx) in slides" :key="sIdx"><div class="p-3 bg-white rounded-2xl border border-stone-200 hover:bg-stone-50 cursor-pointer space-y-2" :class="newHero.activeIndex === sIdx ? '!border-wood-600 ring-2 ring-wood-200 shadow-md' : ''" @click="setupEditHero(sIdx)"><div class="flex justify-between items-center"><span class="font-black text-forest-900" x-text="`${sIdx + 1}-ci Slayd`"></span><span class="text-[9px] bg-wood-100 text-wood-700 px-1.5 py-0.5 rounded uppercase" x-text="sld.tag ? sld.tag.substring(0,15)+'...' : ''"></span></div><img :src="sld.image" class="w-full h-32 lg:h-28 object-cover rounded-xl shadow"><button class="w-full py-1.5 bg-forest-700 text-white rounded text-[10px] font-bold" x-text="lang==='az'?'Redaktə et':'Редактировать'"></button></div></template>
                         </div>
                     </div>
                 </div>
@@ -1715,7 +1749,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                             <h3 class="text-lg font-black text-stone-900 tracking-normal">Əsas reklam banneri</h3>
                             <p class="text-stone-500 normal-case mt-1">Bu 1 banner avtomatik həm solda, həm də sağda eyni göstərilir.</p>
                         </div>
-                        <button @click="setupEditAd()" class="px-4 py-2 bg-wood-600 hover:bg-wood-700 text-white rounded-xl font-black normal-case"><i class="fa-solid fa-pen-to-square mr-2"></i>Mövcud reklamı yüklə</button>
+                        <div class="flex flex-wrap gap-2"><button @click="setupEditAd()" class="px-4 py-2 bg-wood-600 hover:bg-wood-700 text-white rounded-xl font-black normal-case"><i class="fa-solid fa-pen-to-square mr-2"></i>Mövcud reklamı redaktə et</button><button @click="resetAdForm()" class="px-4 py-2 bg-white hover:bg-stone-50 text-forest-800 border border-stone-200 rounded-xl font-black normal-case"><i class="fa-solid fa-plus mr-2"></i>Yeni reklam</button></div>
                     </div>
 
                     <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
@@ -1752,6 +1786,20 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                         </div>
                     </div>
                 </div>            </div>
+                </div>
+                <aside x-show="mainBanner.active && mainBanner.src" x-cloak class="hidden xl:flex justify-center min-w-0" data-ad-side="right">
+                    <div class="sticky top-24 self-start w-[184px] flex flex-col items-center py-2">
+                        <div class="relative w-[160px] max-h-[calc(100vh-140px)] bg-white shadow-xl rounded-2xl overflow-hidden border border-stone-200">
+                            <a :href="mainBanner.link || '#'" target="_blank" rel="noopener" class="block w-full h-full relative group" @click="incrementAdClick()">
+                                <template x-if="mainBanner.type === 'image'"><img :src="mainBanner.src" class="w-full object-cover group-hover:scale-105 transition duration-500" :style="`height: min(${mainBanner.height || 400}px, calc(100vh - 140px));`" alt="Reklam banneri"></template>
+                                <template x-if="mainBanner.type === 'video'"><video :src="mainBanner.src" autoplay loop muted playsinline class="w-full object-cover" :style="`height: min(${mainBanner.height || 400}px, calc(100vh - 140px));`"></video></template>
+                            </a>
+                        </div>
+                        <p class="text-xs text-stone-500 font-bold mt-3 text-center max-w-[160px] break-words px-1" x-text="mainBanner.title"></p>
+                    </div>
+                </aside>
+
+            </div>
 
             <!-- FOOTER -->
             </main><footer class="relative left-1/2 w-screen max-w-[100vw] -translate-x-1/2 bg-stone-950 text-stone-200 pt-10 pb-7 border-t border-forest-900 mt-auto">
