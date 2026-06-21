@@ -125,6 +125,10 @@
                 isCalculatorOpen: false,
                 isProjectModalOpen: false,
                 isGalleryModalOpen: false,
+                isMapSheetOpen: false,
+                translationStatus: {},
+                manualTranslationOverrides: {},
+                translationTimers: {},
                 activeSlide: 0,
                 filterCategory: 'all',
                 activeGalleryIndex: 0,
@@ -342,6 +346,21 @@
                 openCalculator() {
                     this.isCalculatorOpen = true;
                 },
+
+                get addressText() { return 'Baksol küçəsi, Bakı, Azərbaycan'; },
+                get encodedAddress() { return encodeURIComponent(this.addressText); },
+                get googleMapsUrl() { return `https://www.google.com/maps/search/?api=1&query=${this.encodedAddress}`; },
+                get yandexMapsUrl() { return `https://yandex.com/maps/?text=${this.encodedAddress}`; },
+                get wazeUrl() { return `https://waze.com/ul?q=${this.encodedAddress}&navigate=yes`; },
+                get yangoUrl() { return `https://yango.com/en_az/search/?text=${this.encodedAddress}`; },
+                get boltUrl() { return `https://bolt.eu/en-az/?q=${this.encodedAddress}`; },
+
+                isMobileViewport() { return window.matchMedia('(max-width: 767px)').matches; },
+                openMapChoice() {
+                    if (this.isMobileViewport()) this.isMapSheetOpen = true;
+                    else window.open(this.googleMapsUrl, '_blank', 'noopener');
+                },
+                openExternalMap(url) { window.open(url, '_blank', 'noopener'); this.isMapSheetOpen = false; },
 
                 calculatePrice() {
                     let baseM2Price = this.calc.type === 'house' ? 450 : 550;
@@ -777,24 +796,59 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                 translateAzText(text) {
                     const dictionary = {
                         'salam': { ru: 'здравствуйте', en: 'hello' },
+                        'salam dostum necesen': { ru: 'привет, друг, как дела?', en: 'hello my friend, how are you?' },
                         'taxta ev': { ru: 'деревянный дом', en: 'wooden house' },
                         'yay villası': { ru: 'летняя вилла', en: 'summer villa' },
                         '2 ay': { ru: '2 месяца', en: '2 months' },
                         '2.5 ay': { ru: '2.5 месяца', en: '2.5 months' },
-                        '3 ay': { ru: '3 месяца', en: '3 months' }
+                        '3 ay': { ru: '3 месяца', en: '3 months' },
+                        'premium taxta ev': { ru: 'премиальный деревянный дом', en: 'premium wooden house' }
                     };
                     return dictionary[(text || '').trim().toLowerCase()] || { ru: '', en: '' };
                 },
 
+                async translateText(text, targetLang) {
+                    const clean = (text || '').trim();
+                    if (!clean) return '';
+                    const local = this.translateAzText(clean);
+                    if (local[targetLang]) return local[targetLang];
+                    if (!navigator.onLine) return '';
+                    try {
+                        const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(clean)}&langpair=az|${targetLang}`;
+                        const res = await fetch(url);
+                        if (!res.ok) return '';
+                        const data = await res.json();
+                        const translated = data?.responseData?.translatedText || '';
+                        if (!translated || translated.trim().toLowerCase() === clean.toLowerCase()) return '';
+                        return translated;
+                    } catch (e) { return ''; }
+                },
+
+                markManualTranslation(path) { this.manualTranslationOverrides[path] = true; },
+                translationStatusText(key) { return this.translationStatus[key] ? (this.lang === 'ru' ? 'Переводится...' : (this.lang === 'en' ? 'Translating...' : 'Tərcümə olunur...')) : ''; },
+                getPath(path) { return path.split('.').reduce((o, k) => o && o[k], this); },
+                setPath(path, value) { const parts = path.split('.'); const last = parts.pop(); const obj = parts.reduce((o, k) => o[k], this); obj[last] = value; },
+                queueAutoTranslate(sourcePath, ruPath, enPath, statusKey) {
+                    clearTimeout(this.translationTimers[statusKey]);
+                    this.translationTimers[statusKey] = setTimeout(async () => {
+                        const text = this.getPath(sourcePath);
+                        this.translationStatus[statusKey] = true;
+                        const [ru, en] = await Promise.all([this.translateText(text, 'ru'), this.translateText(text, 'en')]);
+                        if (!this.manualTranslationOverrides[ruPath]) this.setPath(ruPath, ru);
+                        if (!this.manualTranslationOverrides[enPath]) this.setPath(enPath, en);
+                        this.translationStatus[statusKey] = false;
+                    }, 700);
+                },
+
                 autocompleteFields(field = 'all') {
-                    const apply = (azKey, ruKey, enKey) => {
-                        const tr = this.translateAzText(this.newProj[azKey]);
-                        this.newProj[ruKey] = tr.ru;
-                        this.newProj[enKey] = tr.en;
-                    };
-                    if (field === 'title' || field === 'all') apply('titleAz', 'titleRu', 'titleEn');
-                    if (field === 'desc' || field === 'all') apply('descAz', 'descRu', 'descEn');
-                    if (field === 'buildTime' || field === 'all') apply('buildTimeAz', 'buildTimeRu', 'buildTimeEn');
+                    if (field === 'title' || field === 'all') this.queueAutoTranslate('newProj.titleAz', 'newProj.titleRu', 'newProj.titleEn', 'newProjTitle');
+                    if (field === 'desc' || field === 'all') this.queueAutoTranslate('newProj.descAz', 'newProj.descRu', 'newProj.descEn', 'newProjDesc');
+                    if (field === 'buildTime' || field === 'all') this.queueAutoTranslate('newProj.buildTimeAz', 'newProj.buildTimeRu', 'newProj.buildTimeEn', 'newProjBuildTime');
+                },
+                autocompleteGalleryTitle() { this.queueAutoTranslate('newGallery.title', 'newGallery.titleRu', 'newGallery.titleEn', 'newGalleryTitle'); },
+                autocompleteHeroField(field) {
+                    const map = { tag: ['newHero.tag','newHero.tagRu','newHero.tagEn','heroTag'], title1: ['newHero.title1','newHero.title1Ru','newHero.title1En','heroTitle1'], title2: ['newHero.title2','newHero.title2Ru','newHero.title2En','heroTitle2'], desc: ['newHero.desc','newHero.descRu','newHero.descEn','heroDesc'] };
+                    this.queueAutoTranslate(...map[field]);
                 },
 
                 // Returns completely dynamic states derived from runtime object structures
@@ -863,7 +917,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
         }
     </style>
 </head>
-<body class="bg-stone-50 text-stone-800 antialiased font-sans" x-data="siteState()" x-init="initAdObservers()">
+<body class="bg-stone-50 text-stone-800 antialiased font-sans min-h-screen flex flex-col" x-data="siteState()" x-init="initAdObservers()">
 
     <div x-show="isLoading" x-cloak class="fixed inset-0 bg-stone-950/70 backdrop-blur-md z-[9999] flex flex-col items-center justify-center space-y-4" x-transition>
         <div class="w-16 h-16 border-4 border-wood-500 border-t-transparent rounded-full animate-spin"></div>
@@ -980,10 +1034,10 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
     </header>
 
     <!-- MASTER CONTENT WRAPPER -->
-    <div class="flex max-w-full overflow-visible min-h-screen">
+    <div class="flex max-w-full flex-1 items-stretch">
         
         <!-- LEFT STICKY AD BANNER (Permanently visible under top-header. Clean styling with no scrolls) -->
-        <div x-show="banners.left.active" x-cloak class="hidden xl:flex flex-col items-center justify-start py-6 px-3 bg-stone-100 border-r border-stone-200 sticky top-20 h-[calc(100vh-5rem)] overflow-hidden shrink-0 z-30" :style="`width: ${banners.left.width ? banners.left.width + 24 : 184}px;`" data-ad-side="left">
+        <div x-show="banners.left.active" x-cloak class="hidden xl:flex flex-col items-center justify-start py-6 px-3 bg-stone-100 border-r border-stone-200 sticky shrink-0 z-30 self-start overflow-visible" :style="`width: ${banners.left.width ? banners.left.width + 24 : 184}px;`"  :class="page === 'home' ? 'top-[100vh]' : 'top-20'" data-ad-side="left">
             <div class="relative bg-white shadow-md rounded-2xl overflow-hidden border border-stone-200" :style="`width: ${banners.left.width}px; height: ${banners.left.height}px;`">
                 <a :href="banners.left.link" target="_blank" rel="noopener" class="block w-full h-full relative group" @click="incrementAdClick('left')">
                     <template x-if="banners.left.type === 'image'">
@@ -1002,13 +1056,13 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
         </div>
 
         <!-- MAIN SITE VIEWPORT -->
-        <div class="flex-1 min-w-0 bg-stone-50">
+        <div class="flex-1 min-w-0 bg-stone-50 flex flex-col min-h-[calc(100vh-5rem)]">
 
             <!-- 1. HOME VIEW -->
-            <div x-show="page === 'home'" x-cloak class="space-y-20 pb-20">
+            <main class="flex-1"><div x-show="page === 'home'" x-cloak class="space-y-14 pb-12">
                 
                 <!-- HERO SLIDER SECTION -->
-                <section class="relative h-[80vh] md:h-[85vh] bg-stone-900 overflow-hidden flex items-center">
+                <section class="relative min-h-[calc(100vh-5rem)] bg-stone-900 overflow-hidden flex items-center">
                     <div class="absolute inset-0 z-0">
                         <template x-for="(slide, index) in slides" :key="index">
                             <div x-show="activeSlide === index" x-transition:enter="transition ease-out duration-1000" class="absolute inset-0">
@@ -1218,32 +1272,31 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                         </div>
                     </div>
                 </section>
+                <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 bg-white rounded-[2rem] border border-stone-200/70 shadow-sm p-4 sm:p-6">
+                        <div class="rounded-[1.5rem] overflow-hidden min-h-[320px] border border-stone-200"><iframe class="w-full h-full min-h-[320px]" loading="lazy" :src="`https://www.google.com/maps?q=${encodedAddress}&output=embed`"></iframe></div>
+                        <div class="p-4 sm:p-6 flex flex-col justify-center space-y-5">
+                            <span class="text-wood-600 font-bold uppercase tracking-widest text-xs">Location</span><h2 class="text-3xl font-black text-forest-950">Bizə necə gəlmək olar?</h2>
+                            <p class="text-stone-500">Ofisimizə rahat marşrut qurmaq üçün xəritə tətbiqinizi seçin.</p>
+                            <p class="font-bold text-stone-800"><i class="fa-solid fa-location-dot text-wood-600 mr-2"></i>Baksol küçəsi, Bakı, Azərbaycan</p>
+                            <button @click="openMapChoice()" class="bg-forest-700 hover:bg-forest-800 text-white rounded-xl px-5 py-3 font-bold shadow">Xəritədə aç</button>
+                            <div class="flex flex-wrap gap-2"><button @click="openExternalMap(googleMapsUrl)" class="px-3 py-2 rounded-lg bg-stone-100 font-bold text-xs">Google</button><button @click="openExternalMap(yandexMapsUrl)" class="px-3 py-2 rounded-lg bg-stone-100 font-bold text-xs">Yandex</button><button @click="openExternalMap(wazeUrl)" class="px-3 py-2 rounded-lg bg-stone-100 font-bold text-xs">Waze</button></div>
+                        </div>
+                    </div>
+                </section>
             </div>
 
             <!-- 5. CONTACT & LEAD CAPTURE PAGE -->
-            <div x-show="page === 'contact'" x-cloak class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-12">
-                <div class="text-center max-w-3xl mx-auto space-y-4">
-                    <span class="text-wood-600 font-bold uppercase tracking-widest text-sm block" x-text="t('navContact')">Əlaqə</span>
-                    <h1 class="text-3xl sm:text-5xl font-black text-forest-950" x-text="t('contactHeader')">Bizimlə Əlaqə Saxlayın</h1>
-                </div>
-
-                <div class="grid grid-cols-1 lg:grid-cols-12 gap-12">
-                    <div class="lg:col-span-5 bg-white p-6 sm:p-8 rounded-3xl border border-stone-200/60 shadow-sm space-y-6">
-                        <h3 class="text-xl font-bold text-stone-900" x-text="t('contactInfoTitle')">Əlaqə Məlumatları</h3>
-                        <p class="text-stone-500 text-xs sm:text-sm" x-text="t('addressDetail')">Baksol küçəsi, Bakı, Azərbaycan</p>
+            <div x-show="page === 'contact'" x-cloak class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-8">
+                <div class="text-center max-w-3xl mx-auto space-y-4"><span class="text-wood-600 font-bold uppercase tracking-widest text-sm block" x-text="t('navContact')">Əlaqə</span><h1 class="text-3xl sm:text-5xl font-black text-forest-950" x-text="t('contactHeader')">Bizimlə Əlaqə Saxlayın</h1><p class="text-stone-500" x-text="t('contactIntro')"></p></div>
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                    <div class="lg:col-span-5 space-y-4">
+                        <template x-for="card in [{i:'fa-phone',t:'Telefon',v:'(994 55) 322 11 09'},{i:'fa-envelope',t:'Email',v:'office@balticcaspian.com'},{i:'fa-location-dot',t:'Ünvan',v:'Baksol küçəsi, Bakı, Azərbaycan'},{i:'fa-clock',t:'İş saatı',v:t('workHours')}]"><div class="bg-white p-5 rounded-2xl border border-stone-200/70 shadow-sm flex gap-4"><div class="w-12 h-12 rounded-xl bg-forest-50 text-forest-700 flex items-center justify-center"><i class="fa-solid" :class="card.i"></i></div><div><p class="text-xs uppercase tracking-widest text-stone-400 font-bold" x-text="card.t"></p><p class="font-bold text-stone-800" x-text="card.v"></p></div></div></template>
+                        <a :href="`https://wa.me/994553221109?text=${encodeURIComponent('Salam, Baltic Caspian ilə əlaqə saxlamaq istəyirəm.')}`" target="_blank" class="flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white rounded-2xl py-4 font-black shadow"><i class="fa-brands fa-whatsapp text-xl"></i> WhatsApp quick contact</a>
                     </div>
-
-                    <div class="lg:col-span-7 bg-white p-6 sm:p-10 rounded-[2rem] border border-stone-200/60 shadow-sm">
-                        <form @submit.prevent="submitContactForm()" class="space-y-5">
-                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                                <input type="text" x-model="contactForm.name" required class="w-full px-4 py-3 bg-stone-50 rounded-xl border border-stone-200 focus:outline-none focus:border-forest-500 text-sm" :placeholder="t('formName')">
-                                <input type="tel" x-model="contactForm.phone" required class="w-full px-4 py-3 bg-stone-50 rounded-xl border border-stone-200 focus:outline-none focus:border-forest-500 text-sm" :placeholder="t('formPhone')">
-                            </div>
-                            <textarea x-model="contactForm.message" required rows="4" class="w-full px-4 py-3 bg-stone-50 rounded-xl border border-stone-200 focus:outline-none focus:border-forest-500 text-sm" :placeholder="t('formMessage')"></textarea>
-                            <button type="submit" class="w-full py-4 bg-forest-700 hover:bg-forest-800 text-white font-bold rounded-xl transition duration-300 shadow-md" x-text="t('formSend')">Gönder</button>
-                        </form>
-                    </div>
+                    <div class="lg:col-span-7 bg-white p-6 sm:p-10 rounded-[2rem] border border-stone-200/70 shadow-sm"><form @submit.prevent="submitContactForm()" class="space-y-5"><div class="grid grid-cols-1 sm:grid-cols-2 gap-5"><input type="text" x-model="contactForm.name" required class="w-full px-5 py-4 bg-stone-50 rounded-2xl border border-stone-200 focus:outline-none focus:ring-4 focus:ring-forest-100 focus:border-forest-600 text-sm" :placeholder="t('formName')"><input type="tel" x-model="contactForm.phone" required class="w-full px-5 py-4 bg-stone-50 rounded-2xl border border-stone-200 focus:outline-none focus:ring-4 focus:ring-forest-100 focus:border-forest-600 text-sm" :placeholder="t('formPhone')"></div><input type="email" x-model="contactForm.email" class="w-full px-5 py-4 bg-stone-50 rounded-2xl border border-stone-200 focus:outline-none focus:ring-4 focus:ring-forest-100 focus:border-forest-600 text-sm" placeholder="Email"><textarea x-model="contactForm.message" required rows="5" class="w-full px-5 py-4 bg-stone-50 rounded-2xl border border-stone-200 focus:outline-none focus:ring-4 focus:ring-forest-100 focus:border-forest-600 text-sm" :placeholder="t('formMessage')"></textarea><button type="submit" class="w-full py-4 bg-forest-700 hover:bg-forest-800 text-white font-bold rounded-2xl transition shadow-md" x-text="t('formSend')">Gönder</button></form></div>
                 </div>
+                <div class="bg-white rounded-3xl border border-stone-200 p-4 shadow-sm flex flex-col md:flex-row gap-4 items-center"><div class="w-full md:w-1/2 h-56 rounded-2xl overflow-hidden"><iframe class="w-full h-full" loading="lazy" :src="`https://www.google.com/maps?q=${encodedAddress}&output=embed`"></iframe></div><div class="flex-1"><h3 class="text-xl font-black text-forest-950">Mini location card</h3><p class="text-stone-500 mt-2">Baksol küçəsi, Bakı, Azərbaycan</p><button @click="openMapChoice()" class="mt-4 px-5 py-3 bg-wood-600 text-white rounded-xl font-bold">Xəritədə aç</button></div></div>
             </div>
 
             <!-- 6. ADMIN LOGIN PAGE -->
@@ -1370,11 +1423,11 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                         <div class="grid grid-cols-2 gap-3">
                             <div>
                                 <label x-text="lang==='az'?'Başlıq (RU)':(lang==='ru'?'Название (РУ)':'Title (RU)')">Başlıq (RU)</label>
-                                <input type="text" x-model="newProj.titleRu" class="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg text-stone-800 mt-1 font-medium tracking-normal">
+                                <input type="text" x-model="newProj.titleRu" @input="markManualTranslation('newProj.titleRu')" class="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg text-stone-800 mt-1 font-medium tracking-normal">
                             </div>
                             <div>
                                 <label x-text="lang==='az'?'Başlıq (EN)':(lang==='ru'?'Название (АНГ)':'Title (EN)')">Başlıq (EN)</label>
-                                <input type="text" x-model="newProj.titleEn" class="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg text-stone-800 mt-1 font-medium tracking-normal">
+                                <input type="text" x-model="newProj.titleEn" @input="markManualTranslation('newProj.titleEn')" class="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg text-stone-800 mt-1 font-medium tracking-normal">
                             </div>
                         </div>
 
@@ -1402,11 +1455,11 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                         <div class="grid grid-cols-2 gap-3">
                             <div>
                                 <label x-text="lang==='az'?'Təsvir (RU)':(lang==='ru'?'Описание (РУ)':'Description (RU)')">Təsvir (RU)</label>
-                                <textarea x-model="newProj.descRu" class="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg text-stone-800 mt-1 font-medium tracking-normal"></textarea>
+                                <textarea x-model="newProj.descRu" @input="markManualTranslation('newProj.descRu')" class="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg text-stone-800 mt-1 font-medium tracking-normal"></textarea>
                             </div>
                             <div>
                                 <label x-text="lang==='az'?'Təsvir (EN)':(lang==='ru'?'Описание (АНГ)':'Description (EN)')">Təsvir (EN)</label>
-                                <textarea x-model="newProj.descEn" class="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg text-stone-800 mt-1 font-medium tracking-normal"></textarea>
+                                <textarea x-model="newProj.descEn" @input="markManualTranslation('newProj.descEn')" class="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg text-stone-800 mt-1 font-medium tracking-normal"></textarea>
                             </div>
                         </div>
 
@@ -1428,11 +1481,11 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                             </div>
                             <div>
                                 <label x-text="lang==='az'?'Tikinti müddəti (RU)':(lang==='ru'?'Срок (РУ)':'Build time (RU)')">Tikinti müddəti (RU)</label>
-                                <input type="text" x-model="newProj.buildTimeRu" class="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg text-stone-800 mt-1 font-medium tracking-normal">
+                                <input type="text" x-model="newProj.buildTimeRu" @input="markManualTranslation('newProj.buildTimeRu')" class="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg text-stone-800 mt-1 font-medium tracking-normal">
                             </div>
                             <div>
                                 <label x-text="lang==='az'?'Tikinti müddəti (EN)':(lang==='ru'?'Срок (EN)':'Build time (EN)')">Tikinti müddəti (EN)</label>
-                                <input type="text" x-model="newProj.buildTimeEn" class="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg text-stone-800 mt-1 font-medium tracking-normal">
+                                <input type="text" x-model="newProj.buildTimeEn" @input="markManualTranslation('newProj.buildTimeEn')" class="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg text-stone-800 mt-1 font-medium tracking-normal">
                             </div>
                         </div>
 
@@ -1515,7 +1568,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
 
                         <div>
                             <label x-text="lang==='az'?'Başlıq (AZ)':'Название (АЗ)'">Başlıq (AZ)</label>
-                            <input type="text" x-model="newGallery.title" class="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg text-stone-800 tracking-normal mt-1 font-medium">
+                            <input type="text" x-model="newGallery.title" @input="autocompleteGalleryTitle()" class="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg text-stone-800 tracking-normal mt-1 font-medium"><p class="text-[10px] text-wood-600 mt-1 normal-case" x-text="translationStatusText('newGalleryTitle')"></p><div class="grid grid-cols-2 gap-2 mt-2"><input type="text" x-model="newGallery.titleRu" @input="markManualTranslation('newGallery.titleRu')" class="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg text-stone-800 tracking-normal font-medium" placeholder="RU"><input type="text" x-model="newGallery.titleEn" @input="markManualTranslation('newGallery.titleEn')" class="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg text-stone-800 tracking-normal font-medium" placeholder="EN"></div>
                         </div>
 
                         <button @click="saveGalleryItem()" class="w-full py-3 bg-forest-700 text-white rounded-xl font-bold uppercase tracking-wider text-xs" x-text="lang==='az'?'Qalereyaya Yadda Saxla':'Сохранить в галерею'">Yadda Saxla</button>
@@ -1551,59 +1604,23 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
 
                 <!-- SUB-TAB 5: HERO SLIDE MULTIPAGE CUSTOMIZER -->
                 <div x-show="adminTab === 'hero'" x-transition class="bg-white p-6 rounded-3xl border border-stone-200/80 shadow-sm space-y-6 text-xs font-bold uppercase text-stone-500">
-                    <h3 class="text-lg font-black text-stone-900 tracking-normal mb-4" x-text="lang==='az'?'Ana Səhifə Hero Slaydların İdarə Olunması':'Управление слайдами главной'">Slaydlar</h3>
-                    
-                    <!-- Clean grid layout containing all 3 existing hero slides cleanly side-by-side -->
-                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 border-b border-stone-100 pb-6">
-                        <template x-for="(sld, sIdx) in slides" :key="sIdx">
-                            <div class="p-4 bg-stone-50 rounded-2xl border border-stone-200 hover:bg-stone-100 cursor-pointer flex flex-col justify-between space-y-3" :class="newHero.activeIndex === sIdx ? 'border-wood-600 bg-wood-50/50' : ''" @click="setupEditHero(sIdx)">
-                                <div class="flex justify-between items-center">
-                                    <span class="font-black text-forest-900" x-text="`${sIdx + 1}-ci Slayd`"></span>
-                                    <span class="text-[9px] bg-wood-100 text-wood-700 px-1.5 py-0.5 rounded uppercase" x-text="sld.tag ? sld.tag.substring(0,15)+'...' : ''"></span>
+                    <h3 class="text-lg font-black text-stone-900 tracking-normal" x-text="lang==='az'?'Ana Səhifə Hero Slaydların İdarə Olunması':'Управление слайдами главной'">Slaydlar</h3>
+                    <div class="grid grid-cols-1 lg:grid-cols-[55fr_45fr] gap-6 items-start">
+                        <div class="order-2 lg:order-1 space-y-5">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div class="space-y-4"><div><label x-text="lang==='az'?'Fon Şəkili':'Фоновое изображение'"></label><input type="file" accept="image/*" @change="handleFileSelect($event, 'heroPreviewImg')" class="w-full text-stone-600 font-medium text-xs mt-1"></div><template x-if="heroPreviewImg"><div class="relative w-full h-44 rounded-2xl overflow-hidden shadow"><img :src="heroPreviewImg" class="w-full h-full object-cover"><button @click="removeSelectedFile('heroPreviewImg')" class="absolute top-2 right-2 w-7 h-7 bg-black/60 text-white rounded-full flex items-center justify-center text-xs"><i class="fa-solid fa-x"></i></button></div></template></div>
+                                <div class="space-y-4">
+                                    <div><label>Teh/Tagline (AZ)</label><input type="text" x-model="newHero.tag" @input="autocompleteHeroField('tag')" class="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg text-stone-800 tracking-normal mt-1 font-medium"><p class="text-[10px] text-wood-600 mt-1 normal-case" x-text="translationStatusText('heroTag')"></p><div class="grid grid-cols-2 gap-2 mt-2"><input x-model="newHero.tagRu" @input="markManualTranslation('newHero.tagRu')" placeholder="RU" class="px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg text-stone-800 tracking-normal"><input x-model="newHero.tagEn" @input="markManualTranslation('newHero.tagEn')" placeholder="EN" class="px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg text-stone-800 tracking-normal"></div></div>
+                                    <div><label>Başlıq Sətir 1 (AZ)</label><input type="text" x-model="newHero.title1" @input="autocompleteHeroField('title1')" class="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg text-stone-800 tracking-normal mt-1 font-medium"><p class="text-[10px] text-wood-600 mt-1 normal-case" x-text="translationStatusText('heroTitle1')"></p><div class="grid grid-cols-2 gap-2 mt-2"><input x-model="newHero.title1Ru" @input="markManualTranslation('newHero.title1Ru')" placeholder="RU" class="px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg text-stone-800 tracking-normal"><input x-model="newHero.title1En" @input="markManualTranslation('newHero.title1En')" placeholder="EN" class="px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg text-stone-800 tracking-normal"></div></div>
+                                    <div><label>Başlıq Sətir 2 (AZ)</label><input type="text" x-model="newHero.title2" @input="autocompleteHeroField('title2')" class="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg text-stone-800 tracking-normal mt-1 font-medium"><p class="text-[10px] text-wood-600 mt-1 normal-case" x-text="translationStatusText('heroTitle2')"></p><div class="grid grid-cols-2 gap-2 mt-2"><input x-model="newHero.title2Ru" @input="markManualTranslation('newHero.title2Ru')" placeholder="RU" class="px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg text-stone-800 tracking-normal"><input x-model="newHero.title2En" @input="markManualTranslation('newHero.title2En')" placeholder="EN" class="px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg text-stone-800 tracking-normal"></div></div>
+                                    <div><label>Açıqlama Mətni (AZ)</label><textarea x-model="newHero.desc" @input="autocompleteHeroField('desc')" class="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg text-stone-800 tracking-normal mt-1 font-medium"></textarea><p class="text-[10px] text-wood-600 mt-1 normal-case" x-text="translationStatusText('heroDesc')"></p><div class="grid grid-cols-2 gap-2 mt-2"><textarea x-model="newHero.descRu" @input="markManualTranslation('newHero.descRu')" placeholder="RU" class="px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg text-stone-800 tracking-normal"></textarea><textarea x-model="newHero.descEn" @input="markManualTranslation('newHero.descEn')" placeholder="EN" class="px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg text-stone-800 tracking-normal"></textarea></div></div>
                                 </div>
-                                <img :src="sld.image" class="w-full h-24 object-cover rounded-lg shadow">
-                                <button class="w-full py-1.5 bg-forest-700 text-white rounded text-[10px] font-bold" x-text="lang==='az'?'Redaktə et':'Редактировать'">Redaktəyə Yüklə</button>
                             </div>
-                        </template>
-                    </div>
-
-                    <!-- Selected slide editing form fields -->
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div class="space-y-4">
-                            <div>
-                                <label x-text="lang==='az'?'Fon Şəkili':'Фоновое изображение'">Slayd Fon Şəkili</label>
-                                <input type="file" accept="image/*" @change="handleFileSelect($event, 'heroPreviewImg')" class="w-full text-stone-600 font-medium text-xs mt-1">
-                            </div>
-                            <template x-if="heroPreviewImg">
-                                <div class="relative w-full h-44 rounded-2xl overflow-hidden shadow">
-                                    <img :src="heroPreviewImg" class="w-full h-full object-cover">
-                                    <button @click="removeSelectedFile('heroPreviewImg')" class="absolute top-2 right-2 w-7 h-7 bg-black/60 text-white rounded-full flex items-center justify-center text-xs"><i class="fa-solid fa-x"></i></button>
-                                </div>
-                            </template>
+                            <div class="flex justify-end border-t border-stone-100 pt-6"><button @click="saveHero()" class="px-6 py-3 bg-forest-700 text-white font-bold rounded-xl shadow hover:bg-forest-800" x-text="lang==='az'?'Slaydı Güncəllə':'Обновить слайд'"></button></div>
                         </div>
-
-                        <div class="space-y-4">
-                            <div>
-                                <label>Teh/Tagline (AZ)</label>
-                                <input type="text" x-model="newHero.tag" class="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg text-stone-800 tracking-normal mt-1 font-medium">
-                            </div>
-                            <div>
-                                <label>Başlıq Sətir 1 (AZ)</label>
-                                <input type="text" x-model="newHero.title1" class="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg text-stone-800 tracking-normal mt-1 font-medium">
-                            </div>
-                            <div>
-                                <label>Başlıq Sətir 2 (AZ)</label>
-                                <input type="text" x-model="newHero.title2" class="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg text-stone-800 tracking-normal mt-1 font-medium">
-                            </div>
-                            <div>
-                                <label>Açıqlama Mətni (AZ)</label>
-                                <textarea x-model="newHero.desc" class="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg text-stone-800 tracking-normal mt-1 font-medium"></textarea>
-                            </div>
+                        <div class="order-1 lg:order-2 grid grid-cols-1 gap-4 lg:max-h-[680px] lg:overflow-y-auto pr-1">
+                            <template x-for="(sld, sIdx) in slides" :key="sIdx"><div class="p-4 bg-stone-50 rounded-2xl border border-stone-200 hover:bg-stone-100 cursor-pointer flex flex-col justify-between space-y-3" :class="newHero.activeIndex === sIdx ? '!border-wood-600 !bg-wood-50/70 ring-2 ring-wood-200' : ''" @click="setupEditHero(sIdx)"><div class="flex justify-between items-center"><span class="font-black text-forest-900" x-text="`${sIdx + 1}-ci Slayd`"></span><span class="text-[9px] bg-wood-100 text-wood-700 px-1.5 py-0.5 rounded uppercase" x-text="sld.tag ? sld.tag.substring(0,15)+'...' : ''"></span></div><img :src="sld.image" class="w-full h-28 object-cover rounded-lg shadow"><button class="w-full py-1.5 bg-forest-700 text-white rounded text-[10px] font-bold" x-text="lang==='az'?'Redaktə et':'Редактировать'"></button></div></template>
                         </div>
-                    </div>
-                    
-                    <div class="flex justify-end border-t border-stone-100 pt-6">
-                        <button @click="saveHero()" class="px-6 py-3 bg-forest-700 text-white font-bold rounded-xl shadow hover:bg-forest-800" x-text="lang==='az'?'Slaydı Güncəllə':'Обновить слайд'">Slaydı Güncəllə</button>
                     </div>
                 </div>
 
@@ -1736,7 +1753,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
             </div>
 
             <!-- FOOTER -->
-            <footer class="bg-stone-950 text-stone-200 pt-12 pb-8 border-t border-forest-900 mt-10">
+            </main><footer class="bg-stone-950 text-stone-200 pt-10 pb-7 border-t border-forest-900 mt-auto">
                 <div class="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-10">
                     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-10 mb-4">
                         <div class="space-y-6">
@@ -1778,7 +1795,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
         </div>
 
         <!-- RIGHT STICKY AD BANNER (Clean fixed styling right below sticky top menu) -->
-        <div x-show="banners.right.active" x-cloak class="hidden xl:flex flex-col items-center justify-start py-6 px-3 bg-stone-100 border-l border-stone-200 sticky top-20 h-[calc(100vh-5rem)] overflow-hidden shrink-0 z-30" :style="`width: ${banners.right.width ? banners.right.width + 24 : 184}px;`" data-ad-side="right">
+        <div x-show="banners.right.active" x-cloak class="hidden xl:flex flex-col items-center justify-start py-6 px-3 bg-stone-100 border-l border-stone-200 sticky shrink-0 z-30 self-start overflow-visible" :style="`width: ${banners.right.width ? banners.right.width + 24 : 184}px;`"  :class="page === 'home' ? 'top-[100vh]' : 'top-20'" data-ad-side="right">
             <div class="relative bg-white shadow-md rounded-2xl overflow-hidden border border-stone-200" :style="`width: ${banners.right.width}px; height: ${banners.right.height}px;`">
                 <a :href="banners.right.link" target="_blank" rel="noopener" class="block w-full h-full relative group" @click="incrementAdClick('right')">
                     <template x-if="banners.right.type === 'image'">
@@ -1798,6 +1815,19 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
 
     </div>
 
+
+    <!-- MOBILE MAP APP CHOICE SHEET -->
+    <div x-show="isMapSheetOpen" x-cloak class="fixed inset-0 z-50 flex items-end md:hidden" x-transition>
+        <div class="absolute inset-0 bg-stone-950/70 backdrop-blur-sm" @click="isMapSheetOpen = false"></div>
+        <div class="relative w-full bg-white rounded-t-[2rem] p-6 shadow-2xl space-y-3">
+            <div class="w-12 h-1.5 bg-stone-200 rounded-full mx-auto mb-3"></div>
+            <h3 class="text-xl font-black text-forest-950">Marşrut tətbiqini seçin</h3>
+            <template x-for="app in [{n:'Google Maps',u:googleMapsUrl,i:'fa-map-location-dot'},{n:'Yandex Maps',u:yandexMapsUrl,i:'fa-location-arrow'},{n:'Waze',u:wazeUrl,i:'fa-waze'},{n:'Yango',u:yangoUrl,i:'fa-taxi'},{n:'Bolt',u:boltUrl,i:'fa-car'}]">
+                <button @click="openExternalMap(app.u)" class="w-full flex items-center gap-3 p-4 rounded-2xl bg-stone-50 border border-stone-200 font-bold text-stone-800"><i class="fa-solid w-6 text-forest-700" :class="app.i"></i><span x-text="app.n"></span></button>
+            </template>
+        </div>
+    </div>
+
     <!-- INTERACTIVE CALCULATION MODAL -->
     <div x-show="isCalculatorOpen" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4" x-transition>
         <div class="absolute inset-0 bg-stone-950/80 backdrop-blur-sm" @click="isCalculatorOpen = false"></div>
@@ -1809,20 +1839,17 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                 <button @click="isCalculatorOpen = false" class="w-10 h-10 rounded-full bg-forest-950/40 text-white hover:bg-forest-950/80 flex items-center justify-center"><i class="fa-solid fa-xmark"></i></button>
             </div>
 
-            <div class="p-6 sm:p-8 overflow-y-auto space-y-6 flex-1">
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <label class="space-y-2"><span class="text-xs font-bold uppercase text-stone-500" x-text="t('calcType')">Tikili növü</span><select x-model="calc.type" class="w-full px-4 py-3 rounded-xl border border-stone-200 bg-stone-50"><option value="house" x-text="t('woodenHouse')">Taxta Ev</option><option value="sauna">Hamam & Sauna</option></select></label>
-                    <label class="space-y-2"><span class="text-xs font-bold uppercase text-stone-500" x-text="t('calcStories')">Mərtəbə</span><select x-model.number="calc.stories" class="w-full px-4 py-3 rounded-xl border border-stone-200 bg-stone-50"><option :value="1">1</option><option :value="2">2</option><option :value="3">3</option></select></label>
-                    <label class="space-y-2 sm:col-span-2"><span class="text-xs font-bold uppercase text-stone-500" x-text="t('calcTimber')">Material</span><select x-model="calc.timber" class="w-full px-4 py-3 rounded-xl border border-stone-200 bg-stone-50"><option value="pine" x-text="t('siberianPine')">Sibir Şamı</option><option value="oak">Massiv Palıd / Solid Oak</option></select></label>
-                </div>
-                <input type="range" min="20" max="400" step="5" x-model.number="calc.area" class="w-full accent-wood-600 cursor-pointer">
-                <div class="flex justify-between items-center"><span x-text="t('calcArea')">Sahə</span><span class="font-extrabold text-forest-800" x-text="calc.area + ' m²'"></span></div>
+            <div class="p-6 sm:p-8 overflow-y-auto space-y-7 flex-1">
+                <div class="space-y-3"><span class="text-xs font-bold uppercase text-stone-500" x-text="t('calcType')"></span><div class="grid grid-cols-2 gap-3"><button @click="calc.type='house'" class="p-4 rounded-2xl border text-left transition" :class="calc.type==='house' ? 'bg-forest-700 text-white border-forest-700 shadow-lg' : 'bg-stone-50 border-stone-200 text-stone-700'"><i class="fa-solid fa-house-chimney block text-xl mb-2"></i><span class="font-black">Taxta Ev</span></button><button @click="calc.type='sauna'" class="p-4 rounded-2xl border text-left transition" :class="calc.type==='sauna' ? 'bg-forest-700 text-white border-forest-700 shadow-lg' : 'bg-stone-50 border-stone-200 text-stone-700'"><i class="fa-solid fa-hot-tub-person block text-xl mb-2"></i><span class="font-black">Hamam & Sauna</span></button></div></div>
+                <div class="space-y-3"><span class="text-xs font-bold uppercase text-stone-500" x-text="t('calcStories')"></span><div class="grid grid-cols-3 gap-3"><template x-for="n in [1,2,3]"><button @click="calc.stories=n" class="py-4 rounded-2xl border font-black text-lg transition" :class="calc.stories===n ? 'bg-wood-600 text-white border-wood-600 shadow' : 'bg-stone-50 border-stone-200 text-stone-700'" x-text="n"></button></template></div></div>
+                <div class="space-y-3"><span class="text-xs font-bold uppercase text-stone-500" x-text="t('calcTimber')"></span><div class="grid grid-cols-1 sm:grid-cols-2 gap-3"><button @click="calc.timber='pine'" class="p-4 rounded-2xl border text-left transition" :class="calc.timber==='pine' ? 'bg-forest-700 text-white border-forest-700 shadow-lg' : 'bg-stone-50 border-stone-200 text-stone-700'"><span class="font-black">Sibir Şamı</span><small class="block opacity-75">Premium softwood</small></button><button @click="calc.timber='oak'" class="p-4 rounded-2xl border text-left transition" :class="calc.timber==='oak' ? 'bg-forest-700 text-white border-forest-700 shadow-lg' : 'bg-stone-50 border-stone-200 text-stone-700'"><span class="font-black">Massiv Palıd</span><small class="block opacity-75">Solid oak</small></button></div></div>
+                <div class="bg-stone-50 rounded-3xl p-5 border border-stone-200"><input type="range" min="20" max="400" step="5" x-model.number="calc.area" class="w-full accent-wood-600 cursor-pointer"><div class="flex justify-between items-center mt-3"><span class="font-bold text-stone-500" x-text="t('calcArea')">Sahə</span><span class="font-extrabold text-forest-800 text-xl" x-text="calc.area + ' m²'"></span></div></div>
             </div>
 
-            <div class="p-6 sm:p-8 bg-stone-50 border-t border-stone-200 flex flex-col sm:flex-row justify-between items-center gap-4">
+            <div class="p-6 sm:p-8 bg-gradient-to-r from-forest-950 to-forest-800 text-white border-t border-forest-700 flex flex-col sm:flex-row justify-between items-center gap-4">
                 <div>
-                    <span class="block text-xs font-bold text-stone-400 uppercase tracking-wider" x-text="t('estPrice')">Təxmini Qiymət</span>
-                    <span class="block text-3xl font-black text-forest-900" x-text="calculatePrice() + ' AZN'"></span>
+                    <span class="block text-xs font-bold text-wood-200 uppercase tracking-wider" x-text="t('estPrice')">Təxmini Qiymət</span>
+                    <span class="block text-3xl font-black text-white" x-text="calculatePrice() + ' AZN'"></span>
                 </div>
                 <button @click="contactFromCalculator()" class="bg-wood-600 hover:bg-wood-700 text-white font-bold px-8 py-4 rounded-xl shadow-lg transition">Müraciət et</button>
             </div>
