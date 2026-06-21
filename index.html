@@ -166,7 +166,7 @@
                 newHero: { activeIndex: 0, tag: '', tagRu: '', tagEn: '', title1: '', title1Ru: '', title1En: '', title2: '', title2Ru: '', title2En: '', desc: '', descRu: '', descEn: '', image: '' },
                 
                 // Redesigned single unified Advertising form inputs
-                newAd: { target: 'both', active: true, type: 'image', src: '', link: '', title: '', width: 160, height: 400, duration: 15 },
+                newAd: { target: 'left', active: true, type: 'image', src: '', link: '', title: '', width: 160, height: 400, duration: 15 },
 
                 // Preview images in creation
                 projectPreviewImg: '',
@@ -179,6 +179,8 @@
                 toast: { show: false, title: '', msg: '' },
                 calc: { type: 'house', area: 120, stories: 2, timber: 'pine' },
                 viewedAdsThisSession: {},
+                showSideAds: false,
+                adEditSide: null,
                 selectedProject: {},
                 contactForm: { name: '', phone: '', email: '', message: '' },
 
@@ -484,6 +486,69 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                     localStorage.setItem('bc_banners', JSON.stringify(this.banners));
                 },
 
+                resetAdForm() {
+                    this.adEditSide = null;
+                    this.newAd = { target: 'left', active: true, type: 'image', src: '', link: '', title: '', width: 160, height: 400, duration: 15 };
+                    this.adPreviewImg = '';
+                },
+
+                getBannerList() {
+                    return ['left', 'right'].map(side => ({ side, ...(this.banners[side] || {}) }));
+                },
+
+                setupEditAd(side) {
+                    const ad = this.banners[side] || {};
+                    this.adEditSide = side;
+                    this.newAd = { target: side, active: !!ad.active, type: ad.type || 'image', src: ad.src || '', link: ad.link || '', title: ad.title || '', width: ad.width || 160, height: ad.height || 400, duration: ad.duration || 15 };
+                    this.adPreviewImg = ad.src || '';
+                },
+
+                deleteAd(side) {
+                    this.triggerAction(() => {
+                        this.banners[side] = { ...(this.banners[side] || {}), active: false, src: '', title: '', views: this.banners[side]?.views || 0, clicks: this.banners[side]?.clicks || 0 };
+                        this.saveAll();
+                        this.resetAdForm();
+                        this.showToast('Silindi', 'Reklam silindi.');
+                    });
+                },
+
+                toggleAdActive(side) {
+                    this.banners[side].active = !this.banners[side].active;
+                    this.saveAll();
+                },
+
+                normalizeWhatsAppPhone(phone) {
+                    const raw = String(phone || '').trim();
+                    if (!raw || raw.toUpperCase() === 'N/A') return '';
+                    let digits = raw.replace(/\D/g, '');
+                    if (digits.startsWith('994')) return digits;
+                    if (digits.startsWith('0')) return `994${digits.slice(1)}`;
+                    if (digits.length === 9) return `994${digits}`;
+                    return digits;
+                },
+
+                getMessageWhatsAppUrl(msg) {
+                    const phone = this.normalizeWhatsAppPhone(msg?.phone);
+                    if (!phone) return '#';
+                    const message = `Salam ${msg?.name || ''}, Baltic Caspian-dan yazırıq.\nMüraciətinizlə bağlı sizinlə əlaqə saxlayırıq.`;
+                    return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
+                },
+
+                updateSideAdVisibility() {
+                    const footer = document.querySelector('footer');
+                    const headerOffset = 104;
+                    const afterHero = this.page !== 'home' || window.scrollY > Math.max(120, window.innerHeight - headerOffset);
+                    const beforeFooter = !footer || footer.getBoundingClientRect().top > window.innerHeight - 24;
+                    this.showSideAds = window.innerWidth >= 1280 && afterHero && beforeFooter;
+                },
+
+                initLayoutObservers() {
+                    this.updateSideAdVisibility();
+                    window.addEventListener('scroll', () => this.updateSideAdVisibility(), { passive: true });
+                    window.addEventListener('resize', () => this.updateSideAdVisibility());
+                    this.$watch('page', () => this.$nextTick(() => this.updateSideAdVisibility()));
+                },
+
                 incrementAdView(side) {
                     const sessionKey = `bc_ad_viewed_${side}`;
                     if (!this.banners[side] || this.viewedAdsThisSession[side] || sessionStorage.getItem(sessionKey)) return;
@@ -732,16 +797,15 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                 // Saves new unified Advertising system configurations
                 saveAd() {
                     this.triggerAction(() => {
-                        const finalSrc = this.adPreviewImg || '';
-                        const sidesToApply = [];
-                        if (this.newAd.target === 'left' || this.newAd.target === 'both') sidesToApply.push('left');
-                        if (this.newAd.target === 'right' || this.newAd.target === 'both') sidesToApply.push('right');
+                        const finalSrc = this.adPreviewImg || this.newAd.src || '';
+                        const sidesToApply = this.adEditSide ? [this.adEditSide] : [this.newAd.target];
 
                         sidesToApply.forEach(side => {
                             this.banners[side] = {
+                                ...(this.banners[side] || {}),
                                 active: this.newAd.active,
                                 type: this.newAd.type,
-                                src: finalSrc || this.banners[side].src,
+                                src: finalSrc,
                                 link: this.newAd.link,
                                 title: this.newAd.title,
                                 width: parseInt(this.newAd.width) || 160,
@@ -752,7 +816,8 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                             };
                         });
                         this.saveAll();
-                        this.showToast('Yadda Saxlanıldı', 'Seçilmiş tərəf üçün reklam uğurla yerləşdirildi!');
+                        this.showToast('Yadda Saxlanıldı', this.adEditSide ? 'Reklam yeniləndi!' : 'Yeni reklam əlavə edildi!');
+                        this.resetAdForm();
                     });
                 },
 
@@ -917,7 +982,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
         }
     </style>
 </head>
-<body class="bg-stone-50 text-stone-800 antialiased font-sans min-h-screen flex flex-col" x-data="siteState()" x-init="initAdObservers()">
+<body class="bg-stone-50 text-stone-800 antialiased font-sans min-h-screen flex flex-col" x-data="siteState()" x-init="initAdObservers(); initLayoutObservers()">
 
     <div x-show="isLoading" x-cloak class="fixed inset-0 bg-stone-950/70 backdrop-blur-md z-[9999] flex flex-col items-center justify-center space-y-4" x-transition>
         <div class="w-16 h-16 border-4 border-wood-500 border-t-transparent rounded-full animate-spin"></div>
@@ -1037,7 +1102,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
     <div class="flex max-w-full flex-1 items-stretch">
         
         <!-- LEFT STICKY AD BANNER (Permanently visible under top-header. Clean styling with no scrolls) -->
-        <div x-show="banners.left.active" x-cloak class="hidden xl:flex flex-col items-center justify-start py-6 px-3 bg-stone-100 border-r border-stone-200 sticky shrink-0 z-30 self-start overflow-visible" :style="`width: ${banners.left.width ? banners.left.width + 24 : 184}px;`"  :class="page === 'home' ? 'top-[100vh]' : 'top-20'" data-ad-side="left">
+        <div x-show="showSideAds && banners.left.active && banners.left.src" x-cloak class="hidden xl:flex fixed left-0 top-28 flex-col items-center justify-start py-6 px-3 bg-stone-100/95 border-r border-stone-200 z-30 shadow-sm" :style="`width: ${banners.left.width ? banners.left.width + 24 : 184}px;`" data-ad-side="left">
             <div class="relative bg-white shadow-md rounded-2xl overflow-hidden border border-stone-200" :style="`width: ${banners.left.width}px; height: ${banners.left.height}px;`">
                 <a :href="banners.left.link" target="_blank" rel="noopener" class="block w-full h-full relative group" @click="incrementAdClick('left')">
                     <template x-if="banners.left.type === 'image'">
@@ -1056,13 +1121,13 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
         </div>
 
         <!-- MAIN SITE VIEWPORT -->
-        <div class="flex-1 min-w-0 bg-stone-50 flex flex-col min-h-[calc(100vh-5rem)]">
+        <div class="flex-1 min-w-0 bg-stone-50 flex flex-col min-h-[calc(100vh-5rem)] xl:px-[184px]">
 
             <!-- 1. HOME VIEW -->
             <main class="flex-1"><div x-show="page === 'home'" x-cloak class="space-y-14 pb-12">
                 
                 <!-- HERO SLIDER SECTION -->
-                <section class="relative min-h-[calc(100vh-5rem)] bg-stone-900 overflow-hidden flex items-center">
+                <section class="relative left-1/2 w-screen -translate-x-1/2 min-h-[calc(100vh-8rem)] bg-stone-900 overflow-hidden flex items-center">
                     <div class="absolute inset-0 z-0">
                         <template x-for="(slide, index) in slides" :key="index">
                             <div x-show="activeSlide === index" x-transition:enter="transition ease-out duration-1000" class="absolute inset-0">
@@ -1380,13 +1445,19 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                 <!-- SUB-TAB 2: MESSAGES -->
                 <div x-show="adminTab === 'messages'" x-transition class="bg-white p-6 sm:p-8 rounded-3xl border border-stone-200/80 shadow-sm space-y-4 text-sm">
                     <template x-for="msg in messages" :key="msg.id">
-                        <div class="p-4 rounded-2xl border border-stone-200 bg-stone-50 flex justify-between items-center">
-                            <div>
+                        <div class="p-4 rounded-2xl border border-stone-200 bg-stone-50 flex flex-col lg:flex-row justify-between gap-4">
+                            <div class="min-w-0">
                                 <h4 class="font-extrabold text-stone-900" x-text="msg.name">Ad</h4>
                                 <p class="text-xs text-stone-500 mt-1" x-text="msg.phone + ' | ' + msg.email"></p>
-                                <p class="text-xs text-stone-600 mt-2 font-semibold bg-stone-100 p-2.5 rounded-lg border" x-text="msg.message"></p>
+                                <p class="text-xs text-stone-600 mt-2 font-semibold bg-white p-2.5 rounded-lg border" x-text="msg.message"></p>
                             </div>
-                            <button @click="deleteMessage(msg.id)" class="bg-red-50 text-red-600 py-1.5 px-3 rounded-lg text-xs font-bold" x-text="lang==='az' ? 'Sil' : (lang==='ru' ? 'Удалить' : 'Delete')">Sil</button>
+                            <div class="flex flex-wrap lg:flex-col gap-2 shrink-0 lg:w-44">
+                                <a :href="getMessageWhatsAppUrl(msg)" target="_blank" rel="noopener" :class="normalizeWhatsAppPhone(msg.phone) ? 'bg-green-600 hover:bg-green-700 text-white' : 'bg-stone-200 text-stone-400 pointer-events-none'" class="inline-flex items-center justify-center gap-2 py-2 px-3 rounded-xl text-xs font-black shadow-sm">
+                                    <i class="fa-brands fa-whatsapp"></i>
+                                    <span>WhatsApp ilə əlaqə</span>
+                                </a>
+                                <button @click="deleteMessage(msg.id)" class="bg-red-50 text-red-600 py-2 px-3 rounded-xl text-xs font-bold" x-text="lang==='az' ? 'Sil' : (lang==='ru' ? 'Удалить' : 'Delete')">Sil</button>
+                            </div>
                         </div>
                     </template>
                 </div>
@@ -1605,7 +1676,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                 <!-- SUB-TAB 5: HERO SLIDE MULTIPAGE CUSTOMIZER -->
                 <div x-show="adminTab === 'hero'" x-transition class="bg-white p-6 rounded-3xl border border-stone-200/80 shadow-sm space-y-6 text-xs font-bold uppercase text-stone-500">
                     <h3 class="text-lg font-black text-stone-900 tracking-normal" x-text="lang==='az'?'Ana Səhifə Hero Slaydların İdarə Olunması':'Управление слайдами главной'">Slaydlar</h3>
-                    <div class="grid grid-cols-1 lg:grid-cols-[55fr_45fr] gap-6 items-start">
+                    <div class="grid grid-cols-1 lg:grid-cols-[60fr_40fr] gap-6 items-start">
                         <div class="order-2 lg:order-1 space-y-5">
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div class="space-y-4"><div><label x-text="lang==='az'?'Fon Şəkili':'Фоновое изображение'"></label><input type="file" accept="image/*" @change="handleFileSelect($event, 'heroPreviewImg')" class="w-full text-stone-600 font-medium text-xs mt-1"></div><template x-if="heroPreviewImg"><div class="relative w-full h-44 rounded-2xl overflow-hidden shadow"><img :src="heroPreviewImg" class="w-full h-full object-cover"><button @click="removeSelectedFile('heroPreviewImg')" class="absolute top-2 right-2 w-7 h-7 bg-black/60 text-white rounded-full flex items-center justify-center text-xs"><i class="fa-solid fa-x"></i></button></div></template></div>
@@ -1618,7 +1689,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                             </div>
                             <div class="flex justify-end border-t border-stone-100 pt-6"><button @click="saveHero()" class="px-6 py-3 bg-forest-700 text-white font-bold rounded-xl shadow hover:bg-forest-800" x-text="lang==='az'?'Slaydı Güncəllə':'Обновить слайд'"></button></div>
                         </div>
-                        <div class="order-1 lg:order-2 grid grid-cols-1 gap-4 lg:max-h-[680px] lg:overflow-y-auto pr-1">
+                        <div class="order-1 lg:order-2 grid grid-cols-1 gap-4 lg:max-h-[680px] lg:overflow-y-auto pr-1 bg-stone-50 border border-stone-200 rounded-3xl p-4">
                             <template x-for="(sld, sIdx) in slides" :key="sIdx"><div class="p-4 bg-stone-50 rounded-2xl border border-stone-200 hover:bg-stone-100 cursor-pointer flex flex-col justify-between space-y-3" :class="newHero.activeIndex === sIdx ? '!border-wood-600 !bg-wood-50/70 ring-2 ring-wood-200' : ''" @click="setupEditHero(sIdx)"><div class="flex justify-between items-center"><span class="font-black text-forest-900" x-text="`${sIdx + 1}-ci Slayd`"></span><span class="text-[9px] bg-wood-100 text-wood-700 px-1.5 py-0.5 rounded uppercase" x-text="sld.tag ? sld.tag.substring(0,15)+'...' : ''"></span></div><img :src="sld.image" class="w-full h-28 object-cover rounded-lg shadow"><button class="w-full py-1.5 bg-forest-700 text-white rounded text-[10px] font-bold" x-text="lang==='az'?'Redaktə et':'Редактировать'"></button></div></template>
                         </div>
                     </div>
@@ -1626,134 +1697,56 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
 
                 <!-- SUB-TAB 6: UNIFIED AD BANNERS CUSTOMIZER -->
                 <div x-show="adminTab === 'ads'" x-transition class="bg-white p-6 rounded-3xl border border-stone-200/80 shadow-sm space-y-6 text-xs font-bold uppercase text-stone-500">
-                    <h3 class="text-lg font-black text-stone-900 tracking-normal mb-4" x-text="lang==='az'?'Sağ-Sol Reklam ve Banner Sistemi':'Реклама и Баннеры'">Sağ-Sol Reklam ve Banner Sistemi</h3>
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <h3 class="text-lg font-black text-stone-900 tracking-normal" x-text="lang==='az'?'Reklam / Banner CRUD':'Реклама и Баннеры'">Reklam / Banner CRUD</h3>
+                        <button @click="resetAdForm()" class="px-4 py-2 bg-wood-600 hover:bg-wood-700 text-white rounded-xl font-black normal-case"><i class="fa-solid fa-plus mr-2"></i>Yeni reklam</button>
+                    </div>
 
-                    <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
-                        
-                        <!-- Consolidated form inputs for advertisement configuration -->
-                        <div class="lg:col-span-5 space-y-4">
-                            <h4 class="font-extrabold text-stone-800 tracking-normal" x-text="lang==='az'?'Banner Reklam Formu':'Параметры баннера'">Banner Reklam Formu</h4>
-                            
-                            <!-- Banner active status -->
+                    <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+                        <div class="lg:col-span-5 space-y-4 bg-stone-50 border border-stone-200 rounded-3xl p-5">
+                            <h4 class="font-extrabold text-stone-900 tracking-normal normal-case" x-text="adEditSide ? 'Reklamı redaktə et' : 'Yeni reklam əlavə et'">Yeni reklam əlavə et</h4>
                             <div class="flex gap-4">
-                                <label class="flex items-center gap-1.5 font-bold text-stone-700">
-                                    <input type="checkbox" x-model="newAd.active" class="w-4 h-4 rounded text-forest-700">
-                                    <span x-text="lang==='az'?'Banner Aktiv Olsun':'Активный баннер'">Banner Aktiv Olsun</span>
-                                </label>
+                                <label class="flex items-center gap-1.5 font-bold text-stone-700 normal-case"><input type="checkbox" x-model="newAd.active" class="w-4 h-4 rounded text-forest-700"><span>Aktiv</span></label>
                             </div>
-
-                            <!-- Single intuitive target sidebar placement selector -->
                             <div>
-                                <label x-text="lang==='az'?'Banner Tərəfi (Harada Göstərilsin)':'Сторона баннера'">Banner Tərəfi</label>
-                                <select x-model="newAd.target" class="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg text-stone-800 tracking-normal mt-1 font-medium">
-                                    <option value="left">Sol Banner (Left Sidebar)</option>
-                                    <option value="right">Sağ Banner (Right Sidebar)</option>
-                                    <option value="both">Hər İki Tərəfdə Göstərilsin (Both Sides)</option>
+                                <label>Banner tərəfi</label>
+                                <select x-model="newAd.target" :disabled="!!adEditSide" class="w-full px-3 py-2 bg-white border border-stone-200 rounded-lg text-stone-800 tracking-normal mt-1 font-medium disabled:bg-stone-100">
+                                    <option value="left">Sol Banner</option><option value="right">Sağ Banner</option>
                                 </select>
                             </div>
-
-                            <div class="grid grid-cols-2 gap-3">
-                                <div>
-                                    <label x-text="lang==='az'?'Banner Növü':'Тип баннера'">Banner Növü</label>
-                                    <select x-model="newAd.type" class="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg text-stone-800 tracking-normal mt-1 font-medium">
-                                        <option value="image">Şəkil</option>
-                                        <option value="video">Lokal Video (MP4)</option>
-                                    </select>
-                                </div>
-                                <div>
-                                    <label x-text="lang==='az'?'Yönləndiriləcək Keçid URL':'Ссылка перехода'">Keçid URL</label>
-                                    <input type="text" x-model="newAd.link" class="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg text-stone-800 tracking-normal mt-1 font-medium">
-                                </div>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <div><label>Banner növü</label><select x-model="newAd.type" class="w-full px-3 py-2 bg-white border border-stone-200 rounded-lg text-stone-800 tracking-normal mt-1 font-medium"><option value="image">Şəkil</option><option value="video">Video</option></select></div>
+                                <div><label>Keçid URL</label><input type="text" x-model="newAd.link" class="w-full px-3 py-2 bg-white border border-stone-200 rounded-lg text-stone-800 tracking-normal mt-1 font-medium"></div>
                             </div>
-
-                            <!-- File upload / Preview area inside unified ad manager -->
-                            <div class="p-4 bg-stone-100 rounded-2xl border border-dashed border-stone-300">
-                                <label class="block mb-2 text-stone-700" x-text="lang==='az'?'Banner Faylı Seçin':'Выбрать файл'">Fayl Seçin</label>
+                            <div class="p-4 bg-white rounded-2xl border border-dashed border-stone-300">
+                                <label class="block mb-2 text-stone-700 normal-case">Banner faylı / preview</label>
                                 <input type="file" @change="handleFileSelect($event, 'adPreviewImg')" class="w-full text-stone-600 font-medium text-xs">
-                                
-                                <template x-if="adPreviewImg">
-                                    <div class="relative mt-4 w-full h-36 rounded-xl overflow-hidden shadow">
-                                        <template x-if="newAd.type === 'image'">
-                                            <img :src="adPreviewImg" class="w-full h-full object-cover">
-                                        </template>
-                                        <template x-if="newAd.type === 'video'">
-                                            <video :src="adPreviewImg" autoplay loop muted playsinline class="w-full h-full object-cover"></video>
-                                        </template>
-                                        <button @click="removeSelectedFile('adPreviewImg')" class="absolute top-2 right-2 w-7 h-7 bg-black/60 text-white rounded-full flex items-center justify-center text-xs"><i class="fa-solid fa-x"></i></button>
+                                <template x-if="adPreviewImg"><div class="relative mt-4 w-full h-40 rounded-xl overflow-hidden shadow bg-black"><template x-if="newAd.type === 'image'"><img :src="adPreviewImg" class="w-full h-full object-cover"></template><template x-if="newAd.type === 'video'"><video :src="adPreviewImg" autoplay loop muted playsinline class="w-full h-full object-cover"></video></template><button @click="removeSelectedFile('adPreviewImg')" class="absolute top-2 right-2 w-7 h-7 bg-black/60 text-white rounded-full flex items-center justify-center text-xs"><i class="fa-solid fa-x"></i></button></div></template>
+                            </div>
+                            <div class="grid grid-cols-3 gap-3"><div><label>Width</label><input type="number" x-model="newAd.width" class="w-full px-3 py-2 bg-white border border-stone-200 rounded-lg text-stone-800 mt-1"></div><div><label>Height</label><input type="number" x-model="newAd.height" class="w-full px-3 py-2 bg-white border border-stone-200 rounded-lg text-stone-800 mt-1"></div><div><label>Saniyə</label><input type="number" x-model="newAd.duration" class="w-full px-3 py-2 bg-white border border-stone-200 rounded-lg text-stone-800 mt-1"></div></div>
+                            <div><label>Başlıq</label><input type="text" x-model="newAd.title" class="w-full px-3 py-2 bg-white border border-stone-200 rounded-lg text-stone-800 tracking-normal mt-1 font-medium"></div>
+                            <button @click="saveAd()" class="w-full py-3 bg-forest-700 hover:bg-forest-800 text-white font-bold rounded-xl shadow" x-text="adEditSide ? 'Dəyişiklikləri yadda saxla' : 'Yeni reklam əlavə et'">Yeni reklam əlavə et</button>
+                        </div>
+
+                        <div class="lg:col-span-7 space-y-4">
+                            <h4 class="font-extrabold text-stone-900 tracking-normal normal-case">Mövcud reklamlar</h4>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <template x-for="ad in getBannerList()" :key="ad.side">
+                                    <div class="bg-stone-50 border border-stone-200 p-4 rounded-2xl space-y-3">
+                                        <div class="h-40 rounded-xl overflow-hidden bg-stone-200 border"><template x-if="ad.type === 'image' && ad.src"><img :src="ad.src" class="w-full h-full object-cover"></template><template x-if="ad.type === 'video' && ad.src"><video :src="ad.src" muted playsinline class="w-full h-full object-cover"></video></template><div x-show="!ad.src" class="w-full h-full flex items-center justify-center text-stone-400"><i class="fa-solid fa-rectangle-ad text-3xl"></i></div></div>
+                                        <div class="flex items-start justify-between gap-2"><div><span class="text-[9px] bg-forest-100 text-forest-700 px-2 py-0.5 rounded font-bold" x-text="ad.side.toUpperCase()"></span><h5 class="text-sm text-stone-900 font-black normal-case mt-2" x-text="ad.title || 'Başlıqsız reklam'"></h5></div><span class="text-[9px] px-2 py-1 rounded" :class="ad.active ? 'bg-green-100 text-green-700' : 'bg-stone-200 text-stone-500'" x-text="ad.active ? 'Aktiv' : 'Deaktiv'"></span></div>
+                                        <div class="grid grid-cols-4 gap-2 text-center"><div class="bg-white p-2 rounded-xl border"><span class="block text-[9px] text-stone-400">Type</span><span class="block font-black text-stone-800 text-xs" x-text="ad.type"></span></div><div class="bg-white p-2 rounded-xl border"><span class="block text-[9px] text-stone-400">Views</span><span class="block font-black text-stone-800 text-xs" x-text="ad.views || 0"></span></div><div class="bg-white p-2 rounded-xl border"><span class="block text-[9px] text-stone-400">Clicks</span><span class="block font-black text-stone-800 text-xs" x-text="ad.clicks || 0"></span></div><div class="bg-white p-2 rounded-xl border"><span class="block text-[9px] text-stone-400">Size</span><span class="block font-black text-stone-800 text-xs" x-text="`${ad.width || 160}×${ad.height || 400}`"></span></div></div>
+                                        <div class="grid grid-cols-3 gap-2 normal-case"><button @click="setupEditAd(ad.side)" class="py-2 bg-blue-50 text-blue-700 rounded-xl font-bold">Redaktə et</button><button @click="toggleAdActive(ad.side)" class="py-2 bg-amber-50 text-amber-700 rounded-xl font-bold" x-text="ad.active ? 'Deaktiv et' : 'Aktiv et'"></button><button @click="deleteAd(ad.side)" class="py-2 bg-red-50 text-red-700 rounded-xl font-bold">Sil</button></div>
                                     </div>
                                 </template>
                             </div>
-
-                            <div class="grid grid-cols-3 gap-3">
-                                <div>
-                                    <label>Width (px)</label>
-                                    <input type="number" x-model="newAd.width" class="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg text-stone-800 tracking-normal mt-1 font-medium">
-                                </div>
-                                <div>
-                                    <label>Height (px)</label>
-                                    <input type="number" x-model="newAd.height" class="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg text-stone-800 tracking-normal mt-1 font-medium">
-                                </div>
-                                <div>
-                                    <label>Saniyə</label>
-                                    <input type="number" x-model="newAd.duration" class="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg text-stone-800 tracking-normal mt-1 font-medium">
-                                </div>
-                            </div>
-
-                            <div>
-                                <label x-text="lang==='az'?'Alt Təsvir / Başlıq (Title)':'Подпись баннера'">Başlıq (Title)</label>
-                                <input type="text" x-model="newAd.title" class="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg text-stone-800 tracking-normal mt-1 font-medium">
-                            </div>
-
-                            <button @click="saveAd()" class="w-full py-3 bg-forest-700 text-white font-bold rounded-xl shadow" x-text="lang==='az'?'Reklamı Canlı Yerləşdir':'Запустить Рекламу'">Reklamı Canlı Yerləşdir</button>
                         </div>
-
-                        <!-- Structured display cards showing active ads and real views statistics -->
-                        <div class="lg:col-span-7 space-y-4">
-                            <h4 class="font-extrabold text-stone-900 tracking-normal" x-text="lang==='az'?'Aktiv Sütun Reklamları':'Активные баннеры'">Sütun Reklamları</h4>
-                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                <!-- Left Sidebar Card -->
-                                <div class="bg-stone-50 border border-stone-200 p-4 rounded-2xl flex flex-col justify-between">
-                                    <div>
-                                        <span class="text-[9px] bg-forest-100 text-forest-700 px-2 py-0.5 rounded font-bold">LEFT BANNER</span>
-                                        <p class="text-xs text-stone-800 font-bold tracking-normal mt-2" x-text="banners.left?.title || 'No active banner'"></p>
-                                    </div>
-                                    <div class="grid grid-cols-2 gap-2 mt-4 text-center border-t border-stone-200 pt-3">
-                                        <div class="bg-white p-2 rounded-xl border">
-                                            <span class="block text-[9px] text-stone-400">Views</span>
-                                            <span class="block font-black text-stone-800 text-sm" x-text="banners.left?.views || 0"></span>
-                                        </div>
-                                        <div class="bg-white p-2 rounded-xl border">
-                                            <span class="block text-[9px] text-stone-400">Clicks</span>
-                                            <span class="block font-black text-stone-800 text-sm" x-text="banners.left?.clicks || 0"></span>
-                                        </div>
-                                    </div>
-                                </div>
-                                <!-- Right Sidebar Card -->
-                                <div class="bg-stone-50 border border-stone-200 p-4 rounded-2xl flex flex-col justify-between">
-                                    <div>
-                                        <span class="text-[9px] bg-forest-100 text-forest-700 px-2 py-0.5 rounded font-bold">RIGHT BANNER</span>
-                                        <p class="text-xs text-stone-800 font-bold tracking-normal mt-2" x-text="banners.right?.title || 'No active banner'"></p>
-                                    </div>
-                                    <div class="grid grid-cols-2 gap-2 mt-4 text-center border-t border-stone-200 pt-3">
-                                        <div class="bg-white p-2 rounded-xl border">
-                                            <span class="block text-[9px] text-stone-400">Views</span>
-                                            <span class="block font-black text-stone-800 text-sm" x-text="banners.right?.views || 0"></span>
-                                        </div>
-                                        <div class="bg-white p-2 rounded-xl border">
-                                            <span class="block text-[9px] text-stone-400">Clicks</span>
-                                            <span class="block font-black text-stone-800 text-sm" x-text="banners.right?.clicks || 0"></span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
                     </div>
                 </div>
             </div>
 
             <!-- FOOTER -->
-            </main><footer class="bg-stone-950 text-stone-200 pt-10 pb-7 border-t border-forest-900 mt-auto">
+            </main><footer class="relative left-1/2 w-screen -translate-x-1/2 bg-stone-950 text-stone-200 pt-10 pb-7 border-t border-forest-900 mt-auto">
                 <div class="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-10">
                     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-10 mb-4">
                         <div class="space-y-6">
@@ -1795,7 +1788,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
         </div>
 
         <!-- RIGHT STICKY AD BANNER (Clean fixed styling right below sticky top menu) -->
-        <div x-show="banners.right.active" x-cloak class="hidden xl:flex flex-col items-center justify-start py-6 px-3 bg-stone-100 border-l border-stone-200 sticky shrink-0 z-30 self-start overflow-visible" :style="`width: ${banners.right.width ? banners.right.width + 24 : 184}px;`"  :class="page === 'home' ? 'top-[100vh]' : 'top-20'" data-ad-side="right">
+        <div x-show="showSideAds && banners.right.active && banners.right.src" x-cloak class="hidden xl:flex fixed right-0 top-28 flex-col items-center justify-start py-6 px-3 bg-stone-100/95 border-l border-stone-200 z-30 shadow-sm" :style="`width: ${banners.right.width ? banners.right.width + 24 : 184}px;`" data-ad-side="right">
             <div class="relative bg-white shadow-md rounded-2xl overflow-hidden border border-stone-200" :style="`width: ${banners.right.width}px; height: ${banners.right.height}px;`">
                 <a :href="banners.right.link" target="_blank" rel="noopener" class="block w-full h-full relative group" @click="incrementAdClick('right')">
                     <template x-if="banners.right.type === 'image'">
