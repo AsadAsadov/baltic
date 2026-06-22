@@ -77,9 +77,9 @@ model HeroSlide {
 model Banner {
   id        Int      @id @default(autoincrement())
   active    Boolean  @default(true)
-  type      String   @default("image")
+  mediaType String   @default("image") @map("media_type")
   mediaUrl  String?  @map("media_url")
-  link      String?
+  linkUrl   String?  @map("link_url")
   title     String?
   width     Int      @default(160)
   height    Int      @default(400)

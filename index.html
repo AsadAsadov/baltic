@@ -118,7 +118,7 @@
                 { id: 1, name: 'Həsən Əliyev', phone: '+994 50 211 44 55', email: 'hasan@mail.ru', message: 'Şamaxıda 2 mərtəbəli evin inşası ile bağlı əlaqə saxlayın.', date: '21.06.2026', read: false }
             ];
 
-            const defaultBanner = { active: true, placement: 'both', type: 'image', src: 'https://images.unsplash.com/photo-1542718610-a1d656d1884c?auto=format&fit=crop&q=80&w=300', link: 'https://balticcaspian.com', title: 'Lüks Taxta Evlər - İndi Sifariş Et', width: 160, height: 400, duration: 15, views: 1300, clicks: 46 };
+            const defaultBanner = { id: null, active: true, placement: 'both', type: 'image', mediaType: 'image', src: 'https://images.unsplash.com/photo-1542718610-a1d656d1884c?auto=format&fit=crop&q=80&w=300', mediaUrl: 'https://images.unsplash.com/photo-1542718610-a1d656d1884c?auto=format&fit=crop&q=80&w=300', link: 'https://balticcaspian.com', linkUrl: 'https://balticcaspian.com', title: 'Lüks Taxta Evlər - İndi Sifariş Et', width: 160, height: 400, duration: 15, views: 1300, clicks: 46 };
             const legacyBanners = JSON.parse(localStorage.getItem('bc_banners') || 'null');
             const storedBanner = JSON.parse(localStorage.getItem('bc_banner') || localStorage.getItem('mainBanner') || 'null');
             const migratedBanner = storedBanner || (legacyBanners ? (legacyBanners.left?.src ? legacyBanners.left : legacyBanners.right) : null) || defaultBanner;
@@ -431,13 +431,30 @@
                     const items = this.asArray(payload).map(item => this.normalizeSlide(item));
                     return items.length ? items : (Array.isArray(fallback) ? fallback.map(item => this.normalizeSlide(item)) : []);
                 },
-                normalizeBanner(banner = {}) {
-                    const src = banner.src || banner.image || banner.mediaUrl || banner.url || '';
-                    return { id: banner.id ?? '', active: banner.active ?? false, type: banner.type || 'image', src, image: banner.image || src, mediaUrl: banner.mediaUrl || src, url: banner.url || src, link: banner.link || '', title: banner.title || '', width: Number(banner.width) || 160, height: Number(banner.height) || 400, duration: Number(banner.duration) || 15, views: Number(banner.views) || 0, clicks: Number(banner.clicks) || 0, placement: banner.placement || banner.position || 'both', position: banner.placement || banner.position || 'both' };
+                getSafeBanner(banner = {}, side = 'both') {
+                    const source = banner && typeof banner === 'object' ? banner : {};
+                    const src = source.src || source.image || source.mediaUrl || source.media_url || source.url || '';
+                    const link = source.link || source.linkUrl || source.link_url || '#';
+                    const mediaType = source.mediaType || source.media_type || source.type || 'image';
+                    const placement = source.placement || source.position || side || 'both';
+                    return { id: source.id ?? null, active: source.active ?? false, placement, position: placement, type: mediaType, mediaType, src, image: source.image || src, mediaUrl: source.mediaUrl || source.media_url || src, url: source.url || src, link, linkUrl: source.linkUrl || source.link_url || link, title: source.title || '', width: Number(source.width) || 160, height: Number(source.height) || 400, duration: Number(source.duration) || 15, views: Number(source.views) || 0, clicks: Number(source.clicks) || 0 };
+                },
+                normalizeBanner(banner = {}, side = 'both') {
+                    return this.getSafeBanner(banner, side);
                 },
                 normalizeBanners(payload, fallback = migratedBanner) {
-                    const banners = this.asArray(payload).map(item => this.normalizeBanner(item));
-                    return banners.length ? banners : (fallback ? [this.normalizeBanner(fallback)] : []);
+                    const list = [];
+                    const add = (item, side = 'both') => { const banner = this.normalizeBanner(item, side); if (banner.src || banner.mediaUrl || banner.active || banner.id) list.push(banner); };
+                    if (Array.isArray(payload)) payload.forEach(item => add(item));
+                    else if (payload && typeof payload === 'object' && payload.error !== 'DATABASE_UNAVAILABLE') {
+                        if (payload.left || payload.right) {
+                            if (payload.left) add({ ...payload.left, placement: 'left' }, 'left');
+                            if (payload.right) add({ ...payload.right, placement: 'right' }, 'right');
+                        } else if (payload.mainBanner) add({ ...payload.mainBanner, placement: payload.mainBanner.placement || 'both' }, 'both');
+                        else add(payload);
+                    }
+                    if (!list.length && fallback) add(fallback, fallback.placement || 'both');
+                    return list;
                 },
 
                 async initApp() {
@@ -450,7 +467,7 @@
                         ['/api/projects', cached('bc_projects', defaultProjects)],
                         ['/api/gallery', cached('bc_gallery', defaultGallery)],
                         ['/api/hero-slides', cached('bc_slides', defaultSlides)],
-                        ['/api/banners', cached('bc_banner', migratedBanner)],
+                        ['/api/banners', cached('bc_banners_list', this.normalizeBanners(cached('bc_banner', migratedBanner), migratedBanner))],
                         ['/api/stats', cached('bc_stats', this.stats)]
                     ];
                     const settled = await Promise.allSettled(requests.map(([path, fallback]) => this.safeApi(path, fallback)));
@@ -460,7 +477,7 @@
                     this.slides = this.normalizeSlides(valueAt(2, cached('bc_slides', defaultSlides)), defaultSlides);
                     const banners = this.normalizeBanners(valueAt(3, cached('bc_banner', migratedBanner)), migratedBanner);
                     this.banners = banners;
-                    this.mainBanner = this.bannerForSide('left') || this.bannerForSide('right') || banners[0] || this.normalizeBanner(migratedBanner);
+                    this.mainBanner = this.firstActiveBanner() || banners[0] || this.normalizeBanner(migratedBanner);
                     this.stats = { ...this.stats, ...(valueAt(4, cached('bc_stats', this.stats)) || {}) };
                     console.info('GET /api/projects'); console.info(`Loaded projects: ${this.projects.length}`);
                     console.info('GET /api/gallery'); console.info(`Loaded gallery: ${this.galleryItems.length}`);
@@ -641,9 +658,19 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                     this.adPreviewImg = '';
                 },
 
+                hasRenderableBanner(side) {
+                    const banner = this.bannerForSide(side);
+                    return !!(banner.active && (banner.src || banner.mediaUrl));
+                },
+
+                firstActiveBanner() {
+                    return (Array.isArray(this.banners) ? this.banners : []).find(b => b?.active && (b.src || b.mediaUrl)) || null;
+                },
+
                 bannerForSide(side) {
-                    const list = Array.isArray(this.banners) && this.banners.length ? this.banners : [this.normalizeBanner(this.mainBanner || migratedBanner)];
-                    return list.find(b => b.active && b.src && (b.placement === side || b.placement === 'both')) || null;
+                    const list = Array.isArray(this.banners) ? this.banners : [];
+                    const ad = list.find(b => b?.active && (b.src || b.mediaUrl) && (b.placement === side || b.placement === 'both'));
+                    return this.getSafeBanner(ad, side);
                 },
 
                 setupEditAd(ad = null) {
@@ -657,7 +684,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                         const selected = ad || this.newAd;
                         if (selected?.id) await this.api(`/api/banners/${selected.id}`, { method: 'DELETE' });
                         this.banners = (this.banners || []).filter(b => b.id !== selected?.id);
-                        this.mainBanner = this.bannerForSide('left') || this.bannerForSide('right') || {};
+                        this.mainBanner = this.firstActiveBanner() || this.normalizeBanner({}, 'both');
                         this.cacheSave();
                         this.resetAdForm();
                         this.showToast('Silindi', 'Reklam banneri silindi.');
@@ -667,7 +694,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                 toggleAdActive(ad) {
                     ad.active = !ad.active;
                     if (ad.id) this.api(`/api/banners/${ad.id}/toggle`, { method: 'PATCH', body: JSON.stringify({ active: ad.active }) }).catch(() => this.showToast('API xəta', 'Banner statusu DB-yə yazılmadı.'));
-                    this.mainBanner = this.bannerForSide('left') || this.bannerForSide('right') || ad;
+                    this.mainBanner = this.firstActiveBanner() || this.normalizeBanner(ad, ad?.placement || 'both');
                     this.cacheSave();
                 },
 
@@ -715,7 +742,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                 incrementAdView(side) {
                     const banner = this.bannerForSide(side);
                     const sessionKey = `bc_ad_viewed_${banner?.id || 'fallback'}_${side}`;
-                    if (!banner || this.viewedAdsThisSession[side] || sessionStorage.getItem(sessionKey)) return;
+                    if (!banner.active || !(banner.src || banner.mediaUrl) || this.viewedAdsThisSession[side] || sessionStorage.getItem(sessionKey)) return;
                     this.viewedAdsThisSession[side] = true;
                     sessionStorage.setItem(sessionKey, 'true');
                     banner.views = (banner.views || 0) + 1;
@@ -737,7 +764,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
 
                 incrementAdClick(side = 'left') {
                     const banner = this.bannerForSide(side);
-                    if (banner) {
+                    if (banner.active && (banner.src || banner.mediaUrl)) {
                         banner.clicks = (banner.clicks || 0) + 1;
                         if (banner.id) this.api(`/api/banners/${banner.id}/click`, { method: 'POST' }).catch(() => this.showToast('API xəta', 'Reklam klik DB-yə yazılmadı.'));
                     }
@@ -994,8 +1021,9 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                             clicks: this.mainBanner?.clicks || 0
                         };
                         const saved = await this.api(this.newAd.id ? `/api/banners/${this.newAd.id}` : '/api/banners', { method: this.newAd.id ? 'PUT' : 'POST', body: JSON.stringify(this.mainBanner) });
-                        this.banners = [saved, ...(this.banners || []).filter(b => b.id !== saved.id)];
-                        this.mainBanner = this.bannerForSide('left') || this.bannerForSide('right') || saved;
+                        const normalizedSaved = this.normalizeBanner(saved, saved?.placement || this.newAd.placement);
+                        this.banners = [normalizedSaved, ...(this.banners || []).filter(b => b.id !== normalizedSaved.id)];
+                        this.mainBanner = this.firstActiveBanner() || normalizedSaved;
                         this.cacheSave();
                         this.showToast('Yadda Saxlanıldı', 'Reklam banneri yeniləndi!');
                         this.resetAdForm();
@@ -1346,8 +1374,8 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                     </div>
                 </section>
 
-                <div class="mx-auto w-full max-w-[calc(100vw-2rem)] xl:grid xl:grid-cols-[184px_minmax(0,1fr)_184px] xl:gap-6 xl:items-start" :class="(bannerForSide('left') || bannerForSide('right')) ? '' : 'xl:block'">
-                <aside x-show="bannerForSide('left')" x-cloak class="hidden xl:flex justify-center min-w-0" data-ad-side="left">
+                <div class="mx-auto w-full max-w-[calc(100vw-2rem)] xl:grid xl:grid-cols-[184px_minmax(0,1fr)_184px] xl:gap-6 xl:items-start" :class="(hasRenderableBanner('left') || hasRenderableBanner('right')) ? '' : 'xl:block'">
+                <aside x-show="hasRenderableBanner('left')" x-cloak class="hidden xl:flex justify-center min-w-0" data-ad-side="left">
                     <div class="w-[184px] flex flex-col items-center py-2">
                         <div class="relative w-[160px] max-h-[calc(100vh-140px)] bg-white shadow-xl rounded-2xl overflow-hidden border border-stone-200">
                             <a :href="bannerForSide('left').link || '#'" target="_blank" rel="noopener" class="block w-full h-full relative group" @click="incrementAdClick($el.closest('[data-ad-side]')?.dataset.adSide || 'left')">
@@ -1431,7 +1459,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                     </div>
                 </section>
                     </div>
-                <aside x-show="bannerForSide('right')" x-cloak class="hidden xl:flex justify-center min-w-0" data-ad-side="right">
+                <aside x-show="hasRenderableBanner('right')" x-cloak class="hidden xl:flex justify-center min-w-0" data-ad-side="right">
                     <div class="w-[184px] flex flex-col items-center py-2">
                         <div class="relative w-[160px] max-h-[calc(100vh-140px)] bg-white shadow-xl rounded-2xl overflow-hidden border border-stone-200">
                             <a :href="bannerForSide('right').link || '#'" target="_blank" rel="noopener" class="block w-full h-full relative group" @click="incrementAdClick($el.closest('[data-ad-side]')?.dataset.adSide || 'left')">
@@ -1447,8 +1475,8 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
             </div>
 
             <!-- 2. PROJECTS CATALOGUE PAGE -->
-            <div x-show="page !== 'home'" x-cloak class="mx-auto w-full max-w-[calc(100vw-2rem)] xl:grid xl:grid-cols-[184px_minmax(0,1fr)_184px] xl:gap-6 xl:items-start" :class="(bannerForSide('left') || bannerForSide('right')) ? '' : 'xl:block'">
-                <aside x-show="bannerForSide('left')" x-cloak class="hidden xl:flex justify-center min-w-0" data-ad-side="left">
+            <div x-show="page !== 'home'" x-cloak class="mx-auto w-full max-w-[calc(100vw-2rem)] xl:grid xl:grid-cols-[184px_minmax(0,1fr)_184px] xl:gap-6 xl:items-start" :class="(hasRenderableBanner('left') || hasRenderableBanner('right')) ? '' : 'xl:block'">
+                <aside x-show="hasRenderableBanner('left')" x-cloak class="hidden xl:flex justify-center min-w-0" data-ad-side="left">
                     <div class="w-[184px] flex flex-col items-center py-2">
                         <div class="relative w-[160px] max-h-[calc(100vh-140px)] bg-white shadow-xl rounded-2xl overflow-hidden border border-stone-200">
                             <a :href="bannerForSide('left').link || '#'" target="_blank" rel="noopener" class="block w-full h-full relative group" @click="incrementAdClick($el.closest('[data-ad-side]')?.dataset.adSide || 'left')">
@@ -1975,7 +2003,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                     </div>
                 </div>            </div>
                 </div>
-                <aside x-show="bannerForSide('right')" x-cloak class="hidden xl:flex justify-center min-w-0" data-ad-side="right">
+                <aside x-show="hasRenderableBanner('right')" x-cloak class="hidden xl:flex justify-center min-w-0" data-ad-side="right">
                     <div class="w-[184px] flex flex-col items-center py-2">
                         <div class="relative w-[160px] max-h-[calc(100vh-140px)] bg-white shadow-xl rounded-2xl overflow-hidden border border-stone-200">
                             <a :href="bannerForSide('right').link || '#'" target="_blank" rel="noopener" class="block w-full h-full relative group" @click="incrementAdClick($el.closest('[data-ad-side]')?.dataset.adSide || 'left')">
