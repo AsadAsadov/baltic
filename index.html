@@ -138,6 +138,7 @@
                 filterCategory: 'all',
                 activeGalleryIndex: 0,
                 isLoading: false,
+                apiBase: '',
 
                 // Admin authentication
                 adminLoggedIn: localStorage.getItem('bc_admin_logged') === 'true',
@@ -147,10 +148,10 @@
                 adminTab: 'dashboard', // dashboard, messages, projects, gallery, hero, ads
 
                 // Dynamic App State DB
-                projects: JSON.parse(localStorage.getItem('bc_projects')) || defaultProjects,
-                galleryItems: JSON.parse(localStorage.getItem('bc_gallery')) || defaultGallery,
-                slides: JSON.parse(localStorage.getItem('bc_slides')) || defaultSlides,
-                messages: JSON.parse(localStorage.getItem('bc_messages')) || defaultMessages,
+                projects: defaultProjects,
+                galleryItems: defaultGallery,
+                slides: defaultSlides,
+                messages: defaultMessages,
 
                 // Dynamic Live Statistics
                 stats: JSON.parse(localStorage.getItem('bc_stats')) || {
@@ -337,13 +338,64 @@
                     this.activeSlide = (this.activeSlide - 1 + this.slides.length) % this.slides.length;
                 },
 
+
+                async api(path, options = {}) {
+                    const res = await fetch(`${this.apiBase}${path}`, {
+                        headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
+                        ...options
+                    });
+                    if (!res.ok) throw new Error(`API ${res.status}: ${path}`);
+                    return res.status === 204 ? null : res.json();
+                },
+
+                async safeApi(path, fallback, options = {}) {
+                    try {
+                        const data = await this.api(path, options);
+                        return data ?? fallback;
+                    } catch (error) {
+                        this.showToast('API xəta', 'Məlumat bazası əlçatan deyil, fallback/cache istifadə olunur.');
+                        return fallback;
+                    }
+                },
+
+                async initApp() {
+                    await this.loadData();
+                },
+
+                async loadData() {
+                    const cached = (key, fallback) => JSON.parse(localStorage.getItem(key) || 'null') || fallback;
+                    const [projects, galleryItems, slides, mainBanner, stats] = await Promise.all([
+                        this.safeApi('/api/projects', cached('bc_projects', defaultProjects)),
+                        this.safeApi('/api/gallery', cached('bc_gallery', defaultGallery)),
+                        this.safeApi('/api/hero-slides', cached('bc_slides', defaultSlides)),
+                        this.safeApi('/api/banners/main', cached('bc_banner', migratedBanner)),
+                        this.safeApi('/api/stats', cached('bc_stats', this.stats))
+                    ]);
+                    this.projects = projects || defaultProjects;
+                    this.galleryItems = galleryItems || defaultGallery;
+                    this.slides = slides?.length ? slides : defaultSlides;
+                    this.mainBanner = mainBanner || migratedBanner;
+                    this.stats = { ...this.stats, ...(stats || {}) };
+                    if (this.adminLoggedIn) {
+                        this.messages = await this.safeApi('/api/messages', cached('bc_messages', defaultMessages));
+                    }
+                    this.cacheSave();
+                },
+
+                async uploadMedia(file, bucket) {
+                    // TODO: request /api/uploads/sign, upload to Supabase Storage bucket, then return public URL.
+                    // Buckets: projects, gallery, hero, banners. Base64 is intentionally not persisted to localStorage/DB.
+                    return URL.createObjectURL(file);
+                },
+
                 openProjectModal(proj) {
                     this.selectedProject = proj;
                     this.isProjectModalOpen = true;
                     this.triggerAction(() => {
                         proj.views = (proj.views || 0) + 1;
                         this.stats.projectViews++;
-                        this.saveAll();
+                        this.cacheSave();
+                        if (proj.id) this.api(`/api/projects/${proj.id}/view`).catch(() => this.showToast('API xəta', 'Layihə baxışı DB-yə yazılmadı.'));
                     }, false); // No global loader overlay to avoid blocking lightbox
                 },
 
@@ -383,8 +435,12 @@
 
                 triggerAction(callback, showOverlay = true) {
                     if (showOverlay) this.isLoading = true;
-                    setTimeout(() => {
-                        callback();
+                    setTimeout(async () => {
+                        try {
+                            await callback();
+                        } catch (error) {
+                            this.showToast('API xəta', 'Əməliyyat tamamlanmadı.');
+                        }
                         if (showOverlay) this.isLoading = false;
                     }, 450);
                 },
@@ -421,16 +477,14 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                 },
 
                 submitContactForm() {
-                    this.triggerAction(() => {
-                        const newMsg = {
-                            id: Date.now(),
-                            name: this.contactForm.name,
-                            phone: this.contactForm.phone,
-                            email: this.contactForm.email || 'N/A',
-                            message: this.contactForm.message,
-                            date: new Date().toLocaleDateString('az-AZ'),
-                            read: false
-                        };
+                    this.triggerAction(async () => {
+                        let newMsg;
+                        try {
+                            newMsg = await this.api('/api/messages', { method: 'POST', body: JSON.stringify(this.contactForm) });
+                        } catch (error) {
+                            newMsg = { id: Date.now(), name: this.contactForm.name, phone: this.contactForm.phone, email: this.contactForm.email || 'N/A', message: this.contactForm.message, date: new Date().toLocaleDateString('az-AZ'), read: false };
+                            this.showToast('API xəta', 'Mesaj cache/fallback kimi saxlanıldı.');
+                        }
                         this.messages.unshift(newMsg);
                         this.stats.messagesCount = this.messages.length;
                         this.saveAll();
@@ -446,12 +500,10 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                 handleFileSelect(event, previewProperty, targetProperty = null) {
                     const file = event.target.files[0];
                     if (!file) return;
-                    const reader = new FileReader();
-                    reader.onload = (e) => {
-                        this[previewProperty] = e.target.result;
-                        if (targetProperty) this[targetProperty] = e.target.result;
-                    };
-                    reader.readAsDataURL(file);
+                    const previewUrl = URL.createObjectURL(file);
+                    this[previewProperty] = previewUrl;
+                    if (targetProperty) this[targetProperty] = previewUrl;
+                    this.showToast('Upload TODO', 'Fayl Supabase Storage upload helper strukturuna hazırlanıb.');
                 },
 
                 handleMultiFileSelect(event, previewProperty, collectionProperty) {
@@ -462,14 +514,10 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                         event.target.value = '';
                         return;
                     }
-                    Promise.all(files.map(file => new Promise((resolve) => {
-                        const reader = new FileReader();
-                        reader.onload = e => resolve(e.target.result);
-                        reader.readAsDataURL(file);
-                    }))).then(images => {
-                        this[collectionProperty] = images;
-                        this[previewProperty] = images[0] || '';
-                    });
+                    const images = files.map(file => URL.createObjectURL(file));
+                    this[collectionProperty] = images;
+                    this[previewProperty] = images[0] || '';
+                    this.showToast('Upload TODO', 'Fayllar Supabase Storage upload helper strukturuna hazırlanıb.');
                 },
 
                 removeSelectedFile(previewProperty, targetProperty = null) {
@@ -479,7 +527,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                     }
                 },
 
-                saveAll() {
+                cacheSave() {
                     localStorage.setItem('bc_projects', JSON.stringify(this.projects));
                     localStorage.setItem('bc_gallery', JSON.stringify(this.galleryItems));
                     localStorage.setItem('bc_slides', JSON.stringify(this.slides));
@@ -487,6 +535,10 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                     localStorage.setItem('bc_stats', JSON.stringify(this.stats));
                     localStorage.setItem('bc_banner', JSON.stringify(this.mainBanner));
                     localStorage.setItem('mainBanner', JSON.stringify(this.mainBanner));
+                },
+
+                saveAll() {
+                    this.cacheSave();
                 },
 
                 resetAdForm() {
@@ -505,9 +557,11 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                 },
 
                 deleteAd() {
-                    this.triggerAction(() => {
+                    this.triggerAction(async () => {
+                        const oldId = this.mainBanner?.id;
                         this.mainBanner = { ...(this.mainBanner || {}), active: false, src: '', title: '', views: this.mainBanner?.views || 0, clicks: this.mainBanner?.clicks || 0 };
-                        this.saveAll();
+                        if (oldId) await this.api(`/api/banners/${oldId}`, { method: 'DELETE' });
+                        this.cacheSave();
                         this.resetAdForm();
                         this.showToast('Silindi', 'Əsas reklam banneri silindi.');
                     });
@@ -515,7 +569,8 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
 
                 toggleAdActive() {
                     this.mainBanner.active = !this.mainBanner.active;
-                    this.saveAll();
+                    if (this.mainBanner.id) this.api(`/api/banners/${this.mainBanner.id}/toggle`, { method: 'PATCH', body: JSON.stringify({ active: this.mainBanner.active }) }).catch(() => this.showToast('API xəta', 'Banner statusu DB-yə yazılmadı.'));
+                    this.cacheSave();
                 },
 
                 normalizeWhatsAppPhone(phone) {
@@ -566,7 +621,8 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                     sessionStorage.setItem(sessionKey, 'true');
                     this.mainBanner.views = (this.mainBanner.views || 0) + 1;
                     this.stats.adViews = this.mainBanner.views || 0;
-                    this.saveAll();
+                    this.cacheSave();
+                    if (this.mainBanner.id) this.api(`/api/banners/${this.mainBanner.id}/view`, { method: 'POST' }).catch(() => this.showToast('API xəta', 'Reklam baxışı DB-yə yazılmadı.'));
                 },
 
                 initAdObservers() {
@@ -583,13 +639,15 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                 incrementAdClick() {
                     if (this.mainBanner) {
                         this.mainBanner.clicks = (this.mainBanner.clicks || 0) + 1;
+                        if (this.mainBanner.id) this.api(`/api/banners/${this.mainBanner.id}/click`, { method: 'POST' }).catch(() => this.showToast('API xəta', 'Reklam klik DB-yə yazılmadı.'));
                     }
-                    this.saveAll();
+                    this.cacheSave();
                 },
 
                 handleAdminLogin() {
                     if (this.adminUsername === 'admin' && this.adminPassword === 'admin') {
                         this.adminLoggedIn = true;
+                        this.loadData();
                         this.adminLoginError = '';
                         localStorage.setItem('bc_admin_logged', 'true');
                         this.setPage('admin');
@@ -619,7 +677,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                 },
 
                 saveProject() {
-                    this.triggerAction(() => {
+                    this.triggerAction(async () => {
                         const finalImages = this.projectPreviewImages.length ? this.projectPreviewImages : (this.projectPreviewImg ? [this.projectPreviewImg] : ['https://images.unsplash.com/photo-1510798831971-661eb04b3739?auto=format&fit=crop&q=80&w=800']);
                         const finalImage = finalImages[0];
                         const categoryMap = {
@@ -687,7 +745,9 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                             this.showToast('Uğurlu', 'Yeni layihə kataloqa əlavə edildi!');
                         }
 
-                        this.saveAll();
+                        await this.api(this.newProj.id ? `/api/projects/${this.newProj.id}` : '/api/projects', { method: this.newProj.id ? 'PUT' : 'POST', body: JSON.stringify({ ...this.newProj, image: finalImage, images: finalImages }) });
+                        await this.loadData();
+                        this.cacheSave();
                         // Reset Form
                         this.newProj = { id: null, cat: 'house', titleAz: '', titleRu: '', titleEn: '', descAz: '', descRu: '', descEn: '', area: '100', stories: '1', rooms: '3', buildTimeAz: '2 ay', buildTimeRu: '2 месяца', buildTimeEn: '2 months', image: '' };
                         this.projectPreviewImg = '';
@@ -696,17 +756,19 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                 },
 
                 deleteProject(id) {
-                    this.triggerAction(() => {
+                    this.triggerAction(async () => {
                         this.projects = this.projects.filter(p => p.id !== id);
-                        this.saveAll();
+                        await this.api(`/api/projects/${id}`, { method: 'DELETE' });
+                        this.cacheSave();
                         this.showToast('Silindi', 'Layihə kataloqdan silindi.');
                     });
                 },
 
                 toggleArchiveProject(proj) {
-                    this.triggerAction(() => {
-                        proj.archived = !proj.archived;
-                        this.saveAll();
+                    this.triggerAction(async () => {
+                        const updated = await this.api(`/api/projects/${proj.id}/archive`, { method: 'PATCH' });
+                        proj.archived = updated.archived;
+                        this.cacheSave();
                         this.showToast('Arxiv Statusu', proj.archived ? 'Layihə arxivə göndərildi.' : 'Layihə arxivdən çıxarıldı.');
                     });
                 },
@@ -718,7 +780,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                 },
 
                 saveGalleryItem() {
-                    this.triggerAction(() => {
+                    this.triggerAction(async () => {
                         const finalImages = this.newGallery.type === 'image' ? (this.galleryPreviewImages.length ? this.galleryPreviewImages : (this.galleryPreviewImg ? [this.galleryPreviewImg] : ['https://images.unsplash.com/photo-1542718610-a1d656d1884c?auto=format&fit=crop&q=80&w=800'])) : [];
                         const finalSrc = this.newGallery.type === 'video' ? this.galleryPreviewImg : finalImages[0];
                         if (this.newGallery.id) {
@@ -753,7 +815,9 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                             this.galleryItems.unshift(added);
                             this.showToast('Uğurlu', 'Qalereyaya yeni element əlavə edildi!');
                         }
-                        this.saveAll();
+                        await this.api(this.newGallery.id ? `/api/gallery/${this.newGallery.id}` : '/api/gallery', { method: this.newGallery.id ? 'PUT' : 'POST', body: JSON.stringify({ ...this.newGallery, src: finalSrc, images: finalImages }) });
+                        await this.loadData();
+                        this.cacheSave();
                         this.newGallery = { id: null, src: '', title: '', titleRu: '', titleEn: '', type: 'image' };
                         this.galleryPreviewImg = '';
                         this.galleryPreviewImages = [];
@@ -761,17 +825,19 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                 },
 
                 deleteGalleryItem(id) {
-                    this.triggerAction(() => {
+                    this.triggerAction(async () => {
                         this.galleryItems = this.galleryItems.filter(g => g.id !== id);
-                        this.saveAll();
+                        await this.api(`/api/gallery/${id}`, { method: 'DELETE' });
+                        this.cacheSave();
                         this.showToast('Silindi', 'Məzmun silindi.');
                     });
                 },
 
                 toggleArchiveGallery(item) {
-                    this.triggerAction(() => {
-                        item.archived = !item.archived;
-                        this.saveAll();
+                    this.triggerAction(async () => {
+                        const updated = await this.api(`/api/gallery/${item.id}/archive`, { method: 'PATCH' });
+                        item.archived = updated.archived;
+                        this.cacheSave();
                         this.showToast('Arxiv Statusu', item.archived ? 'Arxivləndi.' : 'Arxivdən çıxarıldı.');
                     });
                 },
@@ -782,7 +848,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                 },
 
                 saveHero() {
-                    this.triggerAction(() => {
+                    this.triggerAction(async () => {
                         const finalImage = this.heroPreviewImg || 'https://images.unsplash.com/photo-1510798831971-661eb04b3739?auto=format&fit=crop&q=80&w=1800';
                         this.slides[this.newHero.activeIndex] = {
                             image: finalImage,
@@ -799,14 +865,16 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                             descRu: this.newHero.descRu,
                             descEn: this.newHero.descEn
                         };
-                        this.saveAll();
+                        const slide = this.slides[this.newHero.activeIndex];
+                        if (slide.id) await this.api(`/api/hero-slides/${slide.id}`, { method: 'PUT', body: JSON.stringify(slide) });
+                        this.cacheSave();
                         this.showToast('Uğurlu', 'Ana səhifə herosu yeniləndi!');
                     });
                 },
 
                 // Saves the single Advertising banner mirrored on both desktop sides
                 saveAd() {
-                    this.triggerAction(() => {
+                    this.triggerAction(async () => {
                         const finalSrc = this.adPreviewImg || this.newAd.src || '';
                         this.mainBanner = {
                             ...(this.mainBanner || {}),
@@ -821,7 +889,9 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                             views: this.mainBanner?.views || 0,
                             clicks: this.mainBanner?.clicks || 0
                         };
-                        this.saveAll();
+                        const saved = await this.api(this.mainBanner.id ? `/api/banners/${this.mainBanner.id}` : '/api/banners', { method: this.mainBanner.id ? 'PUT' : 'POST', body: JSON.stringify(this.mainBanner) });
+                        this.mainBanner = saved;
+                        this.cacheSave();
                         this.showToast('Yadda Saxlanıldı', 'Əsas reklam banneri yeniləndi!');
                         this.resetAdForm();
                     });
@@ -832,14 +902,16 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                         if (m.id === id) m.read = true;
                         return m;
                     });
-                    this.saveAll();
+                    this.api(`/api/messages/${id}/read`, { method: 'PATCH' }).catch(() => this.showToast('API xəta', 'Mesaj statusu DB-yə yazılmadı.'));
+                    this.cacheSave();
                 },
 
                 deleteMessage(id) {
-                    this.triggerAction(() => {
+                    this.triggerAction(async () => {
                         this.messages = this.messages.filter(m => m.id !== id);
                         this.stats.messagesCount = this.messages.length;
-                        this.saveAll();
+                        await this.api(`/api/messages/${id}`, { method: 'DELETE' });
+                        this.cacheSave();
                         this.showToast('Uğurlu', 'Müraciət silindi.');
                     });
                 },
@@ -991,7 +1063,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
         }
     </style>
 </head>
-<body class="bg-stone-50 text-stone-800 antialiased font-sans min-h-screen flex flex-col overflow-x-hidden" x-data="siteState()" x-init="initAdObservers(); initLayoutObservers()">
+<body class="bg-stone-50 text-stone-800 antialiased font-sans min-h-screen flex flex-col overflow-x-hidden" x-data="siteState()" x-init="initApp(); initAdObservers(); initLayoutObservers()">
 
     <div x-show="isLoading" x-cloak class="fixed inset-0 bg-stone-950/70 backdrop-blur-md z-[9999] flex flex-col items-center justify-center space-y-4" x-transition>
         <div class="w-16 h-16 border-4 border-wood-500 border-t-transparent rounded-full animate-spin"></div>
