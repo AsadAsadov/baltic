@@ -93,6 +93,7 @@ model Banner {
   width         Int      @default(260)
   height        Int      @default(600)
   duration      Int      @default(15)
+  displayOrder  Int      @default(0) @map("display_order")
   views         Int      @default(0)
   clicks        Int      @default(0)
   placement     String   @default("both")

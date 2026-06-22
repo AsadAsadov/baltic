@@ -163,6 +163,9 @@
                 // Advertising banners with left/right/both placement
                 banners: [],
                 mainBanner: migratedBanner,
+                activeAdIndexLeft: 0,
+                activeAdIndexRight: 0,
+                adRotationTimer: null,
 
                 // Active forms
                 newProj: { id: null, cat: 'house', titleAz: '', titleRu: '', titleEn: '', descAz: '', descRu: '', descEn: '', area: '100', stories: '1', rooms: '3', buildTimeAz: '2 ay', buildTimeRu: '2 месяца', buildTimeEn: '2 months', image: '' },
@@ -331,14 +334,19 @@
                     window.scrollTo({ top: 0, behavior: 'smooth' });
                 },
 
+                activeHeroSlides() {
+                    const slides = Array.isArray(this.slides) ? this.slides.filter(slide => slide?.active !== false) : [];
+                    return slides.length ? slides : (Array.isArray(this.slides) ? this.slides : []);
+                },
+
                 nextSlide() {
-                    const slides = Array.isArray(this.slides) ? this.slides : [];
+                    const slides = this.activeHeroSlides();
                     if (!slides.length) return;
                     this.activeSlide = (this.activeSlide + 1) % slides.length;
                 },
 
                 prevSlide() {
-                    const slides = Array.isArray(this.slides) ? this.slides : [];
+                    const slides = this.activeHeroSlides();
                     if (!slides.length) return;
                     this.activeSlide = (this.activeSlide - 1 + slides.length) % slides.length;
                 },
@@ -437,7 +445,7 @@
                     const link = source.link || source.linkUrl || source.link_url || '#';
                     const mediaType = source.mediaType || source.media_type || source.type || 'image';
                     const placement = source.placement || source.position || side || 'both';
-                    return { id: source.id ?? null, active: source.active ?? false, placement, position: placement, type: mediaType, mediaType, src, image: source.image || src, mediaUrl: source.mediaUrl || source.media_url || src, url: source.url || src, link, linkUrl: source.linkUrl || source.link_url || link, title: source.title || '', width: Number(source.width) || 260, height: Number(source.height) || 600, duration: Number(source.duration) || 15, views: Number(source.views) || 0, clicks: Number(source.clicks) || 0 };
+                    return { id: source.id ?? null, active: source.active ?? false, placement, position: placement, type: mediaType, mediaType, src, image: source.image || src, mediaUrl: source.mediaUrl || source.media_url || src, url: source.url || src, link, linkUrl: source.linkUrl || source.link_url || link, title: source.title || '', width: Number(source.width) || 260, height: Number(source.height) || 600, duration: Number(source.duration) || 15, displayOrder: Number(source.displayOrder ?? source.display_order) || 0, views: Number(source.views) || 0, clicks: Number(source.clicks) || 0 };
                 },
                 normalizeBanner(banner = {}, side = 'both') {
                     return this.getSafeBanner(banner, side);
@@ -466,7 +474,7 @@
                     const requests = [
                         ['/api/projects', cached('bc_projects', defaultProjects)],
                         ['/api/gallery', cached('bc_gallery', defaultGallery)],
-                        ['/api/hero-slides', cached('bc_slides', defaultSlides)],
+                        [this.adminLoggedIn ? '/api/hero-slides?admin=true' : '/api/hero-slides', cached('bc_slides', defaultSlides)],
                         ['/api/banners', cached('bc_banners_list', [])],
                         ['/api/stats', cached('bc_stats', this.stats)]
                     ];
@@ -490,6 +498,7 @@
                     console.table(this.slides.slice(0, 3));
                     console.table(this.galleryItems.slice(0, 3));
                     this.cacheSave();
+                    this.restartAdRotation();
                 },
 
                 async uploadMedia(file, bucket) {
@@ -676,10 +685,47 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                     return (Array.isArray(this.banners) ? this.banners : []).find(b => b?.active && (b.src || b.mediaUrl)) || null;
                 },
 
+                getActiveBannersForSide(side) {
+                    return (Array.isArray(this.banners) ? this.banners : [])
+                        .filter(b => b?.active && (b.src || b.mediaUrl) && (b.placement === side || b.placement === 'both'))
+                        .sort((a, b) => (Number(a.displayOrder) || 0) - (Number(b.displayOrder) || 0));
+                },
+
+                currentBannerForSide(side) {
+                    const list = this.getActiveBannersForSide(side);
+                    if (!list.length) return this.getSafeBanner({}, side);
+                    const index = side === 'right' ? this.activeAdIndexRight : this.activeAdIndexLeft;
+                    return this.getSafeBanner(list[index % list.length], side);
+                },
+
                 bannerForSide(side) {
-                    const list = Array.isArray(this.banners) ? this.banners : [];
-                    const ad = list.find(b => b?.active && (b.src || b.mediaUrl) && (b.placement === side || b.placement === 'both'));
-                    return this.getSafeBanner(ad, side);
+                    return this.currentBannerForSide(side);
+                },
+
+                stopAdRotation() {
+                    if (this.adRotationTimer) clearTimeout(this.adRotationTimer);
+                    this.adRotationTimer = null;
+                },
+
+                startAdRotation() {
+                    this.stopAdRotation();
+                    const left = this.getActiveBannersForSide('left');
+                    const right = this.getActiveBannersForSide('right');
+                    if (!left.length && !right.length) return;
+                    const currentLeft = left.length ? left[this.activeAdIndexLeft % left.length] : null;
+                    const currentRight = right.length ? right[this.activeAdIndexRight % right.length] : null;
+                    const seconds = Math.max(1, Math.min(Number(currentLeft?.duration || currentRight?.duration || 15), Number(currentRight?.duration || currentLeft?.duration || 15)));
+                    this.adRotationTimer = setTimeout(() => {
+                        if (left.length > 1) this.activeAdIndexLeft = (this.activeAdIndexLeft + 1) % left.length;
+                        if (right.length > 1) this.activeAdIndexRight = (this.activeAdIndexRight + 1) % right.length;
+                        this.startAdRotation();
+                    }, seconds * 1000);
+                },
+
+                restartAdRotation() {
+                    this.activeAdIndexLeft = 0;
+                    this.activeAdIndexRight = 0;
+                    this.$nextTick(() => this.startAdRotation());
                 },
 
                 setupEditAd(ad = null) {
@@ -697,6 +743,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                         this.banners = (Array.isArray(this.banners) ? this.banners : []).filter(b => b.id !== selected?.id);
                         this.mainBanner = this.firstActiveBanner() || this.normalizeBanner({}, 'both');
                         this.cacheSave();
+                        this.restartAdRotation();
                         this.resetAdForm();
                         this.showToast('Silindi', 'Reklam banneri silindi.');
                     });
@@ -707,6 +754,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                     if (ad.id) this.api(`/api/banners/${ad.id}/toggle`, { method: 'PATCH', body: JSON.stringify({ active: ad.active }) }).catch(() => this.showToast('API xəta', 'Banner statusu DB-yə yazılmadı.'));
                     this.mainBanner = this.firstActiveBanner() || this.normalizeBanner(ad, ad?.placement || 'both');
                     this.cacheSave();
+                    this.restartAdRotation();
                 },
 
                 normalizeWhatsAppPhone(phone) {
@@ -1002,27 +1050,67 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
 
                 saveHero() {
                     this.triggerAction(async () => {
-                        const finalImage = this.heroPreviewImgFile ? await this.uploadMedia(this.heroPreviewImgFile, 'hero') : (this.heroPreviewImg || 'https://images.unsplash.com/photo-1510798831971-661eb04b3739?auto=format&fit=crop&q=80&w=1800');
-                        this.slides[this.newHero.activeIndex] = {
-                            image: finalImage,
-                            tag: this.newHero.tag,
-                            tagRu: this.newHero.tagRu,
-                            tagEn: this.newHero.tagEn,
-                            title1: this.newHero.title1,
-                            title1Ru: this.newHero.title1Ru,
-                            title1En: this.newHero.title1En,
-                            title2: this.newHero.title2,
-                            title2Ru: this.newHero.title2Ru,
-                            title2En: this.newHero.title2En,
-                            desc: this.newHero.desc,
-                            descRu: this.newHero.descRu,
-                            descEn: this.newHero.descEn
-                        };
-                        const slide = this.slides[this.newHero.activeIndex];
-                        if (slide.id) await this.api(`/api/hero-slides/${slide.id}`, { method: 'PUT', body: JSON.stringify(slide) });
+                        const finalImage = this.heroPreviewImgFile ? await this.uploadMedia(this.heroPreviewImgFile, 'hero') : (this.heroPreviewImg || this.newHero.image || 'https://images.unsplash.com/photo-1510798831971-661eb04b3739?auto=format&fit=crop&q=80&w=1800');
+                        const payload = { ...this.newHero, image: finalImage, active: this.newHero.active ?? true };
+                        let saved;
+                        if (payload.id) {
+                            saved = await this.api(`/api/hero-slides/${payload.id}`, { method: 'PUT', body: JSON.stringify(payload) });
+                            this.slides = (this.slides || []).map(slide => slide.id === saved.id ? saved : slide);
+                        } else {
+                            saved = await this.api('/api/hero-slides', { method: 'POST', body: JSON.stringify(payload) });
+                            this.slides = [...(this.slides || []), saved];
+                        }
                         this.cacheSave();
-                        this.showToast('Uğurlu', 'Ana səhifə herosu yeniləndi!');
+                        this.resetHeroForm();
+                        this.showToast('Uğurlu', payload.id ? 'Ana səhifə herosu yeniləndi!' : 'Yeni hero slayd əlavə edildi!');
                     });
+                },
+
+                deleteHeroSlide(slide) {
+                    this.triggerAction(async () => {
+                        this.slides = (this.slides || []).filter(item => item !== slide && item.id !== slide.id);
+                        if (slide.id) await this.api(`/api/hero-slides/${slide.id}`, { method: 'DELETE' });
+                        if (this.activeSlide >= this.slides.length) this.activeSlide = Math.max(0, this.slides.length - 1);
+                        this.cacheSave();
+                        this.resetHeroForm();
+                        this.showToast('Silindi', 'Hero slayd silindi.');
+                    });
+                },
+
+                toggleHeroSlide(slide) {
+                    slide.active = !slide.active;
+                    if (slide.id) this.api(`/api/hero-slides/${slide.id}/toggle`, { method: 'PATCH', body: JSON.stringify({ active: slide.active }) }).catch(() => this.showToast('API xəta', 'Hero statusu DB-yə yazılmadı.'));
+                    this.cacheSave();
+                },
+
+                async persistHeroOrder() {
+                    this.slides = (this.slides || []).map((slide, index) => ({ ...slide, sortOrder: index }));
+                    this.cacheSave();
+                    const ids = this.slides.filter(slide => slide.id).map(slide => slide.id);
+                    if (ids.length) {
+                        this.slides = this.normalizeSlides(await this.api('/api/hero-slides/reorder', { method: 'PUT', body: JSON.stringify({ ids }) }), this.slides);
+                        this.cacheSave();
+                    }
+                },
+
+                moveHeroSlide(index, direction) {
+                    const list = [...(this.slides || [])];
+                    const next = index + direction;
+                    if (next < 0 || next >= list.length) return;
+                    [list[index], list[next]] = [list[next], list[index]];
+                    this.slides = list;
+                    this.persistHeroOrder().catch(() => this.showToast('API xəta', 'Hero sırası DB-yə yazılmadı.'));
+                },
+
+                onHeroDragStart(event, index) { event.dataTransfer.setData('text/plain', String(index)); },
+                onHeroDrop(event, index) {
+                    const from = Number(event.dataTransfer.getData('text/plain'));
+                    const list = [...(this.slides || [])];
+                    if (!Number.isInteger(from) || from === index || from < 0 || from >= list.length) return;
+                    const [item] = list.splice(from, 1);
+                    list.splice(index, 0, item);
+                    this.slides = list;
+                    this.persistHeroOrder().catch(() => this.showToast('API xəta', 'Hero sırası DB-yə yazılmadı.'));
                 },
 
                 // Saves one Advertising banner with left/right/both placement
@@ -1047,12 +1135,53 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                         };
                         const saved = await this.api(this.newAd.id ? `/api/banners/${this.newAd.id}` : '/api/banners', { method: this.newAd.id ? 'PUT' : 'POST', body: JSON.stringify(this.mainBanner) });
                         const normalizedSaved = this.normalizeBanner(saved, saved?.placement || this.newAd.placement);
-                        this.banners = [normalizedSaved, ...(this.banners || []).filter(b => b.id !== normalizedSaved.id)];
+                        this.banners = this.newAd.id ? (this.banners || []).map(b => b.id === normalizedSaved.id ? { ...b, ...normalizedSaved, displayOrder: b.displayOrder } : b) : [...(this.banners || []), normalizedSaved];
                         this.mainBanner = this.firstActiveBanner() || normalizedSaved;
                         this.cacheSave();
                         this.showToast('Yadda Saxlanıldı', 'Reklam banneri yeniləndi!');
                         this.resetAdForm();
+                        this.restartAdRotation();
                     });
+                },
+
+                async persistBannerOrder() {
+                    const ordered = (Array.isArray(this.banners) ? this.banners : []).map((ad, index) => ({ ...ad, displayOrder: index }));
+                    this.banners = ordered;
+                    this.cacheSave();
+                    this.restartAdRotation();
+                    const ids = ordered.filter(ad => ad.id).map(ad => ad.id);
+                    if (ids.length) {
+                        const saved = await this.api('/api/banners/reorder', { method: 'PUT', body: JSON.stringify({ ids }) });
+                        this.banners = this.normalizeBanners(saved, ordered);
+                        this.cacheSave();
+                        this.restartAdRotation();
+                    }
+                },
+
+                moveAd(ad, direction) {
+                    const list = Array.isArray(this.banners) ? [...this.banners] : [];
+                    const index = list.findIndex(item => item.id === ad.id);
+                    const next = index + direction;
+                    if (index < 0 || next < 0 || next >= list.length) return;
+                    [list[index], list[next]] = [list[next], list[index]];
+                    this.banners = list;
+                    this.persistBannerOrder().catch(() => this.showToast('API xəta', 'Banner sırası DB-yə yazılmadı.'));
+                },
+
+                onAdDragStart(event, index) { event.dataTransfer.setData('text/plain', String(index)); },
+                onAdDrop(event, index) {
+                    const from = Number(event.dataTransfer.getData('text/plain'));
+                    const list = Array.isArray(this.banners) ? [...this.banners] : [];
+                    if (!Number.isInteger(from) || from === index || from < 0 || from >= list.length) return;
+                    const [item] = list.splice(from, 1);
+                    list.splice(index, 0, item);
+                    this.banners = list;
+                    this.persistBannerOrder().catch(() => this.showToast('API xəta', 'Banner sırası DB-yə yazılmadı.'));
+                },
+
+                resetHeroForm() {
+                    this.newHero = { id: null, activeIndex: null, active: true, tag: '', tagRu: '', tagEn: '', title1: '', title1Ru: '', title1En: '', title2: '', title2Ru: '', title2En: '', desc: '', descRu: '', descEn: '', image: '' };
+                    this.heroPreviewImg = '';
                 },
 
                 markMessageRead(id) {
@@ -1358,7 +1487,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                 <!-- HERO SLIDER SECTION -->
                 <section data-home-hero class="relative left-1/2 w-screen max-w-[100vw] -translate-x-1/2 min-h-[calc(100vh-8rem)] bg-stone-900 overflow-hidden flex items-center">
                     <div class="absolute inset-0 z-0">
-                        <template x-for="(slide, index) in (Array.isArray(slides) ? slides : [])" :key="index">
+                        <template x-for="(slide, index) in activeHeroSlides()" :key="index">
                             <div x-show="activeSlide === index" x-transition:enter="transition ease-out duration-1000" class="absolute inset-0">
                                 <img :src="slide.image" class="w-full h-full object-cover" alt="Hero background">
                                 <div class="absolute inset-0 bg-gradient-to-r from-stone-950/80 via-stone-900/60 to-transparent"></div>
@@ -1370,15 +1499,15 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                         <div class="max-w-3xl space-y-6">
                             <span class="inline-flex items-center gap-2 bg-wood-600/90 text-stone-50 px-3.5 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider shadow-md">
                                 <i class="fa-solid fa-tree"></i>
-                                <span x-text="lang === 'en' ? slides[activeSlide].tagEn || slides[activeSlide].tag : (lang === 'ru' ? slides[activeSlide].tagRu || slides[activeSlide].tag : slides[activeSlide].tag)"></span>
+                                <span x-text="lang === 'en' ? (activeHeroSlides()[activeSlide] || {}).tagEn || (activeHeroSlides()[activeSlide] || {}).tag : (lang === 'ru' ? (activeHeroSlides()[activeSlide] || {}).tagRu || (activeHeroSlides()[activeSlide] || {}).tag : (activeHeroSlides()[activeSlide] || {}).tag)"></span>
                             </span>
                             
                             <h1 class="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-extrabold tracking-tight leading-none drop-shadow-sm">
-                                <span class="block" x-text="lang === 'en' ? slides[activeSlide].title1En || slides[activeSlide].title1 : (lang === 'ru' ? slides[activeSlide].title1Ru || slides[activeSlide].title1 : slides[activeSlide].title1)"></span>
-                                <span class="block text-wood-400 mt-2" x-text="lang === 'en' ? slides[activeSlide].title2En || slides[activeSlide].title2 : (lang === 'ru' ? slides[activeSlide].title2Ru || slides[activeSlide].title2 : slides[activeSlide].title2)"></span>
+                                <span class="block" x-text="lang === 'en' ? (activeHeroSlides()[activeSlide] || {}).title1En || (activeHeroSlides()[activeSlide] || {}).title1 : (lang === 'ru' ? (activeHeroSlides()[activeSlide] || {}).title1Ru || (activeHeroSlides()[activeSlide] || {}).title1 : (activeHeroSlides()[activeSlide] || {}).title1)"></span>
+                                <span class="block text-wood-400 mt-2" x-text="lang === 'en' ? (activeHeroSlides()[activeSlide] || {}).title2En || (activeHeroSlides()[activeSlide] || {}).title2 : (lang === 'ru' ? (activeHeroSlides()[activeSlide] || {}).title2Ru || (activeHeroSlides()[activeSlide] || {}).title2 : (activeHeroSlides()[activeSlide] || {}).title2)"></span>
                             </h1>
                             
-                            <p class="text-lg sm:text-xl text-stone-200 font-light max-w-xl" x-text="lang === 'en' ? slides[activeSlide].descEn || slides[activeSlide].desc : (lang === 'ru' ? slides[activeSlide].descRu || slides[activeSlide].desc : slides[activeSlide].desc)"></p>
+                            <p class="text-lg sm:text-xl text-stone-200 font-light max-w-xl" x-text="lang === 'en' ? (activeHeroSlides()[activeSlide] || {}).descEn || (activeHeroSlides()[activeSlide] || {}).desc : (lang === 'ru' ? (activeHeroSlides()[activeSlide] || {}).descRu || (activeHeroSlides()[activeSlide] || {}).desc : (activeHeroSlides()[activeSlide] || {}).desc)"></p>
 
                             <div class="flex flex-col sm:flex-row gap-4 pt-4">
                                 <a @click.prevent="setPage('projects')" href="#" class="bg-forest-600 hover:bg-forest-700 text-white px-8 py-4 rounded-xl text-base font-bold shadow-lg transition duration-300 transform hover:-translate-y-0.5 text-center flex items-center justify-center gap-2">
@@ -1396,7 +1525,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                     <div class="absolute bottom-8 left-0 right-0 z-20">
                         <div class="max-w-7xl mx-auto px-4 flex justify-between items-center">
                             <div class="flex gap-2">
-                                <template x-for="(slide, idx) in (Array.isArray(slides) ? slides : [])" :key="idx">
+                                <template x-for="(slide, idx) in activeHeroSlides()" :key="idx">
                                     <button @click="activeSlide = idx" class="h-2.5 rounded-full transition-all duration-300" :class="activeSlide === idx ? 'w-8 bg-wood-500' : 'w-2.5 bg-white/45'"></button>
                                 </template>
                             </div>
@@ -1947,7 +2076,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
 
                 <!-- SUB-TAB 5: HERO SLIDE MULTIPAGE CUSTOMIZER -->
                 <div x-show="adminTab === 'hero'" x-transition class="bg-white p-6 rounded-3xl border border-stone-200/80 shadow-sm space-y-6 text-xs font-bold uppercase text-stone-500">
-                    <h3 class="text-lg font-black text-stone-900 tracking-normal" x-text="lang==='az'?'Ana Səhifə Hero Slaydların İdarə Olunması':'Управление слайдами главной'">Slaydlar</h3>
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3"><h3 class="text-lg font-black text-stone-900 tracking-normal" x-text="lang==='az'?'Ana Səhifə Hero Slaydların İdarə Olunması':'Управление слайдами главной'">Slaydlar</h3><button @click="resetHeroForm()" class="px-4 py-2 bg-forest-700 text-white rounded-xl font-black normal-case"><i class="fa-solid fa-plus mr-2"></i>Yeni hero slayd</button></div>
                     <div class="grid grid-cols-1 lg:grid-cols-[60fr_40fr] gap-6 items-start">
                         <div class="order-2 lg:order-1 bg-stone-50 border border-stone-200 rounded-3xl p-5 sm:p-6 space-y-5">
                             <div class="bg-white border-2 border-dashed border-stone-300 hover:border-wood-500 rounded-3xl p-5 text-center transition">
@@ -1973,10 +2102,23 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                                 <div><label>Açıqlama RU</label><textarea x-model="newHero.descRu" @input="markManualTranslation('newHero.descRu')" rows="3" class="w-full px-3 py-2 bg-white border border-stone-200 rounded-lg text-stone-800 tracking-normal mt-1 font-medium"></textarea></div>
                                 <div><label>Açıqlama EN</label><textarea x-model="newHero.descEn" @input="markManualTranslation('newHero.descEn')" rows="3" class="w-full px-3 py-2 bg-white border border-stone-200 rounded-lg text-stone-800 tracking-normal mt-1 font-medium"></textarea></div>
                             </div>
-                            <button @click="saveHero()" class="w-full py-3 bg-forest-700 text-white font-bold rounded-xl shadow hover:bg-forest-800 normal-case" x-text="lang==='az'?'Slaydı Güncəllə':'Обновить слайд'"></button>
+                            <button @click="saveHero()" class="w-full py-3 bg-forest-700 text-white font-bold rounded-xl shadow hover:bg-forest-800 normal-case" x-text="newHero.id ? 'Slaydı Güncəllə' : 'Yeni slayd yarat'"></button>
                         </div>
                         <div class="order-1 lg:order-2 grid grid-cols-1 gap-3 bg-stone-50 border border-stone-200 rounded-3xl p-4">
-                            <template x-for="(sld, sIdx) in (Array.isArray(slides) ? slides : [])" :key="sIdx"><div class="p-3 bg-white rounded-2xl border border-stone-200 hover:bg-stone-50 cursor-pointer space-y-2" :class="newHero.activeIndex === sIdx ? '!border-wood-600 ring-2 ring-wood-200 shadow-md' : ''" @click="setupEditHero(sIdx)"><div class="flex justify-between items-center"><span class="font-black text-forest-900" x-text="`${sIdx + 1}-ci Slayd`"></span><span class="text-[9px] bg-wood-100 text-wood-700 px-1.5 py-0.5 rounded uppercase" x-text="sld.tag ? sld.tag.substring(0,15)+'...' : ''"></span></div><img :src="sld.image" class="w-full h-32 lg:h-28 object-cover rounded-xl shadow"><button class="w-full py-1.5 bg-forest-700 text-white rounded text-[10px] font-bold" x-text="lang==='az'?'Redaktə et':'Редактировать'"></button></div></template>
+                            <template x-for="(sld, sIdx) in (Array.isArray(slides) ? slides : [])" :key="sld.id || sIdx">
+                                <div class="p-3 bg-white rounded-2xl border border-stone-200 hover:bg-stone-50 space-y-3" :class="newHero.activeIndex === sIdx ? '!border-wood-600 ring-2 ring-wood-200 shadow-md' : ''" draggable="true" @dragstart="onHeroDragStart($event, sIdx)" @dragover.prevent @drop="onHeroDrop($event, sIdx)">
+                                    <div class="flex justify-between items-center gap-2"><span class="cursor-grab text-stone-400"><i class="fa-solid fa-grip-vertical"></i></span><span class="font-black text-forest-900 flex-1" x-text="`${sIdx + 1}-ci Slayd`"></span><span class="text-[9px] px-1.5 py-0.5 rounded uppercase" :class="sld.active === false ? 'bg-stone-100 text-stone-500' : 'bg-green-100 text-green-700'" x-text="sld.active === false ? 'Deaktiv' : 'Aktiv'"></span></div>
+                                    <img :src="sld.image" class="w-full h-32 lg:h-28 object-cover rounded-xl shadow">
+                                    <p class="text-[10px] text-stone-500 normal-case truncate" x-text="sld.tag || sld.title1 || 'Adsız hero slayd'"></p>
+                                    <div class="grid grid-cols-2 gap-2">
+                                        <button @click="setupEditHero(sIdx)" class="py-1.5 bg-forest-700 text-white rounded text-[10px] font-bold">Redaktə et</button>
+                                        <button @click="toggleHeroSlide(sld)" class="py-1.5 bg-wood-50 text-wood-700 rounded text-[10px] font-bold" x-text="sld.active === false ? 'Aktiv et' : 'Deaktiv et'"></button>
+                                        <button @click="moveHeroSlide(sIdx, -1)" :disabled="sIdx === 0" class="py-1.5 bg-stone-100 text-stone-700 rounded text-[10px] font-bold disabled:opacity-40">↑</button>
+                                        <button @click="moveHeroSlide(sIdx, 1)" :disabled="sIdx === slides.length - 1" class="py-1.5 bg-stone-100 text-stone-700 rounded text-[10px] font-bold disabled:opacity-40">↓</button>
+                                        <button @click="deleteHeroSlide(sld)" class="col-span-2 py-1.5 bg-red-50 text-red-700 rounded text-[10px] font-bold">Sil</button>
+                                    </div>
+                                </div>
+                            </template>
                         </div>
                     </div>
                 </div>
@@ -2026,8 +2168,9 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                                     </div>
                                 </template>
                                 <div class="grid grid-cols-1 gap-4">
-                                    <template x-for="ad in (Array.isArray(banners) ? banners : [])" :key="ad.id || ad.src">
-                                        <div class="bg-white rounded-2xl border border-stone-200 p-4 grid grid-cols-1 sm:grid-cols-[90px_minmax(0,1fr)] gap-4 min-h-[170px] items-start shadow-sm">
+                                    <template x-for="(ad, adIdx) in (Array.isArray(banners) ? banners : [])" :key="ad.id || ad.src">
+                                        <div class="bg-white rounded-2xl border border-stone-200 p-4 grid grid-cols-1 sm:grid-cols-[24px_90px_minmax(0,1fr)] gap-4 min-h-[170px] items-start shadow-sm" draggable="true" @dragstart="onAdDragStart($event, adIdx)" @dragover.prevent @drop="onAdDrop($event, adIdx)">
+                                            <div class="cursor-grab text-stone-400 pt-2"><i class="fa-solid fa-grip-vertical"></i></div>
                                             <div class="w-[90px] h-[140px] rounded-[14px] overflow-hidden bg-stone-100 flex-shrink-0 border border-stone-100 flex items-center justify-center text-stone-300">
                                                 <template x-if="ad.type === 'image' && ad.src"><img :src="ad.src" class="w-full h-full object-cover"></template>
                                                 <template x-if="ad.type === 'video' && ad.src"><video :src="ad.src" muted playsinline class="w-full h-full object-cover"></video></template>
@@ -2041,6 +2184,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                                                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px] text-stone-500">
                                                     <p class="px-3 py-2 bg-stone-50 rounded-xl whitespace-nowrap">Yerləşim: <b class="text-stone-700" x-text="ad.placement === 'left' ? 'Sol' : (ad.placement === 'right' ? 'Sağ' : 'Hər ikisi')"></b></p>
                                                     <p class="px-3 py-2 bg-stone-50 rounded-xl whitespace-nowrap">Ölçü: <b class="text-stone-700" x-text="`${ad.width || 260} × ${ad.height || 600}`"></b></p>
+                                                    <p class="px-3 py-2 bg-stone-50 rounded-xl whitespace-nowrap">Duration: <b class="text-stone-700" x-text="`${ad.duration || 15}s`"></b></p>
                                                     <p class="px-3 py-2 bg-stone-50 rounded-xl whitespace-nowrap">Views: <b class="text-stone-700" x-text="ad.views || 0"></b></p>
                                                     <p class="px-3 py-2 bg-stone-50 rounded-xl whitespace-nowrap">Clicks: <b class="text-stone-700" x-text="ad.clicks || 0"></b></p>
                                                 </div>
@@ -2048,6 +2192,8 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                                                     <button @click="setupEditAd(ad)" class="min-w-[96px] px-4 py-2 bg-forest-50 text-forest-700 rounded-lg font-bold text-[11px] whitespace-nowrap">Redaktə et</button>
                                                     <button @click="toggleAdActive(ad)" class="min-w-[96px] px-4 py-2 bg-wood-50 text-wood-700 rounded-lg font-bold text-[11px] whitespace-nowrap" x-text="ad.active ? 'Deaktiv et' : 'Aktiv et'"></button>
                                                     <button @click="deleteAd(ad)" class="min-w-[70px] px-4 py-2 bg-red-50 text-red-700 rounded-lg font-bold text-[11px] whitespace-nowrap">Sil</button>
+                                                    <button @click="moveAd(ad, -1)" :disabled="adIdx === 0" class="px-3 py-2 bg-stone-100 text-stone-700 rounded-lg font-bold text-[11px] disabled:opacity-40">↑</button>
+                                                    <button @click="moveAd(ad, 1)" :disabled="adIdx === banners.length - 1" class="px-3 py-2 bg-stone-100 text-stone-700 rounded-lg font-bold text-[11px] disabled:opacity-40">↓</button>
                                                 </div>
                                             </div>
                                         </div>
