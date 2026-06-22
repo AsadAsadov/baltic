@@ -34,6 +34,9 @@ const idWhere = (id) => {
   return Number.isFinite(legacyId) ? { legacyId } : { id: '00000000-0000-0000-0000-000000000000' };
 };
 const jsonArray = (v) => Array.isArray(v) ? v : [];
+const heroSlideSelect = { id:true, legacyId:true, titleAz:true, titleRu:true, titleEn:true, subtitleAz:true, subtitleRu:true, subtitleEn:true, mediaType:true, mediaUrl:true, image:true, buttonTextAz:true, buttonTextRu:true, buttonTextEn:true, buttonLink:true, tagAz:true, tagRu:true, tagEn:true, title1Az:true, title1Ru:true, title1En:true, title2Az:true, title2Ru:true, title2En:true, descAz:true, descRu:true, descEn:true, sortOrder:true, active:true, createdAt:true, updatedAt:true };
+const adminTabDefaultVisibility = { dashboard:true, messages:true, projects:true, gallery:true, hero:true, homeImages:true, ads:true };
+const settingOut = (s) => ({ id:s.id, key:s.key, value:s.value || {}, createdAt:s.createdAt, updatedAt:s.updatedAt });
 
 const catMap = {
   house: { az: 'Taxta Ev', ru: 'Деревянный Дом', en: 'Wooden House' },
@@ -116,12 +119,15 @@ app.put('/api/gallery/:id', wrap(async (req,res)=>res.json(galleryOut(await pris
 app.delete('/api/gallery/:id', wrap(async (req,res)=>{ await prisma.galleryItem.delete({where:{id:intId(req)}}); res.json({ok:true}); }));
 app.patch('/api/gallery/:id/archive', wrap(async (req,res)=>{ const g=await prisma.galleryItem.findUniqueOrThrow({where:{id:intId(req)}}); res.json(galleryOut(await prisma.galleryItem.update({where:{id:g.id},data:{archived:req.body.archived ?? !g.archived}}))); }));
 
-app.get('/api/hero-slides', wrap(async (req,res)=>res.json((await prisma.heroSlide.findMany({ where:req.query.admin==='true'?{}:{active:true}, orderBy:[{sortOrder:'asc'},{id:'asc'}] })).map(slideOut))));
-app.post('/api/hero-slides', wrap(async (req,res)=>{ const mediaUrl=req.body.mediaUrl||req.body.media_url||req.body.image||req.body.src; if(!mediaUrl) return res.status(400).json({ok:false,error:'MEDIA_REQUIRED',message:'Hero slide media is required'}); const last=await prisma.heroSlide.findFirst({orderBy:{sortOrder:'desc'}}); res.status(201).json(slideOut(await prisma.heroSlide.create({data:slideIn({...req.body, mediaUrl, sortOrder:(last?.sortOrder ?? -1)+1},{includeSortOrder:true})}))); }));
-app.put('/api/hero-slides/reorder', wrap(async (req,res)=>{ const ids=req.body.ids || (req.body.items||[]).map(it=>it.id); await Promise.all((ids||[]).map((id,i)=>prisma.heroSlide.update({where:{id:Number(id)},data:{sortOrder:i}}))); res.json((await prisma.heroSlide.findMany({orderBy:[{sortOrder:'asc'},{id:'asc'}]})).map(slideOut)); }));
-app.put('/api/hero-slides/:id', wrap(async (req,res)=>{ const data=slideIn(req.body); if (!data.mediaUrl) { delete data.mediaUrl; delete data.image; delete data.mediaType; } res.json(slideOut(await prisma.heroSlide.update({where:{id:intId(req)},data}))); }));
+app.get('/api/hero-slides', wrap(async (req,res)=>res.json((await prisma.heroSlide.findMany({ select:heroSlideSelect, where:req.query.admin==='true'?{}:{active:true}, orderBy:[{sortOrder:'asc'},{id:'asc'}] })).map(slideOut))));
+app.post('/api/hero-slides', wrap(async (req,res)=>{ const mediaUrl=req.body.mediaUrl||req.body.media_url||req.body.image||req.body.src; if(!mediaUrl) return res.status(400).json({ok:false,error:'MEDIA_REQUIRED',message:'Hero slide media is required'}); const last=await prisma.heroSlide.findFirst({select:{sortOrder:true},orderBy:{sortOrder:'desc'}}); res.status(201).json(slideOut(await prisma.heroSlide.create({select:heroSlideSelect,data:slideIn({...req.body, mediaUrl, sortOrder:(last?.sortOrder ?? -1)+1},{includeSortOrder:true})}))); }));
+app.put('/api/hero-slides/reorder', wrap(async (req,res)=>{ const ids=req.body.ids || (req.body.items||[]).map(it=>it.id); await Promise.all((ids||[]).map((id,i)=>prisma.heroSlide.update({where:{id:Number(id)},data:{sortOrder:i}}))); res.json((await prisma.heroSlide.findMany({select:heroSlideSelect,orderBy:[{sortOrder:'asc'},{id:'asc'}]})).map(slideOut)); }));
+app.put('/api/hero-slides/:id', wrap(async (req,res)=>{ const data=slideIn(req.body); if (!data.mediaUrl) { delete data.mediaUrl; delete data.image; delete data.mediaType; } res.json(slideOut(await prisma.heroSlide.update({select:heroSlideSelect,where:{id:intId(req)},data}))); }));
 app.delete('/api/hero-slides/:id', wrap(async (req,res)=>{await prisma.heroSlide.delete({where:{id:intId(req)}});res.json({ok:true});}));
-app.patch('/api/hero-slides/:id/toggle', wrap(async (req,res)=>{ const s=await prisma.heroSlide.findUniqueOrThrow({where:{id:intId(req)}}); res.json(slideOut(await prisma.heroSlide.update({where:{id:s.id},data:{active:req.body.active ?? !s.active}}))); }));
+app.patch('/api/hero-slides/:id/toggle', wrap(async (req,res)=>{ const s=await prisma.heroSlide.findUniqueOrThrow({select:{id:true,active:true},where:{id:intId(req)}}); res.json(slideOut(await prisma.heroSlide.update({select:heroSlideSelect,where:{id:s.id},data:{active:req.body.active ?? !s.active}}))); }));
+
+app.get('/api/admin-panel-settings/:key', wrap(async (req,res)=>{ const setting=await prisma.adminPanelSetting.findUnique({where:{key:req.params.key}}); if(setting) return res.json(settingOut(setting)); if(req.params.key==='admin_tab_visibility') return res.json({key:req.params.key,value:adminTabDefaultVisibility}); res.status(404).json({ok:false,error:'SETTING_NOT_FOUND',message:'Admin panel setting not found'}); }));
+app.put('/api/admin-panel-settings/:key', wrap(async (req,res)=>{ const value=req.body.value && typeof req.body.value==='object' ? req.body.value : req.body; res.json(settingOut(await prisma.adminPanelSetting.upsert({where:{key:req.params.key},create:{key:req.params.key,value},update:{value}}))); }));
 
 
 app.get('/api/home-section-images', wrap(async (req,res)=>res.json((await prisma.homeSectionImage.findMany({ orderBy:[{sectionKey:'asc'},{sortOrder:'asc'}] })).map(homeSectionImageOut))));

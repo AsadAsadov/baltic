@@ -161,3 +161,13 @@ model StatEvent {
 
   @@map("stat_events")
 }
+
+model AdminPanelSetting {
+  id        String   @id @default(uuid()) @db.Uuid
+  key       String   @unique
+  value     Json     @default("{}")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("admin_panel_settings")
+}

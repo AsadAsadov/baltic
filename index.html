@@ -149,6 +149,8 @@
                 activeSlide: 0,
                 filterCategory: 'all',
                 activeGalleryIndex: 0,
+                activeGalleryImageIndex: 0,
+                galleryPreviewIndex: 0,
                 activeHomeGalleryIndex: 0,
                 activeAdvantagesImageIndex: 0,
                 homeGalleryTimer: null,
@@ -164,6 +166,17 @@
                 adminPassword: '',
                 adminLoginError: '',
                 adminTab: 'dashboard', // dashboard, messages, projects, gallery, hero, home-images, ads
+                adminTabs: [
+                    { key: 'dashboard', labelKey: 'adminTabStats' },
+                    { key: 'messages', labelKey: 'adminTabMessages' },
+                    { key: 'projects', labelKey: 'adminTabProjects' },
+                    { key: 'gallery', labelKey: 'adminTabGallery' },
+                    { key: 'hero', labelKey: 'adminTabHero' },
+                    { key: 'home-images', settingKey: 'homeImages', labelKey: 'adminTabHomeImages' },
+                    { key: 'ads', labelKey: 'adminTabAds' }
+                ],
+                adminTabVisibility: JSON.parse(localStorage.getItem('bc_admin_tab_visibility') || 'null') || { dashboard: true, messages: true, projects: true, gallery: true, hero: true, homeImages: true, ads: true },
+                showAdminTabManager: false,
 
                 // Dynamic App State DB
                 projects: defaultProjects,
@@ -331,11 +344,67 @@
                     'adminTabProjects': { az: 'Layihə Əlavə / Redaktə', ru: 'Добавить / Изменить Проект', en: 'Manage Projects' },
                     'adminTabGallery': { az: 'Qalereya & Youtube', ru: 'Галерея и Видео', en: 'Gallery & YouTube' },
                     'adminTabHero': { az: 'Hero Slaydlar', ru: 'Слайды Главной', en: 'Hero Slides' },
+                    'adminTabHomeImages': { az: 'Ana səhifə şəkilləri', ru: 'Изображения главной', en: 'Home page images' },
+                    'adminPanelButtons': { az: 'Panel düymələri', ru: 'Кнопки панели', en: 'Panel buttons' },
                     'adminTabAds': { az: 'Reklam / Banner', ru: 'Реклама / Баннеры', en: 'Manage Ads' },
                     'adminTotalProjects': { az: 'Ümumi Layihələr', ru: 'Всего Проектов', en: 'Total Projects' },
                     'adminProjectViews': { az: 'Layihə Baxışları', ru: 'Просмотры Проектов', en: 'Project Views' },
                     'adminAdViews': { az: 'Reklam Baxışları', ru: 'Просмотры Рекламы', en: 'Ad Impressions' },
                     'adminTotalMessages': { az: 'Müraciətlər', ru: 'Всего Сообщений', en: 'Total Messages' }
+                    ,'homeEcoChoice': { az: 'Ekoloji seçim', ru: 'Экологичный выбор', en: 'Ecological choice' },
+                    'homeWhyWood': { az: 'Niyə taxta evlər?', ru: 'Почему деревянные дома?', en: 'Why wooden homes?' },
+                    'homeWhyIntro': { az: 'Taxta evlər təbii material, sağlam mikroiqlim və möhkəm konstruksiya ilə ailəniz üçün rahat yaşayış yaradır.', ru: 'Деревянные дома создают комфортную среду благодаря натуральным материалам, здоровому микроклимату и прочной конструкции.', en: 'Wooden homes create comfortable living with natural materials, a healthy microclimate and durable structure.' },
+                    'homeCharmTitle': { az: 'Füsunkar görünüş', ru: 'Очаровательный вид', en: 'Charming appearance' },
+                    'homeCharmDesc': { az: 'Təbiətin bir parçası olan ağac öz təbii görünüşü ilə valeh edir.', ru: 'Натуральная древесина восхищает естественной красотой.', en: 'Natural wood impresses with its authentic beauty.' },
+                    'homeLongevityTitle': { az: 'Uzunömürlülük', ru: 'Долговечность', en: 'Longevity' },
+                    'homeLongevityDesc': { az: 'Taxta evlər düzgün və davamlı qulluq olunduqda 200 ilə qədər sağlam qala bilir.', ru: 'При правильном уходе деревянные дома служат до 200 лет.', en: 'With proper care, wooden homes can remain sound for up to 200 years.' },
+                    'homeHealthyTitle': { az: 'Sağlam yaşam tərzi', ru: 'Здоровый образ жизни', en: 'Healthy lifestyle' },
+                    'homeHealthyDesc': { az: 'Ağac interyerdə təbii istilik, sakitlik və nəfəs alan mühit yaradır.', ru: 'Дерево создает теплую, спокойную и дышащую атмосферу.', en: 'Wood creates warmth, calm and a breathable indoor atmosphere.' },
+                    'homeEnergyTitle': { az: 'Enerjiyə qənaət', ru: 'Экономия энергии', en: 'Energy saving' },
+                    'homeEnergyDesc': { az: 'Təbii izolyasiya qışda istiliyi, yayda sərinliyi daha yaxşı qoruyur.', ru: 'Натуральная изоляция лучше сохраняет тепло зимой и прохладу летом.', en: 'Natural insulation keeps warmth in winter and coolness in summer.' },
+                    'homeSeismicTitle': { az: 'Zəlzələyə davamlılıq', ru: 'Сейсмостойкость', en: 'Earthquake resistance' },
+                    'homeSeismicDesc': { az: 'Elastik ağac konstruksiyası seysmik yüklərə qarşı daha çevik davranır.', ru: 'Эластичная деревянная конструкция лучше работает при сейсмических нагрузках.', en: 'Elastic timber structures respond flexibly to seismic loads.' },
+                    'homeAirTitle': { az: 'Hava sirkulyasiyası', ru: 'Циркуляция воздуха', en: 'Air circulation' },
+                    'homeAirDesc': { az: 'Ağac nəfəs alan quruluşu ilə otaqlarda təbii hava balansını dəstəkləyir.', ru: 'Древесина поддерживает естественный баланс воздуха в помещениях.', en: 'Wood supports a natural air balance indoors.' },
+                    'woodHomeAtmosphere': { az: 'Taxta ev atmosferi', ru: 'Атмосфера деревянного дома', en: 'Wooden home atmosphere' },
+                    'qualityStandards': { az: 'Keyfiyyət standartları', ru: 'Стандарты качества', en: 'Quality standards' },
+                    'advantagesTitle': { az: 'Üstünlüklərimiz', ru: 'Наши преимущества', en: 'Our advantages' },
+                    'advantagesP1': { az: 'Şirkətimiz hazırladığı taxta evlərin uzunömürlü və izolyasiyalı olması üçün müəyyən metodlar tətbiq edir. Binanın çöl hissəsi müxtəlif hava şəraitinə dözümlü xüsusi materiallarla, lakla örtülür.', ru: 'Для долговечности и изоляции деревянных домов мы применяем специальные методы. Наружная часть здания покрывается стойкими материалами и лаком.', en: 'We apply special methods to make our wooden homes long-lasting and insulated. Exterior surfaces are protected with weather-resistant materials and lacquer.' },
+                    'advantagesP2': { az: 'Divar xüsusi materiallarla, İzobon və daş yunu ilə əhatə olunur. Çöl blok-hausun içəri hissəsi isə OSB adlanan materialla örtülür.', ru: 'Стены защищаются специальными материалами, Изобоном и каменной ватой. Внутренняя часть наружного блок-хауса покрывается OSB.', en: 'Walls are wrapped with special materials, Izobon and stone wool. The inner side of the exterior block house is covered with OSB.' },
+                    'advantagesP3': { az: 'Taxta evlərdə ən çox rast gəlinən problemlərdən biri həşəratların olmasıdır. Keyfiyyətli işlənmiş və sobalarda qurudulmuş ağacda bu risk aradan qalxır.', ru: 'Одна из частых проблем деревянных домов — насекомые. Качественная обработка и камерная сушка устраняют этот риск.', en: 'One common wooden-house issue is insects. Quality treatment and kiln drying remove this risk.' },
+                    'advantagesP4': { az: 'Şirkətimiz istifadə etdiyi bütün ağac materiallarını dərmanlayaraq sobalarda işlədikdən sonra inşaatda istifadə edir.', ru: 'Все деревянные материалы проходят защитную обработку и сушку перед строительством.', en: 'All timber materials are protectively treated and kiln processed before construction.' },
+                    'advantagesP5': { az: 'Baltic Caspian bütün standartlara cavab verən ekoloji məhsullarla xəyallarınızdakı taxta ev layihələrini inşa etməyə hazırdır.', ru: 'Baltic Caspian готов строить деревянные дома вашей мечты из экологичных материалов по всем стандартам.', en: 'Baltic Caspian is ready to build your dream wooden home with eco-friendly products meeting all standards.' },
+                    'showLess': { az: 'Daha az göstər', ru: 'Показать меньше', en: 'Show less' },
+                    'readMore': { az: 'Daha ətraflı', ru: 'Подробнее', en: 'Read more' },
+                    'badgeLacquer': { az: 'Lak qoruması', ru: 'Лаковая защита', en: 'Lacquer protection' },
+                    'badgeIzobon': { az: 'İzobon və daş yunu', ru: 'Изобон и каменная вата', en: 'Izobon and stone wool' },
+                    'badgeOsb': { az: 'OSB qat', ru: 'Слой OSB', en: 'OSB layer' },
+                    'badgeTreatment': { az: 'Dərmanlama', ru: 'Защитная обработка', en: 'Protective treatment' },
+                    'badgeKiln': { az: 'Soba qurudulması', ru: 'Камерная сушка', en: 'Kiln drying' },
+                    'badgeInsect': { az: 'Həşərata qarşı qoruma', ru: 'Защита от насекомых', en: 'Insect protection' },
+                    'completionWorks': { az: 'Tamamlanma işləri', ru: 'Отделочные работы', en: 'Finishing works' },
+                    'repairServices': { az: 'Təmir xidmətləri', ru: 'Ремонтные услуги', en: 'Repair services' },
+                    'repairIntro': { az: 'Mənzil, ofis və taxta evlər üçün bütün təmir və tamamlanma işləri müqavilə əsasında görülür.', ru: 'Все ремонтные и отделочные работы для квартир, офисов и деревянных домов выполняются по договору.', en: 'All repair and finishing works for apartments, offices and wooden homes are performed under contract.' },
+                    'apartmentOfficeRepair': { az: 'Mənzil və ofis təmiri', ru: 'Ремонт квартир и офисов', en: 'Apartment and office repair' },
+                    'repairA1': { az: 'Xüsusi növ dizaynla mənzil və ofislərin təmiri', ru: 'Ремонт квартир и офисов по индивидуальному дизайну', en: 'Apartment and office repairs with custom design' },
+                    'repairA2': { az: 'Bütün növ elektrik işləri', ru: 'Все виды электромонтажных работ', en: 'All types of electrical work' },
+                    'repairA3': { az: 'Santexnika işləri', ru: 'Сантехнические работы', en: 'Plumbing work' },
+                    'repairA4': { az: 'Boya və digər üsulla rəngləmə işləri', ru: 'Покраска и другие отделочные работы', en: 'Paint and other finishing work' },
+                    'repairA5': { az: 'Divar kağızlarının vurulması', ru: 'Поклейка обоев', en: 'Wallpaper installation' },
+                    'repairA6': { az: 'Kafel və metlax döşəmə xidmətləri', ru: 'Укладка кафеля и плитки', en: 'Tile and ceramic flooring services' },
+                    'repairA7': { az: 'Parket və laminat döşəmə işləri', ru: 'Укладка паркета и ламината', en: 'Parquet and laminate flooring' },
+                    'repairA8': { az: 'Mətbəx və otaq mebellərinin hazırlanması', ru: 'Изготовление кухонной и комнатной мебели', en: 'Kitchen and room furniture production' },
+                    'woodenHouseRepair': { az: 'Taxta evlərin təmiri', ru: 'Ремонт деревянных домов', en: 'Wooden home repair' },
+                    'repairW1': { az: 'Taxta evlərin rənglənib laklanması', ru: 'Покраска и лакировка деревянных домов', en: 'Painting and lacquering wooden homes' },
+                    'repairW2': { az: 'Taxta pilləkənlərin hazırlanması və vurulması', ru: 'Изготовление и установка деревянных лестниц', en: 'Wooden stair production and installation' },
+                    'repairW3': { az: 'Ev örtüyü, dam vurulması', ru: 'Кровельные работы и монтаж крыши', en: 'Roof covering and installation' },
+                    'repairW4': { az: 'Mala və hörgü işləri', ru: 'Штукатурные и кладочные работы', en: 'Plastering and masonry work' },
+                    'repairW5': { az: 'Manqalların qurulması', ru: 'Строительство мангалов', en: 'Barbecue construction' },
+                    'repairW6': { az: 'Köşklərin, besedkaların hazırlanması', ru: 'Изготовление киосков и беседок', en: 'Kiosk and gazebo production' },
+                    'repairW7': { az: 'Landşaft dizaynı', ru: 'Ландшафтный дизайн', en: 'Landscape design' },
+                    'repairContract': { az: 'Bütün işlər müqavilə əsasında görülür.', ru: 'Все работы выполняются на основании договора.', en: 'All work is performed under contract.' },
+                    'repairApply': { az: 'Təmir üçün müraciət et', ru: 'Подать заявку на ремонт', en: 'Apply for repair' }
+
                 },
 
                 t(key) {
@@ -488,6 +557,7 @@
                 },
 
                 async initApp() {
+                    await this.loadAdminTabVisibility();
                     await this.loadData();
                     await this.loadHomeSectionImages();
                     this.homeGalleryImages = this.homeGalleryImages.length ? this.homeGalleryImages : defaultHomeGalleryImages;
@@ -588,6 +658,38 @@
                     this.startHomeGalleryRotation();
                 },
 
+                adminSettingKey(tab) { return tab?.settingKey || tab?.key; },
+
+                adminTabVisible(tabKey) { return this.adminTabVisibility[tabKey === 'home-images' ? 'homeImages' : tabKey] !== false; },
+
+                visibleAdminTabs() { return this.adminTabs.filter(tab => this.adminTabVisible(tab.key)); },
+
+                ensureVisibleAdminTab() { if (!this.adminTabVisible(this.adminTab)) this.adminTab = this.visibleAdminTabs()[0]?.key || 'dashboard'; },
+
+                async loadAdminTabVisibility() {
+                    const cached = JSON.parse(localStorage.getItem('bc_admin_tab_visibility') || 'null');
+                    if (cached) this.adminTabVisibility = { ...this.adminTabVisibility, ...cached };
+                    try {
+                        const setting = await this.api('/api/admin-panel-settings/admin_tab_visibility');
+                        this.adminTabVisibility = { ...this.adminTabVisibility, ...(setting?.value || {}) };
+                        localStorage.setItem('bc_admin_tab_visibility', JSON.stringify(this.adminTabVisibility));
+                    } catch (error) { console.warn('Admin tab visibility loaded from localStorage fallback.', error); }
+                    this.ensureVisibleAdminTab();
+                },
+
+                async saveAdminTabVisibility() {
+                    localStorage.setItem('bc_admin_tab_visibility', JSON.stringify(this.adminTabVisibility));
+                    this.ensureVisibleAdminTab();
+                    try { await this.api('/api/admin-panel-settings/admin_tab_visibility', { method: 'PUT', body: JSON.stringify({ value: this.adminTabVisibility }) }); }
+                    catch (error) { this.showToast('Offline cache', 'Panel düymələri localStorage-da saxlanıldı.'); }
+                },
+
+                toggleAdminTabVisibility(tab) {
+                    const key = this.adminSettingKey(tab);
+                    this.adminTabVisibility[key] = !this.adminTabVisible(tab.key);
+                    this.saveAdminTabVisibility();
+                },
+
                 startHomeGalleryRotation() {
                     if (this.homeGalleryTimer) clearInterval(this.homeGalleryTimer);
                     this.homeGalleryTimer = setInterval(() => { this.nextHomeGalleryImage(); this.nextAdvantagesImage(); }, 4000);
@@ -656,6 +758,33 @@
                     else window.open(this.googleMapsUrl, '_blank', 'noopener');
                 },
                 openExternalMap(url) { window.open(url, '_blank', 'noopener'); this.isMapSheetOpen = false; },
+
+                openGalleryModal(idx) { this.activeGalleryIndex = idx; this.activeGalleryImageIndex = 0; this.isGalleryModalOpen = true; },
+
+                currentGalleryItem() { return (Array.isArray(this.galleryItems) ? this.galleryItems : []).filter(g => !g.archived)[this.activeGalleryIndex] || {}; },
+
+                currentGalleryImages() { const item = this.currentGalleryItem(); const imgs = Array.isArray(item.images) && item.images.length ? item.images : (item.src ? [item.src] : []); return imgs.filter(Boolean); },
+
+                currentGalleryImage() { const imgs = this.currentGalleryImages(); return imgs[this.activeGalleryImageIndex] || imgs[0] || ''; },
+
+                nextGalleryImage() { const imgs = this.currentGalleryImages(); if (imgs.length) this.activeGalleryImageIndex = (this.activeGalleryImageIndex + 1) % imgs.length; },
+
+                prevGalleryImage() { const imgs = this.currentGalleryImages(); if (imgs.length) this.activeGalleryImageIndex = (this.activeGalleryImageIndex - 1 + imgs.length) % imgs.length; },
+
+                handleGalleryKeydown(event) { if (!this.isGalleryModalOpen) return; if (event.key === 'Escape') this.isGalleryModalOpen = false; if (event.key === 'ArrowRight') this.nextGalleryImage(); if (event.key === 'ArrowLeft') this.prevGalleryImage(); },
+
+                setGalleryPreviewIndex(index) { this.galleryPreviewIndex = index; this.galleryPreviewImg = this.galleryPreviewImages[index] || ''; },
+
+                nextGalleryPreview() { if (this.galleryPreviewImages.length) this.setGalleryPreviewIndex((this.galleryPreviewIndex + 1) % this.galleryPreviewImages.length); },
+
+                prevGalleryPreview() { if (this.galleryPreviewImages.length) this.setGalleryPreviewIndex((this.galleryPreviewIndex - 1 + this.galleryPreviewImages.length) % this.galleryPreviewImages.length); },
+
+                removeGalleryPreview(index) {
+                    this.galleryPreviewImages.splice(index, 1);
+                    if (Array.isArray(this.galleryPreviewImagesFiles)) this.galleryPreviewImagesFiles.splice(index, 1);
+                    this.galleryPreviewIndex = Math.min(this.galleryPreviewIndex, Math.max(0, this.galleryPreviewImages.length - 1));
+                    this.galleryPreviewImg = this.galleryPreviewImages[this.galleryPreviewIndex] || '';
+                },
 
                 calculatePrice() {
                     let baseM2Price = this.calc.type === 'house' ? 450 : 550;
@@ -766,6 +895,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                     this[`${collectionProperty}Files`] = files;
                     this[collectionProperty] = images;
                     this[previewProperty] = images[0] || '';
+                    if (collectionProperty === 'galleryPreviewImages') this.galleryPreviewIndex = 0;
                 },
 
                 removeSelectedFile(previewProperty, targetProperty = null) {
@@ -1790,17 +1920,17 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                         <div class="absolute -bottom-24 -left-16 w-72 h-72 rounded-full bg-wood-200/35 blur-3xl"></div>
                         <div class="relative grid lg:grid-cols-[1.15fr_.85fr] gap-10 items-center">
                             <div>
-                                <span class="inline-flex items-center gap-2 text-wood-700 font-bold uppercase tracking-widest text-xs"><i class="fa-solid fa-seedling"></i> Ekoloji seçim</span>
-                                <h2 class="mt-3 text-3xl sm:text-4xl md:text-5xl font-black text-forest-950">Niyə taxta evlər?</h2>
+                                <span class="inline-flex items-center gap-2 text-wood-700 font-bold uppercase tracking-widest text-xs"><i class="fa-solid fa-seedling"></i x-text="t('homeEcoChoice')">Ekoloji seçim</span>
+                                <h2 class="mt-3 text-3xl sm:text-4xl md:text-5xl font-black text-forest-950" x-text="t('homeWhyWood')">Niyə taxta evlər?</h2>
                                 <p class="mt-4 text-stone-600 text-base sm:text-lg max-w-2xl">Təbiətin enerjisini, sağlam yaşamı və uzunömürlü memarlığı bir araya gətirən ekoloji seçim.</p>
                                 <div class="mt-8 grid sm:grid-cols-2 xl:grid-cols-3 gap-4">
                                     <template x-for="item in [
-                                        ['fa-wand-magic-sparkles','Füsunkar görünüş','Təbiətin bir parçası olan ağac öz təbii görünüşü ilə valeh edir.'],
-                                        ['fa-hourglass-half','Uzunömürlülük','Taxta evlər düzgün və davamlı qulluq olunduqda 200 ilə qədər sağlam qala bilir.'],
-                                        ['fa-heart-pulse','Sağlam yaşam tərzi','Təbii material olması səbəbi ilə tərkibində kimyəvi maddələr mövcud deyil.'],
-                                        ['fa-temperature-half','Enerjiyə qənaət','İzolyasiya özəlliyi ilə içəridəki temperaturu uzun müddət qoruyur.'],
-                                        ['fa-house-chimney-crack','Zəlzələyə davamlılıq','Ağac elastik material olduğuna görə zəlzələ dalğaları ilə eyni yöndə hərəkət edə bilir.'],
-                                        ['fa-wind','Hava sirkulyasiyası','Nəfəs alma özəlliyi sayəsində təbii hava sirkulyasiyası təmin edərək yüksək oksigen axını yaradır.']
+                                        ['fa-wand-magic-sparkles',t('homeCharmTitle'),t('homeCharmDesc')],
+                                        ['fa-hourglass-half',t('homeLongevityTitle'),t('homeLongevityDesc')],
+                                        ['fa-heart-pulse',t('homeHealthyTitle'),t('homeHealthyDesc')],
+                                        ['fa-temperature-half',t('homeEnergyTitle'),t('homeEnergyDesc')],
+                                        ['fa-house-chimney-crack',t('homeSeismicTitle'),t('homeSeismicDesc')],
+                                        ['fa-wind',t('homeAirTitle'),t('homeAirDesc')]
                                     ]" :key="item[1]">
                                         <div class="group bg-white/85 rounded-2xl p-5 border border-stone-200/70 shadow-sm hover:shadow-xl hover:-translate-y-1 transition duration-300">
                                             <div class="w-12 h-12 rounded-2xl bg-forest-100 text-forest-700 flex items-center justify-center text-xl group-hover:bg-wood-100 group-hover:text-wood-700 transition"><i :class="`fa-solid ${item[0]}`"></i></div>
@@ -1817,7 +1947,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                                     </template>
                                     <div class="absolute inset-0 bg-gradient-to-t from-forest-950/55 via-transparent to-transparent"></div>
                                     <div class="absolute left-5 bottom-5 right-5 text-white">
-                                        <p class="text-xs font-bold uppercase tracking-widest text-wood-200">Taxta ev atmosferi</p>
+                                        <p class="text-xs font-bold uppercase tracking-widest text-wood-200" x-text="t('woodHomeAtmosphere')">Taxta ev atmosferi</p>
                                         <h3 class="text-2xl font-black" x-text="visibleHomeGalleryImages()[activeHomeGalleryIndex]?.title"></h3>
                                     </div>
                                     <button @click="prevHomeGalleryImage(); startHomeGalleryRotation()" class="absolute left-4 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white/85 hover:bg-white text-forest-900 shadow flex items-center justify-center"><i class="fa-solid fa-chevron-left"></i></button>
@@ -1835,20 +1965,20 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                 <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 ad-safe-content">
                     <div class="grid lg:grid-cols-2 gap-8 items-center">
                         <div class="bg-white rounded-[2rem] p-6 sm:p-8 border border-stone-200 shadow-sm" data-reveal="slide-right">
-                            <span class="text-wood-600 font-bold uppercase tracking-widest text-xs">Keyfiyyət standartları</span>
-                            <h2 class="mt-3 text-3xl sm:text-4xl font-black text-forest-950">Üstünlüklərimiz</h2>
+                            <span class="text-wood-600 font-bold uppercase tracking-widest text-xs" x-text="t('qualityStandards')">Keyfiyyət standartları</span>
+                            <h2 class="mt-3 text-3xl sm:text-4xl font-black text-forest-950" x-text="t('advantagesTitle')">Üstünlüklərimiz</h2>
                             <div class="mt-5 space-y-4 text-stone-600 leading-relaxed">
-                                <p>Şirkətimiz hazırladığı taxta evlərin uzunömürlü və izolyasiyalı olması üçün müəyyən metodlar tətbiq edir. Binanın çöl hissəsi müxtəlif hava şəraitinə dözümlü xüsusi materiallarla, lakla örtülür.</p>
-                                <p>Divar xüsusi materiallarla, İzobon və daş yunu ilə əhatə olunur. Çöl blok-hausun içəri hissəsi isə OSB adlanan materialla örtülür.</p>
+                                <p x-text="t('advantagesP1')">Şirkətimiz hazırladığı taxta evlərin uzunömürlü və izolyasiyalı olması üçün müəyyən metodlar tətbiq edir. Binanın çöl hissəsi müxtəlif hava şəraitinə dözümlü xüsusi materiallarla, lakla örtülür.</p>
+                                <p x-text="t('advantagesP2')">Divar xüsusi materiallarla, İzobon və daş yunu ilə əhatə olunur. Çöl blok-hausun içəri hissəsi isə OSB adlanan materialla örtülür.</p>
                                 <div x-show="isAdvantagesExpanded" class="space-y-4">
-                                    <p>Taxta evlərdə ən çox rast gəlinən problemlərdən biri həşəratların olmasıdır. Taxtaya zərər verən həşəratlar meşədə əksər ağacların içində olurlar. Ağac kəsilərkən içinə yerləşən bu ziyanvericilər içəridə gizlənir və ömürlərinin sonunadək çoxalaraq yaşaya bilirlər. Lakin keyfiyyətli formada işlənmiş, xüsusi kimyəvi maddələrin müşayiəti ilə sobalarda qurudulduqdan sonra bu həşəratlardan əsər-əlamət qalmır.</p>
-                                    <p>Şirkətimiz istifadə etdiyi bütün ağac materiallarını dərmanlayaraq sobalarda işlədikdən sonra inşaatda istifadə edir. Bu səbəbdən inşaatı həyata keçirilmiş layihələrimizdə ziyanverici həşəratların yaşamasına heç bir şərait qalmır.</p>
-                                    <p class="font-bold text-forest-800">Baltic Caspian bütün standartlara cavab verən ekoloji məhsullarla xəyallarınızdakı taxta ev layihələrini inşa etməyə hazırdır.</p>
+                                    <p x-text="t('advantagesP3')">Taxta evlərdə ən çox rast gəlinən problemlərdən biri həşəratların olmasıdır. Taxtaya zərər verən həşəratlar meşədə əksər ağacların içində olurlar. Ağac kəsilərkən içinə yerləşən bu ziyanvericilər içəridə gizlənir və ömürlərinin sonunadək çoxalaraq yaşaya bilirlər. Lakin keyfiyyətli formada işlənmiş, xüsusi kimyəvi maddələrin müşayiəti ilə sobalarda qurudulduqdan sonra bu həşəratlardan əsər-əlamət qalmır.</p>
+                                    <p x-text="t('advantagesP4')">Şirkətimiz istifadə etdiyi bütün ağac materiallarını dərmanlayaraq sobalarda işlədikdən sonra inşaatda istifadə edir. Bu səbəbdən inşaatı həyata keçirilmiş layihələrimizdə ziyanverici həşəratların yaşamasına heç bir şərait qalmır.</p>
+                                    <p class="font-bold text-forest-800" x-text="t('advantagesP5')">Baltic Caspian bütün standartlara cavab verən ekoloji məhsullarla xəyallarınızdakı taxta ev layihələrini inşa etməyə hazırdır.</p>
                                 </div>
                             </div>
-                            <button @click="isAdvantagesExpanded = !isAdvantagesExpanded" class="mt-6 inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-forest-50 hover:bg-forest-600 text-forest-700 hover:text-white font-bold transition"><span x-text="isAdvantagesExpanded ? 'Daha az göstər' : 'Daha ətraflı'"></span><i class="fa-solid fa-chevron-down transition" :class="isAdvantagesExpanded && 'rotate-180'"></i></button>
+                            <button @click="isAdvantagesExpanded = !isAdvantagesExpanded" class="mt-6 inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-forest-50 hover:bg-forest-600 text-forest-700 hover:text-white font-bold transition"><span x-text="isAdvantagesExpanded ? t('showLess') : t('readMore')"></span><i class="fa-solid fa-chevron-down transition" :class="isAdvantagesExpanded && 'rotate-180'"></i></button>
                             <div class="mt-6 flex flex-wrap gap-2">
-                                <template x-for="badge in ['Lak qoruması','İzobon və daş yunu','OSB qat','Dərmanlama','Soba qurudulması','Həşərata qarşı qoruma']" :key="badge"><span class="px-3 py-2 rounded-full bg-wood-50 text-wood-800 text-xs font-bold border border-wood-100" x-text="badge"></span></template>
+                                <template x-for="badge in [t('badgeLacquer'),t('badgeIzobon'),t('badgeOsb'),t('badgeTreatment'),t('badgeKiln'),t('badgeInsect')]" :key="badge"><span class="px-3 py-2 rounded-full bg-wood-50 text-wood-800 text-xs font-bold border border-wood-100" x-text="badge"></span></template>
                             </div>
                         </div>
                         <div class="bg-white rounded-[2rem] p-3 shadow-lg border border-stone-200" data-reveal="slide-left">
@@ -1871,14 +2001,14 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                 <!-- REPAIR SERVICES -->
                 <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 ad-safe-content" data-reveal>
                     <div class="text-center max-w-3xl mx-auto mb-10">
-                        <span class="text-wood-600 font-bold uppercase tracking-widest text-xs">Tamamlanma işləri</span>
-                        <h2 class="mt-3 text-3xl sm:text-4xl md:text-5xl font-black text-forest-950">Təmir xidmətləri</h2>
-                        <p class="mt-4 text-stone-600">Mənzil, ofis və taxta evlər üçün bütün təmir və tamamlanma işləri müqavilə əsasında görülür.</p>
+                        <span class="text-wood-600 font-bold uppercase tracking-widest text-xs" x-text="t('completionWorks')">Tamamlanma işləri</span>
+                        <h2 class="mt-3 text-3xl sm:text-4xl md:text-5xl font-black text-forest-950" x-text="t('repairServices')">Təmir xidmətləri</h2>
+                        <p class="mt-4 text-stone-600"><span x-text="t('repairIntro')">Mənzil, ofis və taxta evlər üçün bütün təmir və tamamlanma işləri müqavilə əsasında görülür.</span></p>
                     </div>
                     <div class="grid lg:grid-cols-2 gap-6">
                         <template x-for="card in [
-                            ['fa-building','Mənzil və ofis təmiri',['Xüsusi növ dizaynla mənzil və ofislərin təmiri','Bütün növ elektrik işləri','Santexnika işləri','Boya və digər üsulla rəngləmə işləri','Divar kağızlarının vurulması','Kafel və metlax döşəmə xidmətləri','Parket və laminat döşəmə işləri','Mətbəx və otaq mebellərinin hazırlanması']],
-                            ['fa-house-chimney','Taxta evlərin təmiri',['Taxta evlərin rənglənib laklanması','Taxta pilləkənlərin hazırlanması və vurulması','Ev örtüyü, dam vurulması','Mala və hörgü işləri','Manqalların qurulması','Köşklərin, besedkaların hazırlanması','Landşaft dizaynı']]
+                            ['fa-building',t('apartmentOfficeRepair'),[t('repairA1'),t('repairA2'),t('repairA3'),t('repairA4'),t('repairA5'),t('repairA6'),t('repairA7'),t('repairA8')]],
+                            ['fa-house-chimney',t('woodenHouseRepair'),[t('repairW1'),t('repairW2'),t('repairW3'),t('repairW4'),t('repairW5'),t('repairW6'),t('repairW7')]]
                         ]" :key="card[1]">
                             <div class="group bg-white rounded-[2rem] p-6 sm:p-8 border border-stone-200 shadow-sm hover:shadow-xl hover:-translate-y-1 transition duration-300">
                                 <div class="w-14 h-14 rounded-2xl bg-forest-100 text-forest-700 flex items-center justify-center text-2xl group-hover:bg-wood-100 group-hover:text-wood-700 transition"><i :class="`fa-solid ${card[0]}`"></i></div>
@@ -1890,8 +2020,8 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                         </template>
                     </div>
                     <div class="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4">
-                        <p class="font-bold text-forest-900">Bütün işlər müqavilə əsasında görülür.</p>
-                        <a :href="getRepairWhatsAppUrl()" target="_blank" rel="noopener" class="inline-flex items-center gap-2 bg-forest-600 hover:bg-forest-700 text-white px-7 py-4 rounded-xl font-bold shadow-lg transition hover:-translate-y-0.5"><i class="fa-brands fa-whatsapp text-xl"></i> Təmir üçün müraciət et</a>
+                        <p class="font-bold text-forest-900" x-text="t('repairContract')">Bütün işlər müqavilə əsasında görülür.</p>
+                        <a :href="getRepairWhatsAppUrl()" target="_blank" rel="noopener" class="inline-flex items-center gap-2 bg-forest-600 hover:bg-forest-700 text-white px-7 py-4 rounded-xl font-bold shadow-lg transition hover:-translate-y-0.5"><i class="fa-brands fa-whatsapp text-xl"></i><span x-text="t('repairApply')">Təmir üçün müraciət et</span></a>
                     </div>
                 </section>
                     </div>
@@ -1974,7 +2104,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
 
                 <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                     <template x-for="(img, idx) in (Array.isArray(galleryItems) ? galleryItems : []).filter(g => !g.archived)" :key="img.id">
-                        <div class="group relative aspect-square overflow-hidden rounded-2xl bg-stone-200 cursor-pointer shadow-sm hover:shadow-lg transition duration-300" @click="activeGalleryIndex = idx; isGalleryModalOpen = true">
+                        <div class="group relative aspect-square overflow-hidden rounded-2xl bg-stone-200 cursor-pointer shadow-sm hover:shadow-lg transition duration-300" @click="openGalleryModal(idx)">
                             <template x-if="img.type === 'video'">
                                 <div class="w-full h-full relative">
                                     <div class="absolute inset-0 flex items-center justify-center bg-black/40 z-10 text-white group-hover:bg-black/20 transition">
@@ -2076,13 +2206,10 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
 
                 <!-- Admin Tab Navigation (All Translated Instantly) -->
                 <div class="flex flex-wrap gap-2 border-b border-stone-200 pb-4 text-xs sm:text-sm font-bold">
-                    <button @click="adminTab = 'dashboard'" class="px-4 py-2.5 rounded-xl transition" :class="adminTab === 'dashboard' ? 'bg-forest-700 text-white shadow-sm' : 'bg-white text-stone-600 border border-stone-200'" x-text="t('adminTabStats')">Real-time Statistikalar</button>
-                    <button @click="adminTab = 'messages'" class="px-4 py-2.5 rounded-xl transition" :class="adminTab === 'messages' ? 'bg-forest-700 text-white shadow-sm' : 'bg-white text-stone-600 border border-stone-200'" x-text="t('adminTabMessages')">Müraciətlər</button>
-                    <button @click="adminTab = 'projects'" class="px-4 py-2.5 rounded-xl transition" :class="adminTab === 'projects' ? 'bg-forest-700 text-white shadow-sm' : 'bg-white text-stone-600 border border-stone-200'" x-text="t('adminTabProjects')">Layihə Əlavə / Redaktə</button>
-                    <button @click="adminTab = 'gallery'" class="px-4 py-2.5 rounded-xl transition" :class="adminTab === 'gallery' ? 'bg-forest-700 text-white shadow-sm' : 'bg-white text-stone-600 border border-stone-200'" x-text="t('adminTabGallery')">Qalereya & Youtube</button>
-                    <button @click="adminTab = 'hero'" class="px-4 py-2.5 rounded-xl transition" :class="adminTab === 'hero' ? 'bg-forest-700 text-white shadow-sm' : 'bg-white text-stone-600 border border-stone-200'" x-text="t('adminTabHero')">Hero Slaydlar</button>
-                    <button @click="adminTab = 'home-images'" class="px-4 py-2.5 rounded-xl transition" :class="adminTab === 'home-images' ? 'bg-forest-700 text-white shadow-sm' : 'bg-white text-stone-600 border border-stone-200'">Ana səhifə şəkilləri</button>
-                    <button @click="adminTab = 'ads'" class="px-4 py-2.5 rounded-xl transition" :class="adminTab === 'ads' ? 'bg-forest-700 text-white shadow-sm' : 'bg-white text-stone-600 border border-stone-200'" x-text="t('adminTabAds')">Reklam / Banner</button>
+                    <template x-for="tab in visibleAdminTabs()" :key="tab.key">
+                        <button @click="adminTab = tab.key" class="px-4 py-2.5 rounded-xl transition" :class="adminTab === tab.key ? 'bg-forest-700 text-white shadow-sm' : 'bg-white text-stone-600 border border-stone-200'" x-text="t(tab.labelKey)"></button>
+                    </template>
+                    <button @click="showAdminTabManager = true" class="ml-auto px-2 py-2 rounded-full text-stone-300 hover:text-stone-600 hover:bg-stone-100 transition" title="Panel"><i class="fa-solid fa-ellipsis"></i></button>
                 </div>
 
                 <!-- SUB-TAB 1: LIVE DYNAMIC STATISTICS -->
@@ -2299,15 +2426,18 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
 
                             <!-- Live visual check preview for media elements -->
                             <template x-if="galleryPreviewImg">
-                                <div class="relative mt-4 w-full h-36 rounded-xl overflow-hidden shadow bg-black">
-                                    <template x-if="newGallery.type === 'image'">
-                                        <img :src="galleryPreviewImg" class="w-full h-full object-cover">
+                                <div class="mt-4 space-y-3">
+                                    <div class="relative w-full h-44 rounded-xl overflow-hidden shadow bg-black">
+                                        <template x-if="newGallery.type === 'image'"><img :src="galleryPreviewImg" class="w-full h-full object-cover"></template>
+                                        <template x-if="newGallery.type === 'video'"><iframe class="w-full h-full" :src="getYouTubeEmbed(galleryPreviewImg)" frameborder="0" allowfullscreen></iframe></template>
+                                        <template x-if="newGallery.type === 'image' && galleryPreviewImages.length > 1">
+                                            <div><button @click="prevGalleryPreview()" class="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-white/85 rounded-full"><i class="fa-solid fa-chevron-left"></i></button><button @click="nextGalleryPreview()" class="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-white/85 rounded-full"><i class="fa-solid fa-chevron-right"></i></button><span class="absolute bottom-2 left-1/2 -translate-x-1/2 px-2 py-1 rounded-full bg-black/65 text-white text-[11px]" x-text="`${galleryPreviewIndex + 1} / ${galleryPreviewImages.length}`"></span></div>
+                                        </template>
+                                        <button @click="newGallery.type === 'image' ? removeGalleryPreview(galleryPreviewIndex) : removeSelectedFile('galleryPreviewImg')" class="absolute top-2 right-2 w-7 h-7 bg-black/60 hover:bg-black/85 text-white rounded-full flex items-center justify-center text-xs"><i class="fa-solid fa-x"></i></button>
+                                    </div>
+                                    <template x-if="newGallery.type === 'image' && galleryPreviewImages.length">
+                                        <div class="flex gap-2 overflow-x-auto pb-1"><template x-for="(src,index) in galleryPreviewImages" :key="src"><button @click="setGalleryPreviewIndex(index)" class="relative shrink-0"><img :src="src" class="w-16 h-12 object-cover rounded-lg border-2" :class="index === galleryPreviewIndex ? 'border-forest-600' : 'border-white'"><span @click.stop="removeGalleryPreview(index)" class="absolute -top-1 -right-1 w-5 h-5 bg-red-600 text-white rounded-full flex items-center justify-center text-[10px]">×</span></button></template></div>
                                     </template>
-                                    <template x-if="newGallery.type === 'video'">
-                                        <!-- Live preview layout container inside gallery admin -->
-                                        <iframe class="w-full h-full" :src="getYouTubeEmbed(galleryPreviewImg)" frameborder="0" allowfullscreen></iframe>
-                                    </template>
-                                    <button @click="removeSelectedFile('galleryPreviewImg')" class="absolute top-2 right-2 w-7 h-7 bg-black/60 hover:bg-black/85 text-white rounded-full flex items-center justify-center text-xs"><i class="fa-solid fa-x"></i></button>
                                 </div>
                             </template>
                         </div>
@@ -2638,28 +2768,42 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
     </div>
 
     <!-- GALLERY LIGHTBOX MODAL WITH YOUTUBE -->
-    <div x-show="isGalleryModalOpen" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-950/95" x-transition>
+    <div x-show="isGalleryModalOpen" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-950/95" x-transition @keydown.window="handleGalleryKeydown($event)">
         <button @click="isGalleryModalOpen = false" class="absolute top-6 right-6 w-12 h-12 rounded-full bg-white/10 text-white hover:bg-white/20 flex items-center justify-center z-10"><i class="fa-solid fa-xmark text-xl"></i></button>
 
         <div class="max-w-4xl w-full flex flex-col items-center justify-center gap-4">
             <div class="relative w-full aspect-[4/3] max-h-[70vh] rounded-3xl overflow-hidden shadow-2xl bg-black">
-                <template x-if="galleryItems[activeGalleryIndex]?.type === 'image'">
-                    <img :src="((galleryItems[activeGalleryIndex]?.images || [])[0]) || galleryItems[activeGalleryIndex]?.src" class="w-full h-full object-cover">
+                <template x-if="currentGalleryItem()?.type === 'image'">
+                    <img :src="currentGalleryImage()" class="w-full h-full object-cover">
                 </template>
-                <template x-if="galleryItems[activeGalleryIndex]?.type === 'video'">
+                <template x-if="currentGalleryItem()?.type === 'video'">
                     <!-- Embedded YouTube responsive player inside visual lightbox -->
-                    <iframe class="w-full h-full" :src="getYouTubeEmbed(galleryItems[activeGalleryIndex]?.src)" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+                    <iframe class="w-full h-full" :src="getYouTubeEmbed(currentGalleryItem()?.src)" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
                 </template>
             </div>
             
             <div class="text-center text-white space-y-4">
-                <h4 class="text-xl font-bold" x-text="lang === 'en' ? galleryItems[activeGalleryIndex]?.titleEn : (lang === 'ru' ? galleryItems[activeGalleryIndex]?.titleRu : galleryItems[activeGalleryIndex]?.title)"></h4>
-                <template x-if="galleryItems[activeGalleryIndex]?.type === 'image' && (galleryItems[activeGalleryIndex]?.images || []).length > 1">
-                    <div class="grid grid-cols-4 sm:grid-cols-6 gap-2 max-h-32 overflow-y-auto">
-                        <template x-for="src in galleryItems[activeGalleryIndex].images" :key="src">
-                            <img :src="src" class="w-20 h-16 object-cover rounded-lg border border-white/20">
-                        </template>
-                    </div>
+                <h4 class="text-xl font-bold" x-text="lang === 'en' ? currentGalleryItem()?.titleEn : (lang === 'ru' ? currentGalleryItem()?.titleRu : currentGalleryItem()?.title)"></h4>
+                <template x-if="currentGalleryItem()?.type === 'image' && currentGalleryImages().length > 1">
+                    <div class="space-y-3"><div class="flex items-center justify-center gap-4"><button @click="prevGalleryImage()" class="w-10 h-10 rounded-full bg-white/10 hover:bg-white/20"><i class="fa-solid fa-chevron-left"></i></button><span x-text="`${activeGalleryImageIndex + 1} / ${currentGalleryImages().length}`"></span><button @click="nextGalleryImage()" class="w-10 h-10 rounded-full bg-white/10 hover:bg-white/20"><i class="fa-solid fa-chevron-right"></i></button></div><div class="flex justify-center gap-2 max-h-32 overflow-y-auto flex-wrap"><template x-for="(src,index) in currentGalleryImages()" :key="src"><button @click="activeGalleryImageIndex = index"><img :src="src" class="w-20 h-16 object-cover rounded-lg border-2" :class="index === activeGalleryImageIndex ? 'border-wood-400' : 'border-white/20'"></button></template></div></div>
+                </template>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- HIDDEN ADMIN TAB VISIBILITY MANAGER -->
+    <div x-show="showAdminTabManager" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-950/70" x-transition>
+        <div class="absolute inset-0" @click="showAdminTabManager = false"></div>
+        <div class="relative bg-white w-full max-w-md rounded-3xl p-6 shadow-2xl border border-stone-200 space-y-4">
+            <div class="flex items-center justify-between"><h3 class="text-xl font-black text-forest-950" x-text="t('adminPanelButtons')">Panel düymələri</h3><button @click="showAdminTabManager = false" class="w-9 h-9 rounded-full bg-stone-100"><i class="fa-solid fa-xmark"></i></button></div>
+            <p class="text-xs text-stone-500 normal-case">Bu təhlükəsizlik deyil, yalnız admin menyu düymələrinin görünməsini idarə edir.</p>
+            <div class="space-y-2">
+                <template x-for="tab in adminTabs" :key="tab.key">
+                    <label class="flex items-center justify-between gap-3 p-3 rounded-xl bg-stone-50 border border-stone-200 cursor-pointer">
+                        <span class="font-bold text-stone-700" x-text="t(tab.labelKey)"></span>
+                        <input type="checkbox" class="w-5 h-5 accent-forest-700" :checked="adminTabVisible(tab.key)" @change="toggleAdminTabVisibility(tab)">
+                    </label>
                 </template>
             </div>
         </div>
