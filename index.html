@@ -179,7 +179,7 @@
                 showAdminTabManager: false,
                 adminTitleTapCount: 0,
                 adminTitleTapTimer: null,
-                homeLightbox: { open: false, section: 'why_wood', index: 0 },
+                homeLightbox: { open: false, section: 'why_wood', images: [], index: 0 },
 
                 // Dynamic App State DB
                 projects: defaultProjects,
@@ -788,13 +788,15 @@
 
                 handleGalleryKeydown(event) { if (!this.isGalleryModalOpen) return; if (event.key === 'Escape') this.isGalleryModalOpen = false; if (event.key === 'ArrowRight') this.nextGalleryImage(); if (event.key === 'ArrowLeft') this.prevGalleryImage(); },
 
-                homeLightboxImages() { return this.homeLightbox.section === 'advantages' ? this.visibleAdvantagesImages() : this.visibleHomeGalleryImages(); },
+                homeLightboxImages() { return Array.isArray(this.homeLightbox.images) ? this.homeLightbox.images : []; },
                 currentHomeLightboxImage() { const images = this.homeLightboxImages(); return images[this.homeLightbox.index] || images[0] || {}; },
-                openHomeLightbox(section, index) { this.homeLightbox = { open: true, section, index }; },
+                openHomeLightbox(section, index) { const images = section === 'why_wood' ? this.visibleHomeGalleryImages() : this.visibleAdvantagesImages(); if (!images.length) return; this.homeLightbox = { open: true, section, images, index: Math.min(Math.max(index || 0, 0), images.length - 1) }; },
                 closeHomeLightbox() { this.homeLightbox.open = false; },
-                nextHomeLightboxImage() { const images = this.homeLightboxImages(); if (images.length) this.homeLightbox.index = (this.homeLightbox.index + 1) % images.length; },
-                prevHomeLightboxImage() { const images = this.homeLightboxImages(); if (images.length) this.homeLightbox.index = (this.homeLightbox.index - 1 + images.length) % images.length; },
-                handleHomeLightboxKeydown(event) { if (!this.homeLightbox.open) return; if (event.key === 'Escape') this.closeHomeLightbox(); if (event.key === 'ArrowRight') this.nextHomeLightboxImage(); if (event.key === 'ArrowLeft') this.prevHomeLightboxImage(); },
+                nextHomeLightbox() { const images = this.homeLightboxImages(); if (images.length) this.homeLightbox.index = (this.homeLightbox.index + 1) % images.length; },
+                prevHomeLightbox() { const images = this.homeLightboxImages(); if (images.length) this.homeLightbox.index = (this.homeLightbox.index - 1 + images.length) % images.length; },
+                nextHomeLightboxImage() { this.nextHomeLightbox(); },
+                prevHomeLightboxImage() { this.prevHomeLightbox(); },
+                handleHomeLightboxKeydown(event) { if (!this.homeLightbox.open) return; if (event.key === 'Escape') this.closeHomeLightbox(); if (event.key === 'ArrowRight') this.nextHomeLightbox(); if (event.key === 'ArrowLeft') this.prevHomeLightbox(); },
                 handleAdminTitleSecretTap() { clearTimeout(this.adminTitleTapTimer); this.adminTitleTapCount += 1; this.adminTitleTapTimer = setTimeout(() => { this.adminTitleTapCount = 0; }, 1400); if (this.adminTitleTapCount >= 5) { this.showAdminTabManager = true; this.adminTitleTapCount = 0; } },
 
                 setGalleryPreviewIndex(index) { this.galleryPreviewIndex = index; this.galleryPreviewImg = this.galleryPreviewImages[index] || ''; },
@@ -1721,7 +1723,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
     </div>
 
     <!-- MAIN HEADER -->
-    <header class="z-40 border-b shadow-sm transition-all duration-300" :class="page === 'home' ? 'absolute top-0 left-0 right-0 bg-white/12 backdrop-blur-[14px] border-white/20 shadow-black/10' : 'sticky top-0 glass border-stone-200/80'">
+    <header class="sticky top-0 z-50 border-b shadow-sm transition-all duration-300" :class="page === 'home' ? 'bg-white/12 backdrop-blur-[14px] border-white/20 shadow-black/10' : 'glass border-stone-200/80'">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between items-center h-16 lg:h-[72px]">
                 <!-- Logo -->
@@ -1737,23 +1739,23 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
 
                 <!-- Desktop Nav (Optimized sizes to prevent breaking/wrapping on Ru/En selection) -->
                 <nav class="hidden md:flex items-center gap-3 lg:gap-6 xl:gap-8 font-semibold text-xs lg:text-sm xl:text-base">
-                    <a @click.prevent="setPage('home')" href="#" class="transition relative py-2" :class="page === 'home' ? 'text-white drop-shadow' : 'text-stone-600 hover:text-forest-700'">
+                    <a @click.prevent="setPage('home')" href="#" class="transition relative py-2" :class="page === 'home' ? 'text-white hover:text-wood-200 drop-shadow' : 'text-stone-600 hover:text-forest-700'">
                         <span x-text="t('navHome')">Ana Səhifə</span>
                         <span x-show="page === 'home'" class="absolute bottom-0 left-0 right-0 h-0.5 bg-wood-500 rounded" x-transition></span>
                     </a>
-                    <a @click.prevent="setPage('projects')" href="#" class="transition relative py-2" :class="page === 'projects' ? 'text-forest-700' : 'text-stone-600 hover:text-forest-700'">
+                    <a @click.prevent="setPage('projects')" href="#" class="transition relative py-2" :class="page === 'home' ? 'text-white hover:text-wood-200 drop-shadow' : (page === 'projects' ? 'text-forest-700' : 'text-stone-600 hover:text-forest-700')">
                         <span x-text="t('navProjects')">Layihələr</span>
                         <span x-show="page === 'projects'" class="absolute bottom-0 left-0 right-0 h-0.5 bg-wood-500 rounded" x-transition></span>
                     </a>
-                    <a @click.prevent="setPage('gallery')" href="#" class="transition relative py-2" :class="page === 'gallery' ? 'text-forest-700' : 'text-stone-600 hover:text-forest-700'">
+                    <a @click.prevent="setPage('gallery')" href="#" class="transition relative py-2" :class="page === 'home' ? 'text-white hover:text-wood-200 drop-shadow' : (page === 'gallery' ? 'text-forest-700' : 'text-stone-600 hover:text-forest-700')">
                         <span x-text="t('navGallery')">Qalereya</span>
                         <span x-show="page === 'gallery'" class="absolute bottom-0 left-0 right-0 h-0.5 bg-wood-500 rounded" x-transition></span>
                     </a>
-                    <a @click.prevent="setPage('about')" href="#" class="transition relative py-2" :class="page === 'about' ? 'text-forest-700' : 'text-stone-600 hover:text-forest-700'">
+                    <a @click.prevent="setPage('about')" href="#" class="transition relative py-2" :class="page === 'home' ? 'text-white hover:text-wood-200 drop-shadow' : (page === 'about' ? 'text-forest-700' : 'text-stone-600 hover:text-forest-700')">
                         <span x-text="t('navAbout')">Haqqımızda</span>
                         <span x-show="page === 'about'" class="absolute bottom-0 left-0 right-0 h-0.5 bg-wood-500 rounded" x-transition></span>
                     </a>
-                    <a @click.prevent="setPage('contact')" href="#" class="transition relative py-2" :class="page === 'contact' ? 'text-forest-700' : 'text-stone-600 hover:text-forest-700'">
+                    <a @click.prevent="setPage('contact')" href="#" class="transition relative py-2" :class="page === 'home' ? 'text-white hover:text-wood-200 drop-shadow' : (page === 'contact' ? 'text-forest-700' : 'text-stone-600 hover:text-forest-700')">
                         <span x-text="t('navContact')">Əlaqə</span>
                         <span x-show="page === 'contact'" class="absolute bottom-0 left-0 right-0 h-0.5 bg-wood-500 rounded" x-transition></span>
                     </a>
@@ -2810,13 +2812,13 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
     <!-- HOME SECTION IMAGE LIGHTBOX -->
     <div x-show="homeLightbox.open" x-cloak class="fixed inset-0 z-[60] flex items-center justify-center p-3 sm:p-6 bg-stone-950/95" x-transition @keydown.window="handleHomeLightboxKeydown($event)">
         <button @click="closeHomeLightbox()" class="absolute top-4 right-4 sm:top-6 sm:right-6 w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-white/10 text-white hover:bg-white/20 flex items-center justify-center z-10" aria-label="Close"><i class="fa-solid fa-xmark text-xl"></i></button>
-        <button @click="prevHomeLightboxImage()" class="absolute left-3 sm:left-6 top-1/2 -translate-y-1/2 w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-white/10 text-white hover:bg-white/20 flex items-center justify-center z-10" aria-label="Previous"><i class="fa-solid fa-chevron-left"></i></button>
-        <button @click="nextHomeLightboxImage()" class="absolute right-3 sm:right-6 top-1/2 -translate-y-1/2 w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-white/10 text-white hover:bg-white/20 flex items-center justify-center z-10" aria-label="Next"><i class="fa-solid fa-chevron-right"></i></button>
+        <button @click="prevHomeLightbox()" class="absolute left-3 sm:left-6 top-1/2 -translate-y-1/2 w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-white/10 text-white hover:bg-white/20 flex items-center justify-center z-10" aria-label="Previous"><i class="fa-solid fa-chevron-left"></i></button>
+        <button @click="nextHomeLightbox()" class="absolute right-3 sm:right-6 top-1/2 -translate-y-1/2 w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-white/10 text-white hover:bg-white/20 flex items-center justify-center z-10" aria-label="Next"><i class="fa-solid fa-chevron-right"></i></button>
         <div class="w-full max-w-6xl flex flex-col items-center gap-4 text-white">
             <img :src="currentHomeLightboxImage().src" :alt="currentHomeLightboxImage().title || ''" class="max-h-[78vh] w-auto max-w-full rounded-2xl object-contain shadow-2xl">
             <div class="text-center space-y-1">
                 <p class="text-lg font-bold" x-text="currentHomeLightboxImage().title || (homeLightbox.section === 'advantages' ? t('advantagesTitle') : t('homeWhyWood'))"></p>
-                <p class="text-sm text-white/75" x-text="`${homeLightbox.index + 1} / ${homeLightboxImages().length}`"></p>
+                <p class="text-sm text-white/75" x-text="homeLightboxImages().length ? `${homeLightbox.index + 1} / ${homeLightboxImages().length}` : `0 / 0`"></p>
             </div>
         </div>
     </div>
