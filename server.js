@@ -2,6 +2,8 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const multer = require('multer');
+const { createClient } = require('@supabase/supabase-js');
 const { PrismaClient } = require('@prisma/client');
 
 const prisma = new PrismaClient({ log: [{ level: 'error', emit: 'event' }, { level: 'warn', emit: 'stdout' }] });
@@ -9,6 +11,13 @@ prisma.$on('error', (event) => console.error('[prisma:error]', event.message));
 const app = express();
 app.use(cors());
 app.use(express.json({ limit: '1mb' }));
+
+const allowedUploadBuckets = ['projects', 'gallery', 'hero', 'banners'];
+const upload = multer({ storage: multer.memoryStorage() });
+const supabase = process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY
+  ? createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
+  : null;
+const safeUploadFilename = (name = 'upload') => path.basename(name).replace(/[^a-zA-Z0-9._-]/g, '-').replace(/-+/g, '-');
 
 const isDbError = (err) => ['PrismaClientInitializationError', 'PrismaClientUnknownRequestError', 'PrismaClientRustPanicError'].includes(err?.name) || ['P1000', 'P1001', 'P1002', 'P1003', 'P1010', 'P1011', 'P1012', 'P1013', 'P1014', 'P1015', 'P1017', 'P2024'].includes(err?.code);
 const dbUnavailable = (res, err) => res.status(503).json({ ok: false, error: 'DATABASE_UNAVAILABLE', message: 'Database connection failed' });
@@ -121,14 +130,34 @@ app.delete('/api/messages/:id', wrap(async (req,res)=>{await prisma.contactMessa
 app.get('/api/stats', wrap(async (req,res)=>{ const rows=await prisma.siteStat.findMany(); res.json(Object.fromEntries(rows.map(r=>[r.key,r.value]))); }));
 app.put('/api/stats/:key', wrap(async (req,res)=>res.json(await prisma.siteStat.upsert({where:{key:req.params.key},create:{key:req.params.key,value:Number(req.body.value)||0},update:{value:Number(req.body.value)||0}}))));
 app.post('/api/stats/event', wrap(async (req,res)=>res.status(201).json(await prisma.statEvent.create({data:{type:req.body.type,targetId:req.body.targetId,metadata:req.body.metadata||{}}}))));
-app.post('/api/uploads/sign', (req,res)=>{
-  const allowed = ['projects', 'gallery', 'hero', 'banners'];
+app.post('/api/uploads', upload.single('file'), wrap(async (req, res) => {
+  if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY || !supabase) {
+    return res.status(500).json({ ok: false, error: 'SUPABASE_ENV_MISSING' });
+  }
   const bucket = req.body.bucket;
-  if (!allowed.includes(bucket)) return res.status(400).json({ error: 'Invalid bucket', buckets: allowed });
-  const safeName = path.basename(req.body.filename || 'upload');
-  const objectPath = `${Date.now()}-${safeName}`;
+  if (!allowedUploadBuckets.includes(bucket)) {
+    return res.status(400).json({ ok: false, error: 'INVALID_BUCKET', buckets: allowedUploadBuckets });
+  }
+  if (!req.file) return res.status(400).json({ ok: false, error: 'FILE_REQUIRED' });
+
+  const objectPath = `${Date.now()}-${safeUploadFilename(req.file.originalname)}`;
+  const { error } = await supabase.storage.from(bucket).upload(objectPath, req.file.buffer, {
+    contentType: req.file.mimetype,
+    upsert: false
+  });
+  if (error) {
+    return res.status(500).json({ ok: false, error: 'UPLOAD_FAILED', message: error.message });
+  }
+  const { data } = supabase.storage.from(bucket).getPublicUrl(objectPath);
+  res.status(201).json({ ok: true, bucket, path: objectPath, publicUrl: data.publicUrl });
+}));
+
+app.post('/api/uploads/sign', (req,res)=>{
+  const bucket = req.body.bucket;
+  if (!allowedUploadBuckets.includes(bucket)) return res.status(400).json({ error: 'Invalid bucket', buckets: allowedUploadBuckets });
+  const objectPath = `${Date.now()}-${safeUploadFilename(req.body.filename || 'upload')}`;
   const publicUrl = process.env.SUPABASE_URL ? `${process.env.SUPABASE_URL}/storage/v1/object/public/${bucket}/${objectPath}` : '';
-  res.json({ bucket, path: objectPath, publicUrl, uploadUrl: null, todo: 'Signed upload not implemented yet' });
+  res.json({ bucket, path: objectPath, publicUrl, uploadUrl: null, todo: 'Use POST /api/uploads for multipart uploads' });
 });
 
 app.use('/api', (req, res) => res.status(404).json({ error: 'API route not found' }));
@@ -143,6 +172,8 @@ app.get('*', (req,res)=>res.sendFile(path.join(__dirname,'index.html')));
 
 const PORT = process.env.PORT || 3000;
 console.log(`DATABASE_URL exists: ${process.env.DATABASE_URL ? 'yes' : 'no'}`);
+console.log(`SUPABASE_URL exists: ${process.env.SUPABASE_URL ? 'yes' : 'no'}`);
+console.log(`SUPABASE_SERVICE_ROLE_KEY exists: ${process.env.SUPABASE_SERVICE_ROLE_KEY ? 'yes' : 'no'}`);
 console.log(`NODE_ENV: ${process.env.NODE_ENV || 'development'}`);
 console.log(`Server port: ${PORT}`);
 app.listen(PORT, () => console.log(`Baltic Caspian API running on ${PORT}`));
