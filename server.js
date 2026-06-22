@@ -1,11 +1,13 @@
+require('dotenv').config();
 const express = require('express');
+const cors = require('cors');
 const path = require('path');
 const { PrismaClient } = require('@prisma/client');
 
 const prisma = new PrismaClient();
 const app = express();
+app.use(cors());
 app.use(express.json({ limit: '1mb' }));
-app.use(express.static(__dirname));
 
 const wrap = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
 const intId = (req) => Number.parseInt(req.params.id, 10);
@@ -26,9 +28,12 @@ function galleryOut(g) { return { id: g.id, src: g.mediaUrl, mediaUrl: g.mediaUr
 function galleryIn(b) { return { mediaUrl: b.src || b.mediaUrl || '', images: b.images || (b.src ? [b.src] : []), titleAz: b.titleAz || b.title || '', titleRu: b.titleRu, titleEn: b.titleEn, type: b.type || 'image', sortOrder: Number(b.sortOrder) || 0 }; }
 function slideOut(s) { return { id: s.id, image: s.image, tag: s.tagAz, tagRu: s.tagRu, tagEn: s.tagEn, title1: s.title1Az, title1Ru: s.title1Ru, title1En: s.title1En, title2: s.title2Az, title2Ru: s.title2Ru, title2En: s.title2En, desc: s.descAz, descRu: s.descRu, descEn: s.descEn, active: s.active, sortOrder: s.sortOrder }; }
 function slideIn(b) { return { image: b.image || '', tagAz: b.tagAz || b.tag, tagRu: b.tagRu, tagEn: b.tagEn, title1Az: b.title1Az || b.title1, title1Ru: b.title1Ru, title1En: b.title1En, title2Az: b.title2Az || b.title2, title2Ru: b.title2Ru, title2En: b.title2En, descAz: b.descAz || b.desc, descRu: b.descRu, descEn: b.descEn, active: b.active ?? true, sortOrder: Number(b.sortOrder) || 0 }; }
-function bannerOut(b) { return b && { id: b.id, active: b.active, type: b.type, src: b.mediaUrl, mediaUrl: b.mediaUrl, link: b.link, title: b.title, width: b.width, height: b.height, duration: b.duration, views: b.views, clicks: b.clicks, position: b.position }; }
-function bannerIn(b) { return { active: b.active ?? true, type: b.type || 'image', mediaUrl: b.src || b.mediaUrl || '', link: b.link, title: b.title, width: Number(b.width) || 160, height: Number(b.height) || 400, duration: Number(b.duration) || 15, position: b.position || 'main' }; }
+function normalizePlacement(value) { return ['left', 'right', 'both'].includes(value) ? value : 'both'; }
+function bannerOut(b) { return b && { id: b.id, active: b.active, type: b.type, src: b.mediaUrl, mediaUrl: b.mediaUrl, link: b.link, title: b.title, width: b.width, height: b.height, duration: b.duration, views: b.views, clicks: b.clicks, placement: normalizePlacement(b.placement || b.position), position: normalizePlacement(b.placement || b.position), createdAt: b.createdAt }; }
+function bannerIn(b) { return { active: b.active ?? true, type: b.type || 'image', mediaUrl: b.src || b.mediaUrl || '', link: b.link, title: b.title, width: Number(b.width) || 160, height: Number(b.height) || 400, duration: Number(b.duration) || 15, placement: normalizePlacement(b.placement || b.position) }; }
 const msgOut = (m) => ({ id: m.id, name: m.name, phone: m.phone, email: m.email || 'N/A', message: m.message, read: m.read, date: m.createdAt.toLocaleDateString('az-AZ') });
+
+app.get('/api/health', (req, res) => res.json({ ok: true, service: 'baltic-caspian-api' }));
 
 app.get('/api/projects', wrap(async (req,res)=>res.json((await prisma.project.findMany({ where: req.query.includeArchived === 'true' ? {} : { archived:false }, orderBy:{ id:'desc' }})).map(projectOut))));
 app.get('/api/projects/:id', wrap(async (req,res)=>res.json(projectOut(await prisma.project.findUniqueOrThrow({ where:{ id:intId(req) }})))));
@@ -52,8 +57,8 @@ app.put('/api/hero-slides/:id', wrap(async (req,res)=>res.json(slideOut(await pr
 app.delete('/api/hero-slides/:id', wrap(async (req,res)=>{await prisma.heroSlide.delete({where:{id:intId(req)}});res.json({ok:true});}));
 app.patch('/api/hero-slides/:id/toggle', wrap(async (req,res)=>{ const s=await prisma.heroSlide.findUniqueOrThrow({where:{id:intId(req)}}); res.json(slideOut(await prisma.heroSlide.update({where:{id:s.id},data:{active:req.body.active ?? !s.active}}))); }));
 
-app.get('/api/banners', wrap(async (req,res)=>res.json((await prisma.banner.findMany({orderBy:{id:'desc'}})).map(bannerOut))));
-app.get('/api/banners/main', wrap(async (req,res)=>res.json(bannerOut(await prisma.banner.findFirst({where:{position:'main'},orderBy:{id:'desc'}})))));
+app.get('/api/banners', wrap(async (req,res)=>res.json((await prisma.banner.findMany({orderBy:[{active:'desc'},{id:'desc'}]})).map(bannerOut))));
+app.get('/api/banners/main', wrap(async (req,res)=>res.json(bannerOut(await prisma.banner.findFirst({where:{active:true},orderBy:{id:'desc'}})))));
 app.post('/api/banners', wrap(async (req,res)=>res.status(201).json(bannerOut(await prisma.banner.create({data:bannerIn(req.body)})))));
 app.put('/api/banners/:id', wrap(async (req,res)=>res.json(bannerOut(await prisma.banner.update({where:{id:intId(req)},data:bannerIn(req.body)})))));
 app.delete('/api/banners/:id', wrap(async (req,res)=>{await prisma.banner.delete({where:{id:intId(req)}});res.json({ok:true});}));
@@ -69,9 +74,21 @@ app.delete('/api/messages/:id', wrap(async (req,res)=>{await prisma.contactMessa
 app.get('/api/stats', wrap(async (req,res)=>{ const rows=await prisma.siteStat.findMany(); res.json(Object.fromEntries(rows.map(r=>[r.key,r.value]))); }));
 app.put('/api/stats/:key', wrap(async (req,res)=>res.json(await prisma.siteStat.upsert({where:{key:req.params.key},create:{key:req.params.key,value:Number(req.body.value)||0},update:{value:Number(req.body.value)||0}}))));
 app.post('/api/stats/event', wrap(async (req,res)=>res.status(201).json(await prisma.statEvent.create({data:{type:req.body.type,targetId:req.body.targetId,metadata:req.body.metadata||{}}}))));
-app.post('/api/uploads/sign', (req,res)=>res.status(501).json({ ok:false, message:'TODO: create Supabase signed upload URL', buckets:['projects','gallery','hero','banners'] }));
+app.post('/api/uploads/sign', (req,res)=>{
+  const allowed = ['projects', 'gallery', 'hero', 'banners'];
+  const bucket = req.body.bucket;
+  if (!allowed.includes(bucket)) return res.status(400).json({ error: 'Invalid bucket', buckets: allowed });
+  const safeName = path.basename(req.body.filename || 'upload');
+  const objectPath = `${Date.now()}-${safeName}`;
+  const publicUrl = process.env.SUPABASE_URL ? `${process.env.SUPABASE_URL}/storage/v1/object/public/${bucket}/${objectPath}` : '';
+  res.json({ bucket, path: objectPath, publicUrl, uploadUrl: null, todo: 'Signed upload not implemented yet' });
+});
 
-app.get('*', (req,res)=>res.sendFile(path.join(__dirname,'index.html')));
+app.use('/api', (req, res) => res.status(404).json({ error: 'API route not found' }));
 app.use((err, req, res, next) => { console.error(err); res.status(err.code === 'P2025' ? 404 : 500).json({ error: err.message || 'Server error' }); });
 
-app.listen(process.env.PORT || 3000, () => console.log(`Baltic Caspian API running on ${process.env.PORT || 3000}`));
+app.use(express.static(__dirname));
+app.get('*', (req,res)=>res.sendFile(path.join(__dirname,'index.html')));
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`Baltic Caspian API running on ${PORT}`));
