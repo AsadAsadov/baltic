@@ -1220,11 +1220,13 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
         .ad-rail { display: none; }
         @media (min-width: 1280px) {
             .ad-safe-content { padding-left: 0; padding-right: 0; }
-            .ad-content-grid.has-ads { grid-template-columns: 300px minmax(0, 1fr) 300px; gap: 24px; align-items: start; }
+            .ad-content-grid.has-ads { grid-template-columns: 280px minmax(0, 1fr) 280px; gap: 20px; align-items: start; }
+            .ad-content-grid.has-left-ad:not(.has-right-ad) { grid-template-columns: 280px minmax(0, 1fr); }
+            .ad-content-grid.has-right-ad:not(.has-left-ad) { grid-template-columns: minmax(0, 1fr) 280px; }
             .ad-rail { display: flex; justify-content: center; min-width: 0; }
             .ad-sticky { position: sticky; top: 110px; align-self: start; }
-            .ad-frame { background: #fff; box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1); border-radius: 1rem; overflow: hidden; border: 1px solid rgb(231 229 228); }
-            .ad-media { display: block; object-fit: cover; max-width: 100%; }
+            .ad-frame { width: var(--ad-width, 260px); height: var(--ad-height, 600px); max-width: 260px; background: #fff; box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1); border-radius: 18px; overflow: hidden; border: 1px solid rgb(231 229 228); }
+            .ad-media { display: block; width: var(--ad-width, 260px); height: var(--ad-height, 600px); max-width: 260px; object-fit: cover; border-radius: 18px; }
         }
     </style>
 </head>
@@ -1406,13 +1408,13 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                     </div>
                 </section>
 
-                <div class="ad-content-grid mx-auto w-full max-w-[calc(100vw-2rem)]" :class="{ 'has-ads': hasAnyRenderableBanner(), 'max-w-7xl': !hasAnyRenderableBanner() }">
+                <div class="ad-content-grid mx-auto w-full max-w-[calc(100vw-2rem)]" :class="{ 'has-ads': hasAnyRenderableBanner(), 'has-left-ad': hasRenderableBanner('left'), 'has-right-ad': hasRenderableBanner('right'), 'max-w-7xl': !hasAnyRenderableBanner() }">
                 <aside x-show="hasRenderableBanner('left')" x-cloak class="ad-rail" data-ad-side="left">
                     <div class="ad-sticky flex flex-col items-center py-2">
-                        <div class="ad-frame relative" :style="`width: ${bannerForSide($el.closest('[data-ad-side]')?.dataset.adSide || 'left').width || 260}px; height: ${bannerForSide($el.closest('[data-ad-side]')?.dataset.adSide || 'left').height || 600}px;`">
+                        <div class="ad-frame relative" :style="`--ad-width: ${Math.min(bannerForSide($el.closest('[data-ad-side]')?.dataset.adSide || 'left').width || 260, 260)}px; --ad-height: ${bannerForSide($el.closest('[data-ad-side]')?.dataset.adSide || 'left').height || 600}px;`">
                             <a :href="bannerForSide('left').link || '#'" target="_blank" rel="noopener" class="block w-full h-full relative group" @click="incrementAdClick($el.closest('[data-ad-side]')?.dataset.adSide || 'left')">
-                                <template x-if="bannerForSide('left').type === 'image'"><img :src="bannerForSide('left').src" class="ad-media group-hover:scale-105 transition duration-500" :style="`width: ${bannerForSide('left').width || 260}px; height: ${bannerForSide('left').height || 600}px;`" alt="Reklam banneri"></template>
-                                <template x-if="bannerForSide('left').type === 'video'"><video :src="bannerForSide('left').src" autoplay loop muted playsinline class="ad-media" :style="`width: ${bannerForSide('left').width || 260}px; height: ${bannerForSide('left').height || 600}px;`"></video></template>
+                                <template x-if="bannerForSide('left').type === 'image'"><img :src="bannerForSide('left').src" class="ad-media group-hover:scale-105 transition duration-500" alt="Reklam banneri"></template>
+                                <template x-if="bannerForSide('left').type === 'video'"><video :src="bannerForSide('left').src" autoplay loop muted playsinline class="ad-media"></video></template>
                             </a>
                         </div>
                         <p class="text-xs text-stone-500 font-bold mt-3 text-center max-w-[260px] break-words px-1" x-text="bannerForSide('left').title"></p>
@@ -1493,10 +1495,10 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                     </div>
                 <aside x-show="hasRenderableBanner('right')" x-cloak class="ad-rail" data-ad-side="right">
                     <div class="ad-sticky flex flex-col items-center py-2">
-                        <div class="ad-frame relative" :style="`width: ${bannerForSide($el.closest('[data-ad-side]')?.dataset.adSide || 'left').width || 260}px; height: ${bannerForSide($el.closest('[data-ad-side]')?.dataset.adSide || 'left').height || 600}px;`">
-                            <a :href="bannerForSide('right').link || '#'" target="_blank" rel="noopener" class="block w-full h-full relative group" @click="incrementAdClick($el.closest('[data-ad-side]')?.dataset.adSide || 'left')">
-                                <template x-if="bannerForSide('right').type === 'image'"><img :src="bannerForSide('right').src" class="ad-media group-hover:scale-105 transition duration-500" :style="`width: ${bannerForSide('right').width || 260}px; height: ${bannerForSide('right').height || 600}px;`" alt="Reklam banneri"></template>
-                                <template x-if="bannerForSide('right').type === 'video'"><video :src="bannerForSide('right').src" autoplay loop muted playsinline class="ad-media" :style="`width: ${bannerForSide('right').width || 260}px; height: ${bannerForSide('right').height || 600}px;`"></video></template>
+                        <div class="ad-frame relative" :style="`--ad-width: ${Math.min(bannerForSide($el.closest('[data-ad-side]')?.dataset.adSide || 'right').width || 260, 260)}px; --ad-height: ${bannerForSide($el.closest('[data-ad-side]')?.dataset.adSide || 'right').height || 600}px;`">
+                            <a :href="bannerForSide('right').link || '#'" target="_blank" rel="noopener" class="block w-full h-full relative group" @click="incrementAdClick($el.closest('[data-ad-side]')?.dataset.adSide || 'right')">
+                                <template x-if="bannerForSide('right').type === 'image'"><img :src="bannerForSide('right').src" class="ad-media group-hover:scale-105 transition duration-500" alt="Reklam banneri"></template>
+                                <template x-if="bannerForSide('right').type === 'video'"><video :src="bannerForSide('right').src" autoplay loop muted playsinline class="ad-media"></video></template>
                             </a>
                         </div>
                         <p class="text-xs text-stone-500 font-bold mt-3 text-center max-w-[260px] break-words px-1" x-text="bannerForSide('right').title"></p>
@@ -1507,13 +1509,13 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
             </div>
 
             <!-- 2. PROJECTS CATALOGUE PAGE -->
-            <div x-show="page !== 'home'" x-cloak class="ad-content-grid mx-auto w-full max-w-[calc(100vw-2rem)]" :class="{ 'has-ads': hasAnyRenderableBanner(), 'max-w-7xl': !hasAnyRenderableBanner() }">
+            <div x-show="page !== 'home'" x-cloak class="ad-content-grid mx-auto w-full max-w-[calc(100vw-2rem)]" :class="{ 'has-ads': hasAnyRenderableBanner(), 'has-left-ad': hasRenderableBanner('left'), 'has-right-ad': hasRenderableBanner('right'), 'max-w-7xl': !hasAnyRenderableBanner() }">
                 <aside x-show="hasRenderableBanner('left')" x-cloak class="ad-rail" data-ad-side="left">
                     <div class="ad-sticky flex flex-col items-center py-2">
-                        <div class="ad-frame relative" :style="`width: ${bannerForSide($el.closest('[data-ad-side]')?.dataset.adSide || 'left').width || 260}px; height: ${bannerForSide($el.closest('[data-ad-side]')?.dataset.adSide || 'left').height || 600}px;`">
+                        <div class="ad-frame relative" :style="`--ad-width: ${Math.min(bannerForSide($el.closest('[data-ad-side]')?.dataset.adSide || 'left').width || 260, 260)}px; --ad-height: ${bannerForSide($el.closest('[data-ad-side]')?.dataset.adSide || 'left').height || 600}px;`">
                             <a :href="bannerForSide('left').link || '#'" target="_blank" rel="noopener" class="block w-full h-full relative group" @click="incrementAdClick($el.closest('[data-ad-side]')?.dataset.adSide || 'left')">
-                                <template x-if="bannerForSide('left').type === 'image'"><img :src="bannerForSide('left').src" class="ad-media group-hover:scale-105 transition duration-500" :style="`width: ${bannerForSide('left').width || 260}px; height: ${bannerForSide('left').height || 600}px;`" alt="Reklam banneri"></template>
-                                <template x-if="bannerForSide('left').type === 'video'"><video :src="bannerForSide('left').src" autoplay loop muted playsinline class="ad-media" :style="`width: ${bannerForSide('left').width || 260}px; height: ${bannerForSide('left').height || 600}px;`"></video></template>
+                                <template x-if="bannerForSide('left').type === 'image'"><img :src="bannerForSide('left').src" class="ad-media group-hover:scale-105 transition duration-500" alt="Reklam banneri"></template>
+                                <template x-if="bannerForSide('left').type === 'video'"><video :src="bannerForSide('left').src" autoplay loop muted playsinline class="ad-media"></video></template>
                             </a>
                         </div>
                         <p class="text-xs text-stone-500 font-bold mt-3 text-center max-w-[260px] break-words px-1" x-text="bannerForSide('left').title"></p>
@@ -2008,7 +2010,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                             <div class="grid grid-cols-2 gap-3 normal-case"><button @click="saveAd()" class="py-3 bg-forest-700 hover:bg-forest-800 text-white font-bold rounded-xl shadow">Yadda saxla</button><button @click="deleteAd()" class="py-3 bg-red-50 hover:bg-red-100 text-red-700 font-bold rounded-xl border border-red-100">Sil</button></div>
                         </div>
 
-                        <div class="lg:col-span-7 space-y-4">
+                        <div class="lg:col-span-7 space-y-4 min-w-0">
                             <div class="bg-stone-50 border border-stone-200 p-5 rounded-3xl space-y-4 normal-case">
                                 <div class="flex items-center justify-between gap-3">
                                     <div>
@@ -2023,29 +2025,29 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                                         <p class="font-bold">Hələ saxlanmış banner yoxdur.</p>
                                     </div>
                                 </template>
-                                <div class="grid grid-cols-1 xl:grid-cols-2 gap-3">
+                                <div class="grid grid-cols-1 gap-4">
                                     <template x-for="ad in (Array.isArray(banners) ? banners : [])" :key="ad.id || ad.src">
-                                        <div class="bg-white rounded-2xl border border-stone-200 p-4 flex gap-3 items-start shadow-sm">
-                                            <div class="w-20 h-28 rounded-xl overflow-hidden bg-stone-100 flex-shrink-0 border border-stone-100 flex items-center justify-center text-stone-300">
+                                        <div class="bg-white rounded-2xl border border-stone-200 p-4 grid grid-cols-1 sm:grid-cols-[90px_minmax(0,1fr)] gap-4 min-h-[170px] items-start shadow-sm">
+                                            <div class="w-[90px] h-[140px] rounded-[14px] overflow-hidden bg-stone-100 flex-shrink-0 border border-stone-100 flex items-center justify-center text-stone-300">
                                                 <template x-if="ad.type === 'image' && ad.src"><img :src="ad.src" class="w-full h-full object-cover"></template>
                                                 <template x-if="ad.type === 'video' && ad.src"><video :src="ad.src" muted playsinline class="w-full h-full object-cover"></video></template>
                                                 <i x-show="!ad.src" class="fa-solid fa-image text-2xl"></i>
                                             </div>
-                                            <div class="min-w-0 flex-1 space-y-2">
-                                                <div class="flex items-start justify-between gap-2">
-                                                    <p class="font-black text-stone-900 truncate" x-text="ad.title || 'Adsız banner'"></p>
-                                                    <span class="text-[10px] px-2 py-0.5 rounded-full font-black" :class="ad.active ? 'bg-green-100 text-green-700' : 'bg-stone-100 text-stone-500'" x-text="ad.active ? 'Aktiv' : 'Deaktiv'"></span>
+                                            <div class="min-w-0 flex-1 space-y-3">
+                                                <div class="flex flex-wrap items-start justify-between gap-2">
+                                                    <p class="font-black text-stone-900 min-w-0 break-words leading-snug" x-text="ad.title || 'Adsız banner'"></p>
+                                                    <span class="text-[10px] px-2.5 py-1 rounded-full font-black whitespace-nowrap" :class="ad.active ? 'bg-green-100 text-green-700' : 'bg-stone-100 text-stone-500'" x-text="ad.active ? 'Aktiv' : 'Deaktiv'"></span>
                                                 </div>
-                                                <div class="grid grid-cols-2 gap-2 text-[10px] text-stone-500">
-                                                    <p>Yerləşim: <b class="text-stone-700" x-text="ad.placement === 'left' ? 'Sol' : (ad.placement === 'right' ? 'Sağ' : 'Hər ikisi')"></b></p>
-                                                    <p>Ölçü: <b class="text-stone-700" x-text="`${ad.width || 260} × ${ad.height || 600}`"></b></p>
-                                                    <p>Views: <b class="text-stone-700" x-text="ad.views || 0"></b></p>
-                                                    <p>Clicks: <b class="text-stone-700" x-text="ad.clicks || 0"></b></p>
+                                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px] text-stone-500">
+                                                    <p class="px-3 py-2 bg-stone-50 rounded-xl whitespace-nowrap">Yerləşim: <b class="text-stone-700" x-text="ad.placement === 'left' ? 'Sol' : (ad.placement === 'right' ? 'Sağ' : 'Hər ikisi')"></b></p>
+                                                    <p class="px-3 py-2 bg-stone-50 rounded-xl whitespace-nowrap">Ölçü: <b class="text-stone-700" x-text="`${ad.width || 260} × ${ad.height || 600}`"></b></p>
+                                                    <p class="px-3 py-2 bg-stone-50 rounded-xl whitespace-nowrap">Views: <b class="text-stone-700" x-text="ad.views || 0"></b></p>
+                                                    <p class="px-3 py-2 bg-stone-50 rounded-xl whitespace-nowrap">Clicks: <b class="text-stone-700" x-text="ad.clicks || 0"></b></p>
                                                 </div>
-                                                <div class="flex flex-wrap gap-2 pt-1">
-                                                    <button @click="setupEditAd(ad)" class="px-3 py-1.5 bg-forest-50 text-forest-700 rounded-lg font-bold text-[10px]">Redaktə et</button>
-                                                    <button @click="toggleAdActive(ad)" class="px-3 py-1.5 bg-wood-50 text-wood-700 rounded-lg font-bold text-[10px]" x-text="ad.active ? 'Deaktiv et' : 'Aktiv et'"></button>
-                                                    <button @click="deleteAd(ad)" class="px-3 py-1.5 bg-red-50 text-red-700 rounded-lg font-bold text-[10px]">Sil</button>
+                                                <div class="grid grid-cols-1 sm:flex sm:flex-wrap gap-2 pt-1">
+                                                    <button @click="setupEditAd(ad)" class="min-w-[96px] px-4 py-2 bg-forest-50 text-forest-700 rounded-lg font-bold text-[11px] whitespace-nowrap">Redaktə et</button>
+                                                    <button @click="toggleAdActive(ad)" class="min-w-[96px] px-4 py-2 bg-wood-50 text-wood-700 rounded-lg font-bold text-[11px] whitespace-nowrap" x-text="ad.active ? 'Deaktiv et' : 'Aktiv et'"></button>
+                                                    <button @click="deleteAd(ad)" class="min-w-[70px] px-4 py-2 bg-red-50 text-red-700 rounded-lg font-bold text-[11px] whitespace-nowrap">Sil</button>
                                                 </div>
                                             </div>
                                         </div>
@@ -2058,10 +2060,10 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                 </div>
                 <aside x-show="hasRenderableBanner('right')" x-cloak class="ad-rail" data-ad-side="right">
                     <div class="ad-sticky flex flex-col items-center py-2">
-                        <div class="ad-frame relative" :style="`width: ${bannerForSide($el.closest('[data-ad-side]')?.dataset.adSide || 'left').width || 260}px; height: ${bannerForSide($el.closest('[data-ad-side]')?.dataset.adSide || 'left').height || 600}px;`">
-                            <a :href="bannerForSide('right').link || '#'" target="_blank" rel="noopener" class="block w-full h-full relative group" @click="incrementAdClick($el.closest('[data-ad-side]')?.dataset.adSide || 'left')">
-                                <template x-if="bannerForSide('right').type === 'image'"><img :src="bannerForSide('right').src" class="ad-media group-hover:scale-105 transition duration-500" :style="`width: ${bannerForSide('right').width || 260}px; height: ${bannerForSide('right').height || 600}px;`" alt="Reklam banneri"></template>
-                                <template x-if="bannerForSide('right').type === 'video'"><video :src="bannerForSide('right').src" autoplay loop muted playsinline class="ad-media" :style="`width: ${bannerForSide('right').width || 260}px; height: ${bannerForSide('right').height || 600}px;`"></video></template>
+                        <div class="ad-frame relative" :style="`--ad-width: ${Math.min(bannerForSide($el.closest('[data-ad-side]')?.dataset.adSide || 'right').width || 260, 260)}px; --ad-height: ${bannerForSide($el.closest('[data-ad-side]')?.dataset.adSide || 'right').height || 600}px;`">
+                            <a :href="bannerForSide('right').link || '#'" target="_blank" rel="noopener" class="block w-full h-full relative group" @click="incrementAdClick($el.closest('[data-ad-side]')?.dataset.adSide || 'right')">
+                                <template x-if="bannerForSide('right').type === 'image'"><img :src="bannerForSide('right').src" class="ad-media group-hover:scale-105 transition duration-500" alt="Reklam banneri"></template>
+                                <template x-if="bannerForSide('right').type === 'video'"><video :src="bannerForSide('right').src" autoplay loop muted playsinline class="ad-media"></video></template>
                             </a>
                         </div>
                         <p class="text-xs text-stone-500 font-bold mt-3 text-center max-w-[260px] break-words px-1" x-text="bannerForSide('right').title"></p>
