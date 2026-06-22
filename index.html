@@ -177,6 +177,9 @@
                 ],
                 adminTabVisibility: JSON.parse(localStorage.getItem('bc_admin_tab_visibility') || 'null') || { dashboard: true, messages: true, projects: true, gallery: true, hero: true, homeImages: true, ads: true },
                 showAdminTabManager: false,
+                adminTitleTapCount: 0,
+                adminTitleTapTimer: null,
+                homeLightbox: { open: false, section: 'why_wood', index: 0 },
 
                 // Dynamic App State DB
                 projects: defaultProjects,
@@ -354,6 +357,7 @@
                     ,'homeEcoChoice': { az: 'Ekoloji seçim', ru: 'Экологичный выбор', en: 'Ecological choice' },
                     'homeWhyWood': { az: 'Niyə taxta evlər?', ru: 'Почему деревянные дома?', en: 'Why wooden homes?' },
                     'homeWhyIntro': { az: 'Taxta evlər təbii material, sağlam mikroiqlim və möhkəm konstruksiya ilə ailəniz üçün rahat yaşayış yaradır.', ru: 'Деревянные дома создают комфортную среду благодаря натуральным материалам, здоровому микроклимату и прочной конструкции.', en: 'Wooden homes create comfortable living with natural materials, a healthy microclimate and durable structure.' },
+                    'homeEcoDesc': { az: 'Təbiətin enerjisini, sağlam yaşamı və uzunömürlü memarlığı bir araya gətirən ekoloji seçim.', ru: 'Экологичный выбор, объединяющий энергию природы, здоровую жизнь и долговечную архитектуру.', en: 'An ecological choice combining nature's energy, healthy living and long-lasting architecture.' },
                     'homeCharmTitle': { az: 'Füsunkar görünüş', ru: 'Очаровательный вид', en: 'Charming appearance' },
                     'homeCharmDesc': { az: 'Təbiətin bir parçası olan ağac öz təbii görünüşü ilə valeh edir.', ru: 'Натуральная древесина восхищает естественной красотой.', en: 'Natural wood impresses with its authentic beauty.' },
                     'homeLongevityTitle': { az: 'Uzunömürlülük', ru: 'Долговечность', en: 'Longevity' },
@@ -444,15 +448,18 @@
 
                 async api(path, options = {}) {
                     const headers = options.body instanceof FormData ? { ...(options.headers || {}) } : { 'Content-Type': 'application/json', ...(options.headers || {}) };
-                    const res = await fetch(`${this.apiBase}${path}`, {
-                        ...options,
-                        headers
-                    });
+                    const res = await fetch(`${this.apiBase}${path}`, { ...options, headers });
+                    const contentType = res.headers.get('content-type') || '';
+                    const data = contentType.includes('application/json') ? await res.json().catch(() => null) : await res.text().catch(() => '');
                     if (!res.ok) {
                         if (res.status === 404 && path.startsWith('/api/')) console.warn('API not available. Make sure Render deployment is Web Service, not Static Site.');
-                        throw new Error(`API ${res.status}: ${path}`);
+                        const message = data?.message || data?.error || (typeof data === 'string' && data) || `API ${res.status}: ${path}`;
+                        const error = new Error(message);
+                        error.status = res.status;
+                        error.payload = data;
+                        throw error;
                     }
-                    return res.status === 204 ? null : res.json();
+                    return res.status === 204 ? null : data;
                 },
 
                 async safeApi(path, fallback, options = {}) {
@@ -721,12 +728,20 @@
 
                 async uploadMedia(file, bucket) {
                     if (!(file instanceof File)) return file || '';
+                    console.info('[uploadMedia:start]', { bucket, filename: file.name, type: file.type, size: file.size });
                     const formData = new FormData();
                     formData.append('bucket', bucket);
                     formData.append('file', file);
-                    const data = await this.api('/api/uploads', { method: 'POST', body: formData });
-                    if (!data?.ok || !data.publicUrl) throw new Error(data?.message || data?.error || 'Upload failed');
-                    return data.publicUrl;
+                    try {
+                        const res = await fetch(`${this.apiBase}/api/uploads`, { method: 'POST', body: formData });
+                        const data = await res.json().catch(() => ({}));
+                        console.info('[uploadMedia:response]', { bucket, filename: file.name, status: res.status, data });
+                        if (!res.ok || !data?.ok || !data.publicUrl) throw new Error(data?.message || data?.error || `Upload failed (${res.status})`);
+                        return data.publicUrl;
+                    } catch (error) {
+                        this.showToast('Upload alınmadı', `Upload alınmadı: ${error.message || error}`);
+                        throw error;
+                    }
                 },
 
                 openProjectModal(proj) {
@@ -773,6 +788,15 @@
 
                 handleGalleryKeydown(event) { if (!this.isGalleryModalOpen) return; if (event.key === 'Escape') this.isGalleryModalOpen = false; if (event.key === 'ArrowRight') this.nextGalleryImage(); if (event.key === 'ArrowLeft') this.prevGalleryImage(); },
 
+                homeLightboxImages() { return this.homeLightbox.section === 'advantages' ? this.visibleAdvantagesImages() : this.visibleHomeGalleryImages(); },
+                currentHomeLightboxImage() { const images = this.homeLightboxImages(); return images[this.homeLightbox.index] || images[0] || {}; },
+                openHomeLightbox(section, index) { this.homeLightbox = { open: true, section, index }; },
+                closeHomeLightbox() { this.homeLightbox.open = false; },
+                nextHomeLightboxImage() { const images = this.homeLightboxImages(); if (images.length) this.homeLightbox.index = (this.homeLightbox.index + 1) % images.length; },
+                prevHomeLightboxImage() { const images = this.homeLightboxImages(); if (images.length) this.homeLightbox.index = (this.homeLightbox.index - 1 + images.length) % images.length; },
+                handleHomeLightboxKeydown(event) { if (!this.homeLightbox.open) return; if (event.key === 'Escape') this.closeHomeLightbox(); if (event.key === 'ArrowRight') this.nextHomeLightboxImage(); if (event.key === 'ArrowLeft') this.prevHomeLightboxImage(); },
+                handleAdminTitleSecretTap() { clearTimeout(this.adminTitleTapTimer); this.adminTitleTapCount += 1; this.adminTitleTapTimer = setTimeout(() => { this.adminTitleTapCount = 0; }, 1400); if (this.adminTitleTapCount >= 5) { this.showAdminTabManager = true; this.adminTitleTapCount = 0; } },
+
                 setGalleryPreviewIndex(index) { this.galleryPreviewIndex = index; this.galleryPreviewImg = this.galleryPreviewImages[index] || ''; },
 
                 nextGalleryPreview() { if (this.galleryPreviewImages.length) this.setGalleryPreviewIndex((this.galleryPreviewIndex + 1) % this.galleryPreviewImages.length); },
@@ -807,7 +831,7 @@
                         try {
                             await callback();
                         } catch (error) {
-                            this.showToast('API xəta', 'Əməliyyat tamamlanmadı.');
+                            this.showToast('API xəta', error?.message || error?.payload?.message || error?.payload?.error || 'Əməliyyat tamamlanmadı');
                         }
                         if (showOverlay) this.isLoading = false;
                     }, 450);
@@ -1306,6 +1330,8 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                 saveHero() {
                     this.triggerAction(async () => {
                         let finalImage = '';
+                        const selectedFile = this.heroPreviewImgFile;
+                        console.info('[saveHero:start]', { selectedHeroId: this.newHero.id || null, hasSelectedFile: Boolean(selectedFile), selectedFile: selectedFile ? { name: selectedFile.name, type: selectedFile.type, size: selectedFile.size } : null, uploadedHeroUrl: this.newHero.mediaUrl || this.newHero.image || '' });
                         let mediaType = this.newHero.mediaType || 'image';
                         const typedUrl = (this.heroPreviewImg && !this.heroPreviewImg.startsWith('blob:')) ? this.heroPreviewImg : (this.newHero.mediaUrl || this.newHero.image || '');
                         if (this.heroPreviewImgFile) {
@@ -1321,6 +1347,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                         }
                         const payload = { ...this.newHero, active: this.newHero.active ?? true };
                         if (finalImage) Object.assign(payload, { image: finalImage, mediaUrl: finalImage, mediaType });
+                        console.info('[saveHero:payload]', { selectedHeroId: payload.id || null, hasSelectedFile: Boolean(selectedFile), selectedFile: selectedFile ? { name: selectedFile.name, type: selectedFile.type, size: selectedFile.size } : null, uploadedHeroUrl: finalImage, payload });
                         let saved;
                         if (payload.id) {
                             saved = await this.api(`/api/hero-slides/${payload.id}`, { method: 'PUT', body: JSON.stringify(payload) });
@@ -1730,7 +1757,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
     </div>
 
     <!-- MAIN HEADER -->
-    <header class="sticky top-0 z-40 glass border-b border-stone-200/80 shadow-sm">
+    <header class="z-40 border-b shadow-sm transition-all duration-300" :class="page === 'home' ? 'absolute top-[45px] sm:top-[40px] left-0 right-0 bg-white/12 backdrop-blur-[14px] border-white/20 shadow-black/10' : 'sticky top-0 glass border-stone-200/80'">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between items-center h-20">
                 <!-- Logo -->
@@ -1739,14 +1766,14 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                         <i class="fa-solid fa-tree-city text-xl lg:text-2xl"></i>
                     </div>
                     <div>
-                        <span class="block text-base lg:text-xl font-extrabold tracking-tight text-forest-900 group-hover:text-wood-600 transition leading-none">BALTIC CASPIAN</span>
-                        <span class="block text-[9px] lg:text-xxs tracking-widest text-wood-600 uppercase font-bold mt-1" x-text="t('logoSub')">Taxta Evlər Müəssisəsi</span>
+                        <span class="block text-base lg:text-xl font-extrabold tracking-tight group-hover:text-wood-600 transition leading-none" :class="page === 'home' ? 'text-white drop-shadow' : 'text-forest-900'">BALTIC CASPIAN</span>
+                        <span class="block text-[9px] lg:text-xxs tracking-widest uppercase font-bold mt-1" :class="page === 'home' ? 'text-wood-200 drop-shadow' : 'text-wood-600'" x-text="t('logoSub')">Taxta Evlər Müəssisəsi</span>
                     </div>
                 </a>
 
                 <!-- Desktop Nav (Optimized sizes to prevent breaking/wrapping on Ru/En selection) -->
                 <nav class="hidden md:flex items-center gap-3 lg:gap-6 xl:gap-8 font-semibold text-xs lg:text-sm xl:text-base">
-                    <a @click.prevent="setPage('home')" href="#" class="transition relative py-2" :class="page === 'home' ? 'text-forest-700' : 'text-stone-600 hover:text-forest-700'">
+                    <a @click.prevent="setPage('home')" href="#" class="transition relative py-2" :class="page === 'home' ? 'text-white drop-shadow' : 'text-stone-600 hover:text-forest-700'">
                         <span x-text="t('navHome')">Ana Səhifə</span>
                         <span x-show="page === 'home'" class="absolute bottom-0 left-0 right-0 h-0.5 bg-wood-500 rounded" x-transition></span>
                     </a>
@@ -1775,14 +1802,11 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                             <i class="fa-solid fa-phone text-xs lg:text-sm"></i>
                         </div>
                         <div class="hidden lg:block">
-                            <span class="block text-[10px] text-stone-500" x-text="t('callUs')">Zəng edin</span>
-                            <span class="block font-bold text-stone-800 text-xs lg:text-sm">(994 55) 322 11 09</span>
+                            <span class="block text-[10px]" :class="page === 'home' ? 'text-white/75' : 'text-stone-500'" x-text="t('callUs')">Zəng edin</span>
+                            <span class="block font-bold text-xs lg:text-sm" :class="page === 'home' ? 'text-white drop-shadow' : 'text-stone-800'">(994 55) 322 11 09</span>
                         </div>
                     </a>
-                    <a @click.prevent="openCalculator()" href="#" class="bg-wood-600 hover:bg-wood-700 text-white font-semibold px-3 lg:px-5 py-2 lg:py-2.5 rounded-xl shadow-md hover:shadow-lg transition-all duration-300 transform hover:-translate-y-0.5 text-xs lg:text-sm flex items-center gap-1.5">
-                        <i class="fa-solid fa-calculator"></i>
-                        <span x-text="t('calcBtn')">Qiymət Hesabla</span>
-                    </a>
+
                 </div>
 
                 <!-- Mobile menu toggle -->
@@ -1920,9 +1944,9 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                         <div class="absolute -bottom-24 -left-16 w-72 h-72 rounded-full bg-wood-200/35 blur-3xl"></div>
                         <div class="relative grid lg:grid-cols-[1.15fr_.85fr] gap-10 items-center">
                             <div>
-                                <span class="inline-flex items-center gap-2 text-wood-700 font-bold uppercase tracking-widest text-xs"><i class="fa-solid fa-seedling"></i x-text="t('homeEcoChoice')">Ekoloji seçim</span>
+                                <span class="inline-flex items-center gap-2 text-wood-700 font-bold uppercase tracking-widest text-xs"><i class="fa-solid fa-seedling"></i><span x-text="t('homeEcoChoice')">Ekoloji seçim</span></span>
                                 <h2 class="mt-3 text-3xl sm:text-4xl md:text-5xl font-black text-forest-950" x-text="t('homeWhyWood')">Niyə taxta evlər?</h2>
-                                <p class="mt-4 text-stone-600 text-base sm:text-lg max-w-2xl">Təbiətin enerjisini, sağlam yaşamı və uzunömürlü memarlığı bir araya gətirən ekoloji seçim.</p>
+                                <p class="mt-4 text-stone-600 text-base sm:text-lg max-w-2xl" x-text="t('homeEcoDesc')">Təbiətin enerjisini, sağlam yaşamı və uzunömürlü memarlığı bir araya gətirən ekoloji seçim.</p>
                                 <div class="mt-8 grid sm:grid-cols-2 xl:grid-cols-3 gap-4">
                                     <template x-for="item in [
                                         ['fa-wand-magic-sparkles',t('homeCharmTitle'),t('homeCharmDesc')],
@@ -1943,7 +1967,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                             <div class="bg-white rounded-[1.75rem] p-3 shadow-2xl shadow-forest-950/10 border border-stone-200" data-reveal="slide-left">
                                 <div class="relative h-[320px] sm:h-[430px] overflow-hidden rounded-[1.35rem]">
                                     <template x-for="(image, index) in visibleHomeGalleryImages()" :key="image.src">
-                                        <img x-show="activeHomeGalleryIndex === index" x-transition.opacity.duration.500ms :src="image.src" :alt="image.title" class="absolute inset-0 w-full h-full object-cover">
+                                        <img x-show="activeHomeGalleryIndex === index" x-transition.opacity.duration.500ms :src="image.src" :alt="image.title" class="absolute inset-0 w-full h-full object-cover cursor-zoom-in" @click="openHomeLightbox('why_wood', index)">
                                     </template>
                                     <div class="absolute inset-0 bg-gradient-to-t from-forest-950/55 via-transparent to-transparent"></div>
                                     <div class="absolute left-5 bottom-5 right-5 text-white">
@@ -1984,7 +2008,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                         <div class="bg-white rounded-[2rem] p-3 shadow-lg border border-stone-200" data-reveal="slide-left">
                             <div class="relative h-[420px] overflow-hidden rounded-[1.5rem]">
                                 <template x-for="(image, index) in visibleAdvantagesImages()" :key="image.src">
-                                    <img x-show="activeAdvantagesImageIndex === index" x-transition.opacity.duration.500ms :src="image.src" :alt="image.title" class="absolute inset-0 w-full h-full object-cover">
+                                    <img x-show="activeAdvantagesImageIndex === index" x-transition.opacity.duration.500ms :src="image.src" :alt="image.title" class="absolute inset-0 w-full h-full object-cover cursor-zoom-in" @click="openHomeLightbox('advantages', index)">
                                 </template>
                                 <div class="absolute inset-0 bg-gradient-to-t from-forest-950/45 via-transparent to-transparent"></div>
                                 <h3 class="absolute left-5 bottom-5 right-5 text-2xl font-black text-white" x-text="visibleAdvantagesImages()[activeAdvantagesImageIndex]?.title"></h3>
@@ -2197,7 +2221,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                 <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-6 sm:p-8 rounded-3xl border border-stone-200/80 shadow-sm">
                     <div>
                         <h1 class="text-2xl sm:text-3xl font-black text-stone-900 flex items-center gap-2">
-                            <i class="fa-solid fa-gauge-high text-forest-700"></i>
+                            <i @click="handleAdminTitleSecretTap()" class="fa-solid fa-gauge-high text-forest-700 select-none"></i>
                             <span x-text="t('adminTitle')">Admin İdarəetmə Paneli</span>
                         </h1>
                     </div>
@@ -2209,7 +2233,6 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                     <template x-for="tab in visibleAdminTabs()" :key="tab.key">
                         <button @click="adminTab = tab.key" class="px-4 py-2.5 rounded-xl transition" :class="adminTab === tab.key ? 'bg-forest-700 text-white shadow-sm' : 'bg-white text-stone-600 border border-stone-200'" x-text="t(tab.labelKey)"></button>
                     </template>
-                    <button @click="showAdminTabManager = true" class="ml-auto px-2 py-2 rounded-full text-stone-300 hover:text-stone-600 hover:bg-stone-100 transition" title="Panel"><i class="fa-solid fa-ellipsis"></i></button>
                 </div>
 
                 <!-- SUB-TAB 1: LIVE DYNAMIC STATISTICS -->
@@ -2533,7 +2556,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
 
 
                 <div x-show="adminTab === 'home-images'" x-transition class="grid grid-cols-1 lg:grid-cols-2 gap-6 text-xs font-bold uppercase text-stone-500">
-                    <template x-for="cfg in [{key:'why_wood', title:'Niyə taxta evlər?', items: visibleHomeGalleryImages()}, {key:'advantages', title:'Üstünlüklərimiz', items: visibleAdvantagesImages()}]" :key="cfg.key">
+                    <template x-for="cfg in [{key:'why_wood', title:t('homeWhyWood'), items: visibleHomeGalleryImages()}, {key:'advantages', title:t('advantagesTitle'), items: visibleAdvantagesImages()}]" :key="cfg.key">
                         <div class="bg-white p-6 rounded-3xl border border-stone-200/80 shadow-sm space-y-4">
                             <h3 class="text-lg font-black text-stone-900 tracking-normal" x-text="cfg.title"></h3>
                             <input type="file" accept="image/*" @change="handleHomeImageFile(cfg.key, $event)" class="w-full text-stone-600 font-medium tracking-normal text-xs">
@@ -2791,6 +2814,21 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
         </div>
     </div>
 
+
+
+    <!-- HOME SECTION IMAGE LIGHTBOX -->
+    <div x-show="homeLightbox.open" x-cloak class="fixed inset-0 z-[60] flex items-center justify-center p-3 sm:p-6 bg-stone-950/95" x-transition @keydown.window="handleHomeLightboxKeydown($event)">
+        <button @click="closeHomeLightbox()" class="absolute top-4 right-4 sm:top-6 sm:right-6 w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-white/10 text-white hover:bg-white/20 flex items-center justify-center z-10" aria-label="Close"><i class="fa-solid fa-xmark text-xl"></i></button>
+        <button @click="prevHomeLightboxImage()" class="absolute left-3 sm:left-6 top-1/2 -translate-y-1/2 w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-white/10 text-white hover:bg-white/20 flex items-center justify-center z-10" aria-label="Previous"><i class="fa-solid fa-chevron-left"></i></button>
+        <button @click="nextHomeLightboxImage()" class="absolute right-3 sm:right-6 top-1/2 -translate-y-1/2 w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-white/10 text-white hover:bg-white/20 flex items-center justify-center z-10" aria-label="Next"><i class="fa-solid fa-chevron-right"></i></button>
+        <div class="w-full max-w-6xl flex flex-col items-center gap-4 text-white">
+            <img :src="currentHomeLightboxImage().src" :alt="currentHomeLightboxImage().title || ''" class="max-h-[78vh] w-auto max-w-full rounded-2xl object-contain shadow-2xl">
+            <div class="text-center space-y-1">
+                <p class="text-lg font-bold" x-text="currentHomeLightboxImage().title || (homeLightbox.section === 'advantages' ? t('advantagesTitle') : t('homeWhyWood'))"></p>
+                <p class="text-sm text-white/75" x-text="`${homeLightbox.index + 1} / ${homeLightboxImages().length}`"></p>
+            </div>
+        </div>
+    </div>
 
     <!-- HIDDEN ADMIN TAB VISIBILITY MANAGER -->
     <div x-show="showAdminTabManager" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-950/70" x-transition>
