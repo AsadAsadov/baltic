@@ -9,7 +9,7 @@
     
     <!-- Alpine.js State Controller & Dictionary -->
     <script>
-        function siteState() {
+        window.siteState = function siteState() {
             // Retrieve dynamic data from localStorage or fallback to defaults
             const defaultProjects = [
                 {
@@ -357,7 +357,7 @@
                     ,'homeEcoChoice': { az: 'Ekoloji seçim', ru: 'Экологичный выбор', en: 'Ecological choice' },
                     'homeWhyWood': { az: 'Niyə taxta evlər?', ru: 'Почему деревянные дома?', en: 'Why wooden homes?' },
                     'homeWhyIntro': { az: 'Taxta evlər təbii material, sağlam mikroiqlim və möhkəm konstruksiya ilə ailəniz üçün rahat yaşayış yaradır.', ru: 'Деревянные дома создают комфортную среду благодаря натуральным материалам, здоровому микроклимату и прочной конструкции.', en: 'Wooden homes create comfortable living with natural materials, a healthy microclimate and durable structure.' },
-                    'homeEcoDesc': { az: 'Təbiətin enerjisini, sağlam yaşamı və uzunömürlü memarlığı bir araya gətirən ekoloji seçim.', ru: 'Экологичный выбор, объединяющий энергию природы, здоровую жизнь и долговечную архитектуру.', en: 'An ecological choice combining nature's energy, healthy living and long-lasting architecture.' },
+                    'homeEcoDesc': { az: 'Təbiətin enerjisini, sağlam yaşamı və uzunömürlü memarlığı bir araya gətirən ekoloji seçim.', ru: 'Экологичный выбор, объединяющий энергию природы, здоровую жизнь и долговечную архитектуру.', en: 'An ecological choice combining nature\'s energy, healthy living and long-lasting architecture.' },
                     'homeCharmTitle': { az: 'Füsunkar görünüş', ru: 'Очаровательный вид', en: 'Charming appearance' },
                     'homeCharmDesc': { az: 'Təbiətin bir parçası olan ağac öz təbii görünüşü ilə valeh edir.', ru: 'Натуральная древесина восхищает естественной красотой.', en: 'Natural wood impresses with its authentic beauty.' },
                     'homeLongevityTitle': { az: 'Uzunömürlülük', ru: 'Долговечность', en: 'Longevity' },
