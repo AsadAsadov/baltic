@@ -1,0 +1,124 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Project {
+  id              Int      @id @default(autoincrement())
+  category        String   @default("house") @map("category")
+  categoryNameAz  String?  @map("category_name_az")
+  categoryNameRu  String?  @map("category_name_ru")
+  categoryNameEn  String?  @map("category_name_en")
+  titleAz         String   @map("title_az")
+  titleRu         String?  @map("title_ru")
+  titleEn         String?  @map("title_en")
+  descriptionAz   String?  @map("description_az")
+  descriptionRu   String?  @map("description_ru")
+  descriptionEn   String?  @map("description_en")
+  area            String?  @default("0")
+  stories         Int      @default(1)
+  rooms           Int      @default(1)
+  buildTimeAz     String?  @map("build_time_az")
+  buildTimeRu     String?  @map("build_time_ru")
+  buildTimeEn     String?  @map("build_time_en")
+  coverImage      String?  @map("cover_image")
+  images          Json?    @default("[]")
+  views           Int      @default(0)
+  archived        Boolean  @default(false)
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  @@map("projects")
+}
+
+model GalleryItem {
+  id        Int      @id @default(autoincrement())
+  mediaUrl  String   @map("media_url")
+  images    Json?    @default("[]")
+  titleAz   String   @map("title_az")
+  titleRu   String?  @map("title_ru")
+  titleEn   String?  @map("title_en")
+  type      String   @default("image")
+  sortOrder Int      @default(0) @map("sort_order")
+  archived  Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("gallery_items")
+}
+
+model HeroSlide {
+  id        Int      @id @default(autoincrement())
+  image     String
+  tagAz     String?  @map("tag_az")
+  tagRu     String?  @map("tag_ru")
+  tagEn     String?  @map("tag_en")
+  title1Az  String?  @map("title1_az")
+  title1Ru  String?  @map("title1_ru")
+  title1En  String?  @map("title1_en")
+  title2Az  String?  @map("title2_az")
+  title2Ru  String?  @map("title2_ru")
+  title2En  String?  @map("title2_en")
+  descAz    String?  @map("desc_az")
+  descRu    String?  @map("desc_ru")
+  descEn    String?  @map("desc_en")
+  sortOrder Int      @default(0) @map("sort_order")
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("hero_slides")
+}
+
+model Banner {
+  id        Int      @id @default(autoincrement())
+  active    Boolean  @default(true)
+  type      String   @default("image")
+  mediaUrl  String?  @map("media_url")
+  link      String?
+  title     String?
+  width     Int      @default(160)
+  height    Int      @default(400)
+  duration  Int      @default(15)
+  views     Int      @default(0)
+  clicks    Int      @default(0)
+  position  String   @default("main")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("banners")
+}
+
+model ContactMessage {
+  id        Int      @id @default(autoincrement())
+  name      String
+  phone     String
+  email     String?
+  message   String
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("contact_messages")
+}
+
+model SiteStat {
+  key       String   @id
+  value     Int      @default(0)
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("site_stats")
+}
+
+model StatEvent {
+  id        Int      @id @default(autoincrement())
+  type      String
+  targetId  Int?     @map("target_id")
+  metadata  Json?    @default("{}")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("stat_events")
+}
