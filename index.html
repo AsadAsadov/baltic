@@ -331,11 +331,15 @@
                 },
 
                 nextSlide() {
-                    this.activeSlide = (this.activeSlide + 1) % this.slides.length;
+                    const slides = Array.isArray(this.slides) ? this.slides : [];
+                    if (!slides.length) return;
+                    this.activeSlide = (this.activeSlide + 1) % slides.length;
                 },
 
                 prevSlide() {
-                    this.activeSlide = (this.activeSlide - 1 + this.slides.length) % this.slides.length;
+                    const slides = Array.isArray(this.slides) ? this.slides : [];
+                    if (!slides.length) return;
+                    this.activeSlide = (this.activeSlide - 1 + slides.length) % slides.length;
                 },
 
 
@@ -353,9 +357,82 @@
                         const data = await this.api(path, options);
                         return data ?? fallback;
                     } catch (error) {
+                        console.error(`Failed ${path}`, error);
                         this.showToast('API xəta', 'Məlumat bazası əlçatan deyil, fallback/cache istifadə olunur.');
                         return fallback;
                     }
+                },
+
+                asArray(payload) {
+                    if (Array.isArray(payload)) return payload;
+                    if (Array.isArray(payload?.data)) return payload.data;
+                    if (payload && typeof payload === 'object') return [payload];
+                    return [];
+                },
+                normalizeProject(project = {}) {
+                    const images = Array.isArray(project.images) ? project.images.filter(Boolean) : [];
+                    const image = project.image || project.coverImage || project.cover || images[0] || '';
+                    const cat = String(project.cat || project.category || 'default');
+                    return {
+                        id: project.id ?? '',
+                        cat,
+                        category: cat,
+                        catName: project.catName || project.categoryNameAz || cat,
+                        catNameRu: project.catNameRu || project.categoryNameRu || project.catName || cat,
+                        catNameEn: project.catNameEn || project.categoryNameEn || project.catName || cat,
+                        title: project.title || project.titleAz || '',
+                        titleAz: project.titleAz || project.title || '',
+                        titleRu: project.titleRu || project.title || '',
+                        titleEn: project.titleEn || project.title || '',
+                        desc: project.desc || project.description || project.descriptionAz || project.descAz || '',
+                        description: project.description || project.desc || project.descriptionAz || '',
+                        descriptionAz: project.descriptionAz || project.descAz || project.description || project.desc || '',
+                        descAz: project.descAz || project.descriptionAz || project.desc || '',
+                        descRu: project.descRu || project.descriptionRu || project.desc || '',
+                        descEn: project.descEn || project.descriptionEn || project.desc || '',
+                        area: String(project.area || ''),
+                        stories: Number(project.stories) || 1,
+                        rooms: Number(project.rooms) || 1,
+                        buildTime: project.buildTime || project.buildTimeAz || '',
+                        buildTimeAz: project.buildTimeAz || project.buildTime || '',
+                        buildTimeRu: project.buildTimeRu || project.buildTime || '',
+                        buildTimeEn: project.buildTimeEn || project.buildTime || '',
+                        image,
+                        cover: project.cover || image,
+                        coverImage: project.coverImage || image,
+                        images: images.length ? images : (image ? [image] : []),
+                        views: Number(project.views) || 0,
+                        archived: Boolean(project.archived)
+                    };
+                },
+                normalizeProjects(payload, fallback = []) {
+                    const items = this.asArray(payload).map(item => this.normalizeProject(item));
+                    return items.length ? items : (Array.isArray(fallback) ? fallback.map(item => this.normalizeProject(item)) : []);
+                },
+                normalizeGalleryItem(item = {}) {
+                    const images = Array.isArray(item.images) ? item.images.filter(Boolean) : [];
+                    const src = item.src || item.image || item.url || item.mediaUrl || images[0] || '';
+                    return { id: item.id ?? '', src, image: item.image || src, url: item.url || src, mediaUrl: item.mediaUrl || src, images: images.length ? images : (src && (item.type || 'image') === 'image' ? [src] : []), title: item.title || item.titleAz || '', titleAz: item.titleAz || item.title || '', titleRu: item.titleRu || item.title || '', titleEn: item.titleEn || item.title || '', type: item.type || 'image', archived: Boolean(item.archived), sortOrder: Number(item.sortOrder) || 0 };
+                },
+                normalizeGallery(payload, fallback = []) {
+                    const items = this.asArray(payload).map(item => this.normalizeGalleryItem(item));
+                    return items.length ? items : (Array.isArray(fallback) ? fallback.map(item => this.normalizeGalleryItem(item)) : []);
+                },
+                normalizeSlide(slide = {}) {
+                    const image = slide.image || slide.mediaUrl || slide.url || '';
+                    return { id: slide.id ?? '', image, mediaUrl: slide.mediaUrl || image, tag: slide.tag || slide.tagAz || '', tagAz: slide.tagAz || slide.tag || '', tagRu: slide.tagRu || slide.tag || '', tagEn: slide.tagEn || slide.tag || '', title1: slide.title1 || slide.title1Az || '', title1Az: slide.title1Az || slide.title1 || '', title1Ru: slide.title1Ru || slide.title1 || '', title1En: slide.title1En || slide.title1 || '', title2: slide.title2 || slide.title2Az || '', title2Az: slide.title2Az || slide.title2 || '', title2Ru: slide.title2Ru || slide.title2 || '', title2En: slide.title2En || slide.title2 || '', desc: slide.desc || slide.descAz || '', descAz: slide.descAz || slide.desc || '', descRu: slide.descRu || slide.desc || '', descEn: slide.descEn || slide.desc || '', active: slide.active ?? true, archived: Boolean(slide.archived), sortOrder: Number(slide.sortOrder) || 0 };
+                },
+                normalizeSlides(payload, fallback = []) {
+                    const items = this.asArray(payload).map(item => this.normalizeSlide(item));
+                    return items.length ? items : (Array.isArray(fallback) ? fallback.map(item => this.normalizeSlide(item)) : []);
+                },
+                normalizeBanner(banner = {}) {
+                    const src = banner.src || banner.image || banner.mediaUrl || banner.url || '';
+                    return { id: banner.id ?? '', active: banner.active ?? false, type: banner.type || 'image', src, image: banner.image || src, mediaUrl: banner.mediaUrl || src, url: banner.url || src, link: banner.link || '', title: banner.title || '', width: Number(banner.width) || 160, height: Number(banner.height) || 400, duration: Number(banner.duration) || 15, views: Number(banner.views) || 0, clicks: Number(banner.clicks) || 0, position: banner.position || 'main' };
+                },
+                normalizeBanners(payload, fallback = migratedBanner) {
+                    const banners = this.asArray(payload).map(item => this.normalizeBanner(item));
+                    return banners.length ? banners : (fallback ? [this.normalizeBanner(fallback)] : []);
                 },
 
                 async initApp() {
@@ -364,21 +441,31 @@
 
                 async loadData() {
                     const cached = (key, fallback) => JSON.parse(localStorage.getItem(key) || 'null') || fallback;
-                    const [projects, galleryItems, slides, mainBanner, stats] = await Promise.all([
-                        this.safeApi('/api/projects', cached('bc_projects', defaultProjects)),
-                        this.safeApi('/api/gallery', cached('bc_gallery', defaultGallery)),
-                        this.safeApi('/api/hero-slides', cached('bc_slides', defaultSlides)),
-                        this.safeApi('/api/banners/main', cached('bc_banner', migratedBanner)),
-                        this.safeApi('/api/stats', cached('bc_stats', this.stats))
-                    ]);
-                    this.projects = projects || defaultProjects;
-                    this.galleryItems = galleryItems || defaultGallery;
-                    this.slides = slides?.length ? slides : defaultSlides;
-                    this.mainBanner = mainBanner || migratedBanner;
-                    this.stats = { ...this.stats, ...(stats || {}) };
+                    const requests = [
+                        ['/api/projects', cached('bc_projects', defaultProjects)],
+                        ['/api/gallery', cached('bc_gallery', defaultGallery)],
+                        ['/api/hero-slides', cached('bc_slides', defaultSlides)],
+                        ['/api/banners', cached('bc_banner', migratedBanner)],
+                        ['/api/stats', cached('bc_stats', this.stats)]
+                    ];
+                    const settled = await Promise.allSettled(requests.map(([path, fallback]) => this.safeApi(path, fallback)));
+                    const valueAt = (index, fallback) => settled[index].status === 'fulfilled' ? settled[index].value : fallback;
+                    this.projects = this.normalizeProjects(valueAt(0, cached('bc_projects', defaultProjects)), defaultProjects);
+                    this.galleryItems = this.normalizeGallery(valueAt(1, cached('bc_gallery', defaultGallery)), defaultGallery);
+                    this.slides = this.normalizeSlides(valueAt(2, cached('bc_slides', defaultSlides)), defaultSlides);
+                    const banners = this.normalizeBanners(valueAt(3, cached('bc_banner', migratedBanner)), migratedBanner);
+                    this.mainBanner = banners.find(b => b.position === 'main') || banners[0] || this.normalizeBanner(migratedBanner);
+                    this.stats = { ...this.stats, ...(valueAt(4, cached('bc_stats', this.stats)) || {}) };
+                    console.info('GET /api/projects'); console.info(`Loaded projects: ${this.projects.length}`);
+                    console.info('GET /api/gallery'); console.info(`Loaded gallery: ${this.galleryItems.length}`);
+                    console.info('GET /api/hero-slides'); console.info(`Loaded slides: ${this.slides.length}`);
+                    console.info('GET /api/banners'); console.info(`Loaded banners: ${banners.length}`);
                     if (this.adminLoggedIn) {
-                        this.messages = await this.safeApi('/api/messages', cached('bc_messages', defaultMessages));
+                        this.messages = this.asArray(await this.safeApi('/api/messages', cached('bc_messages', defaultMessages)));
                     }
+                    console.table(this.projects.slice(0, 3));
+                    console.table(this.slides.slice(0, 3));
+                    console.table(this.galleryItems.slice(0, 3));
                     this.cacheSave();
                 },
 
@@ -485,6 +572,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                             newMsg = { id: Date.now(), name: this.contactForm.name, phone: this.contactForm.phone, email: this.contactForm.email || 'N/A', message: this.contactForm.message, date: new Date().toLocaleDateString('az-AZ'), read: false };
                             this.showToast('API xəta', 'Mesaj cache/fallback kimi saxlanıldı.');
                         }
+                        this.messages = Array.isArray(this.messages) ? this.messages : [];
                         this.messages.unshift(newMsg);
                         this.stats.messagesCount = this.messages.length;
                         this.saveAll();
@@ -678,7 +766,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
 
                 saveProject() {
                     this.triggerAction(async () => {
-                        const finalImages = this.projectPreviewImages.length ? this.projectPreviewImages : (this.projectPreviewImg ? [this.projectPreviewImg] : ['https://images.unsplash.com/photo-1510798831971-661eb04b3739?auto=format&fit=crop&q=80&w=800']);
+                        const finalImages = (Array.isArray(this.projectPreviewImages) ? this.projectPreviewImages : []).length ? this.projectPreviewImages : (this.projectPreviewImg ? [this.projectPreviewImg] : ['https://images.unsplash.com/photo-1510798831971-661eb04b3739?auto=format&fit=crop&q=80&w=800']);
                         const finalImage = finalImages[0];
                         const categoryMap = {
                             house: { az: 'Taxta Ev', ru: 'Деревянный Дом', en: 'Wooden House' },
@@ -689,14 +777,14 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
 
                         if (this.newProj.id) {
                             // Edit Mode
-                            this.projects = this.projects.map(p => {
+                            this.projects = (Array.isArray(this.projects) ? this.projects : []).map(p => {
                                 if (p.id === this.newProj.id) {
                                     return {
                                         ...p,
                                         cat: this.newProj.cat,
-                                        catName: categoryMap[this.newProj.cat].az,
-                                        catNameRu: categoryMap[this.newProj.cat].ru,
-                                        catNameEn: categoryMap[this.newProj.cat].en,
+                                        catName: (categoryMap[this.newProj.cat] || categoryMap.house).az,
+                                        catNameRu: (categoryMap[this.newProj.cat] || categoryMap.house).ru,
+                                        catNameEn: (categoryMap[this.newProj.cat] || categoryMap.house).en,
                                         title: this.newProj.titleAz,
                                         titleRu: this.newProj.titleRu,
                                         titleEn: this.newProj.titleEn,
@@ -721,9 +809,9 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                             const added = {
                                 id: Date.now(),
                                 cat: this.newProj.cat,
-                                catName: categoryMap[this.newProj.cat].az,
-                                catNameRu: categoryMap[this.newProj.cat].ru,
-                                catNameEn: categoryMap[this.newProj.cat].en,
+                                catName: (categoryMap[this.newProj.cat] || categoryMap.house).az,
+                                catNameRu: (categoryMap[this.newProj.cat] || categoryMap.house).ru,
+                                catNameEn: (categoryMap[this.newProj.cat] || categoryMap.house).en,
                                 title: this.newProj.titleAz,
                                 titleRu: this.newProj.titleRu,
                                 titleEn: this.newProj.titleEn,
@@ -741,6 +829,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                                 views: 0,
                                 archived: false
                             };
+                            this.projects = Array.isArray(this.projects) ? this.projects : [];
                             this.projects.unshift(added);
                             this.showToast('Uğurlu', 'Yeni layihə kataloqa əlavə edildi!');
                         }
@@ -757,7 +846,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
 
                 deleteProject(id) {
                     this.triggerAction(async () => {
-                        this.projects = this.projects.filter(p => p.id !== id);
+                        this.projects = (Array.isArray(this.projects) ? this.projects : []).filter(p => p.id !== id);
                         await this.api(`/api/projects/${id}`, { method: 'DELETE' });
                         this.cacheSave();
                         this.showToast('Silindi', 'Layihə kataloqdan silindi.');
@@ -781,11 +870,11 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
 
                 saveGalleryItem() {
                     this.triggerAction(async () => {
-                        const finalImages = this.newGallery.type === 'image' ? (this.galleryPreviewImages.length ? this.galleryPreviewImages : (this.galleryPreviewImg ? [this.galleryPreviewImg] : ['https://images.unsplash.com/photo-1542718610-a1d656d1884c?auto=format&fit=crop&q=80&w=800'])) : [];
+                        const finalImages = this.newGallery.type === 'image' ? ((Array.isArray(this.galleryPreviewImages) ? this.galleryPreviewImages : []).length ? this.galleryPreviewImages : (this.galleryPreviewImg ? [this.galleryPreviewImg] : ['https://images.unsplash.com/photo-1542718610-a1d656d1884c?auto=format&fit=crop&q=80&w=800'])) : [];
                         const finalSrc = this.newGallery.type === 'video' ? this.galleryPreviewImg : finalImages[0];
                         if (this.newGallery.id) {
                             // Edit
-                            this.galleryItems = this.galleryItems.map(g => {
+                            this.galleryItems = (Array.isArray(this.galleryItems) ? this.galleryItems : []).map(g => {
                                 if (g.id === this.newGallery.id) {
                                     return {
                                         ...g,
@@ -812,6 +901,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                                 type: this.newGallery.type,
                                 archived: false
                             };
+                            this.galleryItems = Array.isArray(this.galleryItems) ? this.galleryItems : [];
                             this.galleryItems.unshift(added);
                             this.showToast('Uğurlu', 'Qalereyaya yeni element əlavə edildi!');
                         }
@@ -826,7 +916,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
 
                 deleteGalleryItem(id) {
                     this.triggerAction(async () => {
-                        this.galleryItems = this.galleryItems.filter(g => g.id !== id);
+                        this.galleryItems = (Array.isArray(this.galleryItems) ? this.galleryItems : []).filter(g => g.id !== id);
                         await this.api(`/api/gallery/${id}`, { method: 'DELETE' });
                         this.cacheSave();
                         this.showToast('Silindi', 'Məzmun silindi.');
@@ -898,7 +988,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                 },
 
                 markMessageRead(id) {
-                    this.messages = this.messages.map(m => {
+                    this.messages = (Array.isArray(this.messages) ? this.messages : []).map(m => {
                         if (m.id === id) m.read = true;
                         return m;
                     });
@@ -908,7 +998,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
 
                 deleteMessage(id) {
                     this.triggerAction(async () => {
-                        this.messages = this.messages.filter(m => m.id !== id);
+                        this.messages = (Array.isArray(this.messages) ? this.messages : []).filter(m => m.id !== id);
                         this.stats.messagesCount = this.messages.length;
                         await this.api(`/api/messages/${id}`, { method: 'DELETE' });
                         this.cacheSave();
@@ -997,18 +1087,18 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                 // Returns completely dynamic states derived from runtime object structures
                 getDynamicStats() {
                     return {
-                        projectsCount: this.projects.length,
-                        projectViews: this.projects.reduce((acc, p) => acc + (p.views || 0), 0),
+                        projectsCount: (Array.isArray(this.projects) ? this.projects : []).length,
+                        projectViews: (Array.isArray(this.projects) ? this.projects : []).reduce((acc, p) => acc + (p.views || 0), 0),
                         adViews: this.mainBanner?.views || 0,
-                        messagesCount: this.messages.length
+                        messagesCount: (Array.isArray(this.messages) ? this.messages : []).length
                     };
                 },
 
                 get filteredProjects() {
                     if (this.filterCategory === 'all') {
-                        return this.projects;
+                        return Array.isArray(this.projects) ? this.projects : [];
                     }
-                    return this.projects.filter(p => p.cat === this.filterCategory);
+                    return (Array.isArray(this.projects) ? this.projects : []).filter(p => p.cat === this.filterCategory);
                 }
             };
         }
@@ -1191,7 +1281,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                 <!-- HERO SLIDER SECTION -->
                 <section data-home-hero class="relative left-1/2 w-screen max-w-[100vw] -translate-x-1/2 min-h-[calc(100vh-8rem)] bg-stone-900 overflow-hidden flex items-center">
                     <div class="absolute inset-0 z-0">
-                        <template x-for="(slide, index) in slides" :key="index">
+                        <template x-for="(slide, index) in (Array.isArray(slides) ? slides : [])" :key="index">
                             <div x-show="activeSlide === index" x-transition:enter="transition ease-out duration-1000" class="absolute inset-0">
                                 <img :src="slide.image" class="w-full h-full object-cover" alt="Hero background">
                                 <div class="absolute inset-0 bg-gradient-to-r from-stone-950/80 via-stone-900/60 to-transparent"></div>
@@ -1229,7 +1319,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                     <div class="absolute bottom-8 left-0 right-0 z-20">
                         <div class="max-w-7xl mx-auto px-4 flex justify-between items-center">
                             <div class="flex gap-2">
-                                <template x-for="(slide, idx) in slides" :key="idx">
+                                <template x-for="(slide, idx) in (Array.isArray(slides) ? slides : [])" :key="idx">
                                     <button @click="activeSlide = idx" class="h-2.5 rounded-full transition-all duration-300" :class="activeSlide === idx ? 'w-8 bg-wood-500' : 'w-2.5 bg-white/45'"></button>
                                 </template>
                             </div>
@@ -1304,7 +1394,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                     </div>
 
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-                        <template x-for="proj in projects.filter(p => !p.archived).slice(0, 3)" :key="proj.id">
+                        <template x-for="proj in (Array.isArray(projects) ? projects : []).filter(p => !p.archived).slice(0, 3)" :key="proj.id">
                             <div class="group bg-white rounded-3xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 border border-stone-200/60 flex flex-col justify-between">
                                 <div>
                                     <div class="relative h-64 overflow-hidden">
@@ -1373,7 +1463,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                    <template x-for="proj in filteredProjects.filter(p => !p.archived)" :key="proj.id">
+                    <template x-for="proj in (Array.isArray(filteredProjects) ? filteredProjects : []).filter(p => !p.archived)" :key="proj.id">
                         <div class="group bg-white rounded-3xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 border border-stone-200/60 flex flex-col justify-between">
                             <div>
                                 <div class="relative h-64 overflow-hidden">
@@ -1404,7 +1494,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                 </div>
 
                 <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                    <template x-for="(img, idx) in galleryItems.filter(g => !g.archived)" :key="img.id">
+                    <template x-for="(img, idx) in (Array.isArray(galleryItems) ? galleryItems : []).filter(g => !g.archived)" :key="img.id">
                         <div class="group relative aspect-square overflow-hidden rounded-2xl bg-stone-200 cursor-pointer shadow-sm hover:shadow-lg transition duration-300" @click="activeGalleryIndex = idx; isGalleryModalOpen = true">
                             <template x-if="img.type === 'video'">
                                 <div class="w-full h-full relative">
@@ -1549,7 +1639,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
 
                 <!-- SUB-TAB 2: MESSAGES -->
                 <div x-show="adminTab === 'messages'" x-transition class="bg-white p-6 sm:p-8 rounded-3xl border border-stone-200/80 shadow-sm space-y-4 text-sm">
-                    <template x-for="msg in messages" :key="msg.id">
+                    <template x-for="msg in (Array.isArray(messages) ? messages : [])" :key="msg.id">
                         <div class="p-4 rounded-2xl border border-stone-200 bg-stone-50 flex flex-col lg:flex-row justify-between gap-4">
                             <div class="min-w-0">
                                 <h4 class="font-extrabold text-stone-900" x-text="msg.name">Ad</h4>
@@ -1676,7 +1766,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                     <div class="lg:col-span-7 bg-white p-6 rounded-3xl border border-stone-200/80 shadow-sm space-y-4">
                         <h3 class="text-lg font-black text-stone-900 tracking-normal" x-text="lang==='az'?'Mövcud Layihələr':(lang==='ru'?'Существующие проекты':'Current Catalog')">Mövcud Layihələr</h3>
                         <div class="space-y-3 max-h-[70vh] overflow-y-auto">
-                            <template x-for="proj in projects" :key="proj.id">
+                            <template x-for="proj in (Array.isArray(projects) ? projects : [])" :key="proj.id">
                                 <div class="p-3 bg-stone-50 rounded-2xl border border-stone-200/60 flex items-center justify-between gap-3">
                                     <div class="flex items-center gap-3">
                                         <img :src="(proj.images && proj.images[0]) || proj.image" class="w-14 h-14 object-cover rounded-xl shadow">
@@ -1753,7 +1843,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                     <div class="lg:col-span-7 bg-white p-6 rounded-3xl border border-stone-200/80 shadow-sm space-y-4">
                         <h3 class="text-lg font-black text-stone-900 tracking-normal" x-text="lang==='az'?'Mövcud Qalereya':'Существующая галерея'">Mövcud Qalereya</h3>
                         <div class="space-y-3">
-                            <template x-for="item in galleryItems" :key="item.id">
+                            <template x-for="item in (Array.isArray(galleryItems) ? galleryItems : [])" :key="item.id">
                                 <div class="p-3 bg-stone-50 rounded-2xl border border-stone-200/60 flex items-center justify-between">
                                     <div class="flex items-center gap-3">
                                         <template x-if="item.type === 'image'">
@@ -1809,7 +1899,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                             <button @click="saveHero()" class="w-full py-3 bg-forest-700 text-white font-bold rounded-xl shadow hover:bg-forest-800 normal-case" x-text="lang==='az'?'Slaydı Güncəllə':'Обновить слайд'"></button>
                         </div>
                         <div class="order-1 lg:order-2 grid grid-cols-1 gap-3 bg-stone-50 border border-stone-200 rounded-3xl p-4">
-                            <template x-for="(sld, sIdx) in slides" :key="sIdx"><div class="p-3 bg-white rounded-2xl border border-stone-200 hover:bg-stone-50 cursor-pointer space-y-2" :class="newHero.activeIndex === sIdx ? '!border-wood-600 ring-2 ring-wood-200 shadow-md' : ''" @click="setupEditHero(sIdx)"><div class="flex justify-between items-center"><span class="font-black text-forest-900" x-text="`${sIdx + 1}-ci Slayd`"></span><span class="text-[9px] bg-wood-100 text-wood-700 px-1.5 py-0.5 rounded uppercase" x-text="sld.tag ? sld.tag.substring(0,15)+'...' : ''"></span></div><img :src="sld.image" class="w-full h-32 lg:h-28 object-cover rounded-xl shadow"><button class="w-full py-1.5 bg-forest-700 text-white rounded text-[10px] font-bold" x-text="lang==='az'?'Redaktə et':'Редактировать'"></button></div></template>
+                            <template x-for="(sld, sIdx) in (Array.isArray(slides) ? slides : [])" :key="sIdx"><div class="p-3 bg-white rounded-2xl border border-stone-200 hover:bg-stone-50 cursor-pointer space-y-2" :class="newHero.activeIndex === sIdx ? '!border-wood-600 ring-2 ring-wood-200 shadow-md' : ''" @click="setupEditHero(sIdx)"><div class="flex justify-between items-center"><span class="font-black text-forest-900" x-text="`${sIdx + 1}-ci Slayd`"></span><span class="text-[9px] bg-wood-100 text-wood-700 px-1.5 py-0.5 rounded uppercase" x-text="sld.tag ? sld.tag.substring(0,15)+'...' : ''"></span></div><img :src="sld.image" class="w-full h-32 lg:h-28 object-cover rounded-xl shadow"><button class="w-full py-1.5 bg-forest-700 text-white rounded text-[10px] font-bold" x-text="lang==='az'?'Redaktə et':'Редактировать'"></button></div></template>
                         </div>
                     </div>
                 </div>
