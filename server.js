@@ -55,12 +55,14 @@ function bannerOut(b) {
   return b && { id: b.id, legacyId: b.legacyId, active: b.active, type: b.type || b.mediaType || 'image', mediaType: b.mediaType || b.type || 'image', src: b.mediaUrl || '', mediaUrl: b.mediaUrl || '', link: b.linkUrl || '', linkUrl: b.linkUrl || '', title: b.title || b.titleAz || '', titleAz: b.titleAz || b.title || '', width: b.width, height: b.height, duration: b.duration, displayOrder: b.displayOrder || 0, views: b.views, clicks: b.clicks, placement: normalizePlacement(b.placement), position: normalizePlacement(b.placement), createdAt: b.createdAt };
 }
 function bannerIn(b = {}) {
-  const mediaType = b.mediaType || b.media_type || b.type || 'image';
+  const mediaUrl = b.mediaUrl || b.media_url || b.src || '';
+  const rawMediaType = b.mediaType || b.type || b.media_type || 'image';
+  const mediaType = /\.(mp4|webm|mov)(?:[?#].*)?$/i.test(mediaUrl) ? 'video' : rawMediaType;
   const data = {
     active: b.active ?? true,
     mediaType,
     type: mediaType,
-    mediaUrl: b.mediaUrl || b.media_url || b.src || '',
+    mediaUrl,
     linkUrl: b.linkUrl || b.link_url || b.link || '',
     title: b.title || b.titleAz || '',
     titleAz: b.titleAz || b.title || '',
