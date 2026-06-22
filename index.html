@@ -114,6 +114,18 @@
                 }
             ];
 
+            const defaultHomeGalleryImages = [
+                { src: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&q=80&w=1400', title: 'Meşə içində taxta ev atmosferi' },
+                { src: 'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&q=80&w=1400', title: 'İsti və rahat taxta interyer' },
+                { src: 'https://images.unsplash.com/photo-1518780664697-55e3ad937233?auto=format&fit=crop&q=80&w=1400', title: 'Təbiətlə harmoniyada yaşayış' }
+            ];
+
+            const defaultHomeAdvantagesImages = [
+                { src: 'https://images.unsplash.com/photo-1542718610-a1d656d1884c?auto=format&fit=crop&q=80&w=1400', title: 'Qorunmuş taxta fasad' },
+                { src: 'https://images.unsplash.com/photo-1510798831971-661eb04b3739?auto=format&fit=crop&q=80&w=1400', title: 'İzolyasiyalı konstruksiya' },
+                { src: 'https://images.unsplash.com/photo-1613977257363-707ba9348227?auto=format&fit=crop&q=80&w=1400', title: 'Premium tamamlanma' }
+            ];
+
             const defaultMessages = [
                 { id: 1, name: 'Həsən Əliyev', phone: '+994 50 211 44 55', email: 'hasan@mail.ru', message: 'Şamaxıda 2 mərtəbəli evin inşası ile bağlı əlaqə saxlayın.', date: '21.06.2026', read: false }
             ];
@@ -137,6 +149,12 @@
                 activeSlide: 0,
                 filterCategory: 'all',
                 activeGalleryIndex: 0,
+                activeHomeGalleryIndex: 0,
+                activeAdvantagesImageIndex: 0,
+                homeGalleryTimer: null,
+                isAdvantagesExpanded: false,
+                homeGalleryImages: [],
+                homeAdvantagesImages: [],
                 isLoading: false,
                 apiBase: '',
 
@@ -468,6 +486,10 @@
 
                 async initApp() {
                     await this.loadData();
+                    this.homeGalleryImages = this.homeGalleryImages.length ? this.homeGalleryImages : defaultHomeGalleryImages;
+                    this.homeAdvantagesImages = this.homeAdvantagesImages.length ? this.homeAdvantagesImages : defaultHomeAdvantagesImages;
+                    this.startHomeGalleryRotation();
+                    this.initRevealAnimations();
                 },
 
                 async loadData() {
@@ -500,6 +522,60 @@
                     console.table(this.galleryItems.slice(0, 3));
                     this.cacheSave();
                     this.restartAdRotation();
+                },
+
+                visibleHomeGalleryImages() {
+                    return (Array.isArray(this.homeGalleryImages) && this.homeGalleryImages.length) ? this.homeGalleryImages : defaultHomeGalleryImages;
+                },
+
+                visibleAdvantagesImages() {
+                    return (Array.isArray(this.homeAdvantagesImages) && this.homeAdvantagesImages.length) ? this.homeAdvantagesImages : defaultHomeAdvantagesImages;
+                },
+
+                nextHomeGalleryImage() {
+                    const images = this.visibleHomeGalleryImages();
+                    if (!images.length) return;
+                    this.activeHomeGalleryIndex = (this.activeHomeGalleryIndex + 1) % images.length;
+                },
+
+                prevHomeGalleryImage() {
+                    const images = this.visibleHomeGalleryImages();
+                    if (!images.length) return;
+                    this.activeHomeGalleryIndex = (this.activeHomeGalleryIndex - 1 + images.length) % images.length;
+                },
+
+                setHomeGalleryImage(index) {
+                    this.activeHomeGalleryIndex = index;
+                    this.startHomeGalleryRotation();
+                },
+
+                startHomeGalleryRotation() {
+                    if (this.homeGalleryTimer) clearInterval(this.homeGalleryTimer);
+                    this.homeGalleryTimer = setInterval(() => this.nextHomeGalleryImage(), 4000);
+                },
+
+                getRepairWhatsAppUrl() {
+                    const message = 'Salam, Baltic Caspian. Təmir xidmətləri ilə maraqlanıram. Ətraflı məlumat göndərə bilərsiniz?';
+                    return `https://wa.me/994502114455?text=${encodeURIComponent(message)}`;
+                },
+
+                initRevealAnimations() {
+                    this.$nextTick(() => {
+                        const elements = document.querySelectorAll('[data-reveal]');
+                        if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+                            elements.forEach(el => el.classList.add('is-visible'));
+                            return;
+                        }
+                        const observer = new IntersectionObserver(entries => {
+                            entries.forEach(entry => {
+                                if (entry.isIntersecting) {
+                                    entry.target.classList.add('is-visible');
+                                    observer.unobserve(entry.target);
+                                }
+                            });
+                        }, { threshold: 0.12, rootMargin: '0px 0px -50px 0px' });
+                        elements.forEach(el => observer.observe(el));
+                    });
                 },
 
                 async uploadMedia(file, bucket) {
@@ -1357,6 +1433,11 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
         }
         .ad-content-grid { display: grid; grid-template-columns: minmax(0, 1fr); }
         .ad-rail { display: none; }
+        [data-reveal] { opacity: 0; transform: translateY(22px) scale(.985); transition: opacity 600ms ease, transform 600ms ease; }
+        [data-reveal=slide-left] { transform: translateX(28px) scale(.985); }
+        [data-reveal=slide-right] { transform: translateX(-28px) scale(.985); }
+        [data-reveal].is-visible { opacity: 1; transform: translate(0, 0) scale(1); }
+        @media (prefers-reduced-motion: reduce) { [data-reveal] { opacity: 1; transform: none; transition: none; } }
         @media (min-width: 1280px) {
             .ad-safe-content { padding-left: 0; padding-right: 0; }
             .ad-content-grid.has-ads { grid-template-columns: 280px minmax(0, 1fr) 280px; gap: 20px; align-items: start; }
@@ -1596,39 +1677,104 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                     </div>
                 </section>
 
-                <!-- PORTFOLIO HOME PREVIEW -->
-                <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 ad-safe-content">
-                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 mb-12">
-                        <div>
-                            <span class="text-wood-600 font-bold uppercase tracking-widest text-xs sm:text-sm block" x-text="t('projectSubtitle')">Son Əl İşlərimiz</span>
-                            <h2 class="text-3xl sm:text-4xl md:text-5xl font-black text-forest-950" x-text="t('projectTitle')">Önə Çıxan Layihələr</h2>
-                        </div>
-                        <button @click="setPage('projects')" class="text-forest-700 hover:text-wood-600 font-bold text-sm sm:text-base flex items-center gap-2 group transition">
-                            <span x-text="t('viewAllProjects')">Bütün Layihələrə Bax</span>
-                            <i class="fa-solid fa-arrow-right group-hover:translate-x-1 transition"></i>
-                        </button>
-                    </div>
-
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-                        <template x-for="proj in (Array.isArray(projects) ? projects : []).filter(p => !p.archived).slice(0, 3)" :key="proj.id">
-                            <div class="group bg-white rounded-3xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 border border-stone-200/60 flex flex-col justify-between">
-                                <div>
-                                    <div class="relative h-64 overflow-hidden">
-                                        <img :src="(proj.images && proj.images[0]) || proj.image" class="w-full h-full object-cover group-hover:scale-105 transition duration-500" :alt="proj.title">
-                                        <span class="absolute top-4 left-4 bg-forest-950/80 text-white backdrop-blur text-xs font-bold px-3 py-1 rounded-full uppercase" x-text="lang === 'en' ? proj.catNameEn : (lang === 'ru' ? proj.catNameRu : proj.catName)">Taxta Ev</span>
-                                    </div>
-                                    <div class="p-6 space-y-4">
-                                        <h3 class="text-xl font-bold text-stone-900 group-hover:text-forest-700 transition" x-text="lang === 'en' ? proj.titleEn : (lang === 'ru' ? proj.titleRu : proj.title)">Modern Villa</h3>
-                                        <p class="text-stone-500 text-sm leading-relaxed truncate" x-text="lang === 'en' ? proj.descEn : (lang === 'ru' ? proj.descRu : proj.desc)">Komfortlu dizayn.</p>
-                                    </div>
-                                </div>
-                                <div class="p-6 pt-0">
-                                    <button @click="openProjectModal(proj)" class="w-full py-3 bg-forest-50 hover:bg-forest-600 text-forest-700 hover:text-white font-bold rounded-xl text-sm transition-all duration-300">
-                                        <span x-text="t('viewDetails')">Layihəyə Bax</span>
-                                    </button>
+                <!-- WHY WOODEN HOUSES -->
+                <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 ad-safe-content" data-reveal>
+                    <div class="relative overflow-hidden rounded-[2rem] bg-gradient-to-br from-forest-50 via-white to-wood-50 border border-stone-200/70 p-6 sm:p-10 shadow-sm">
+                        <div class="absolute -top-24 -right-16 w-72 h-72 rounded-full bg-forest-200/30 blur-3xl"></div>
+                        <div class="absolute -bottom-24 -left-16 w-72 h-72 rounded-full bg-wood-200/35 blur-3xl"></div>
+                        <div class="relative grid lg:grid-cols-[1.15fr_.85fr] gap-10 items-center">
+                            <div>
+                                <span class="inline-flex items-center gap-2 text-wood-700 font-bold uppercase tracking-widest text-xs"><i class="fa-solid fa-seedling"></i> Ekoloji seçim</span>
+                                <h2 class="mt-3 text-3xl sm:text-4xl md:text-5xl font-black text-forest-950">Niyə taxta evlər?</h2>
+                                <p class="mt-4 text-stone-600 text-base sm:text-lg max-w-2xl">Təbiətin enerjisini, sağlam yaşamı və uzunömürlü memarlığı bir araya gətirən ekoloji seçim.</p>
+                                <div class="mt-8 grid sm:grid-cols-2 xl:grid-cols-3 gap-4">
+                                    <template x-for="item in [
+                                        ['fa-wand-magic-sparkles','Füsunkar görünüş','Təbiətin bir parçası olan ağac öz təbii görünüşü ilə valeh edir.'],
+                                        ['fa-hourglass-half','Uzunömürlülük','Taxta evlər düzgün və davamlı qulluq olunduqda 200 ilə qədər sağlam qala bilir.'],
+                                        ['fa-heart-pulse','Sağlam yaşam tərzi','Təbii material olması səbəbi ilə tərkibində kimyəvi maddələr mövcud deyil.'],
+                                        ['fa-temperature-half','Enerjiyə qənaət','İzolyasiya özəlliyi ilə içəridəki temperaturu uzun müddət qoruyur.'],
+                                        ['fa-house-chimney-crack','Zəlzələyə davamlılıq','Ağac elastik material olduğuna görə zəlzələ dalğaları ilə eyni yöndə hərəkət edə bilir.'],
+                                        ['fa-wind','Hava sirkulyasiyası','Nəfəs alma özəlliyi sayəsində təbii hava sirkulyasiyası təmin edərək yüksək oksigen axını yaradır.']
+                                    ]" :key="item[1]">
+                                        <div class="group bg-white/85 rounded-2xl p-5 border border-stone-200/70 shadow-sm hover:shadow-xl hover:-translate-y-1 transition duration-300">
+                                            <div class="w-12 h-12 rounded-2xl bg-forest-100 text-forest-700 flex items-center justify-center text-xl group-hover:bg-wood-100 group-hover:text-wood-700 transition"><i :class="`fa-solid ${item[0]}`"></i></div>
+                                            <h3 class="mt-4 font-extrabold text-stone-950" x-text="item[1]"></h3>
+                                            <p class="mt-2 text-sm leading-relaxed text-stone-600" x-text="item[2]"></p>
+                                        </div>
+                                    </template>
                                 </div>
                             </div>
+                            <div class="bg-white rounded-[1.75rem] p-3 shadow-2xl shadow-forest-950/10 border border-stone-200" data-reveal="slide-left">
+                                <div class="relative h-[320px] sm:h-[430px] overflow-hidden rounded-[1.35rem]">
+                                    <template x-for="(image, index) in visibleHomeGalleryImages()" :key="image.src">
+                                        <img x-show="activeHomeGalleryIndex === index" x-transition.opacity.duration.500ms :src="image.src" :alt="image.title" class="absolute inset-0 w-full h-full object-cover">
+                                    </template>
+                                    <div class="absolute inset-0 bg-gradient-to-t from-forest-950/55 via-transparent to-transparent"></div>
+                                    <div class="absolute left-5 bottom-5 right-5 text-white">
+                                        <p class="text-xs font-bold uppercase tracking-widest text-wood-200">Taxta ev atmosferi</p>
+                                        <h3 class="text-2xl font-black" x-text="visibleHomeGalleryImages()[activeHomeGalleryIndex]?.title"></h3>
+                                    </div>
+                                    <button @click="prevHomeGalleryImage(); startHomeGalleryRotation()" class="absolute left-4 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white/85 hover:bg-white text-forest-900 shadow flex items-center justify-center"><i class="fa-solid fa-chevron-left"></i></button>
+                                    <button @click="nextHomeGalleryImage(); startHomeGalleryRotation()" class="absolute right-4 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white/85 hover:bg-white text-forest-900 shadow flex items-center justify-center"><i class="fa-solid fa-chevron-right"></i></button>
+                                    <div class="absolute bottom-4 left-0 right-0 flex justify-center gap-2">
+                                        <template x-for="(image, index) in visibleHomeGalleryImages()" :key="`dot-${image.src}`"><button @click="setHomeGalleryImage(index)" class="h-2 rounded-full transition-all" :class="activeHomeGalleryIndex === index ? 'w-8 bg-wood-400' : 'w-2 bg-white/70'"></button></template>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- OUR ADVANTAGES -->
+                <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 ad-safe-content">
+                    <div class="grid lg:grid-cols-2 gap-8 items-center">
+                        <div class="bg-white rounded-[2rem] p-6 sm:p-8 border border-stone-200 shadow-sm" data-reveal="slide-right">
+                            <span class="text-wood-600 font-bold uppercase tracking-widest text-xs">Keyfiyyət standartları</span>
+                            <h2 class="mt-3 text-3xl sm:text-4xl font-black text-forest-950">Üstünlüklərimiz</h2>
+                            <div class="mt-5 space-y-4 text-stone-600 leading-relaxed">
+                                <p>Şirkətimiz hazırladığı taxta evlərin uzunömürlü və izolyasiyalı olması üçün müəyyən metodlar tətbiq edir. Binanın çöl hissəsi müxtəlif hava şəraitinə dözümlü xüsusi materiallarla, lakla örtülür.</p>
+                                <p>Divar xüsusi materiallarla, İzobon və daş yunu ilə əhatə olunur. Çöl blok-hausun içəri hissəsi isə OSB adlanan materialla örtülür.</p>
+                                <div x-show="isAdvantagesExpanded" class="space-y-4">
+                                    <p>Taxta evlərdə ən çox rast gəlinən problemlərdən biri həşəratların olmasıdır. Taxtaya zərər verən həşəratlar meşədə əksər ağacların içində olurlar. Ağac kəsilərkən içinə yerləşən bu ziyanvericilər içəridə gizlənir və ömürlərinin sonunadək çoxalaraq yaşaya bilirlər. Lakin keyfiyyətli formada işlənmiş, xüsusi kimyəvi maddələrin müşayiəti ilə sobalarda qurudulduqdan sonra bu həşəratlardan əsər-əlamət qalmır.</p>
+                                    <p>Şirkətimiz istifadə etdiyi bütün ağac materiallarını dərmanlayaraq sobalarda işlədikdən sonra inşaatda istifadə edir. Bu səbəbdən inşaatı həyata keçirilmiş layihələrimizdə ziyanverici həşəratların yaşamasına heç bir şərait qalmır.</p>
+                                    <p class="font-bold text-forest-800">Baltic Caspian bütün standartlara cavab verən ekoloji məhsullarla xəyallarınızdakı taxta ev layihələrini inşa etməyə hazırdır.</p>
+                                </div>
+                            </div>
+                            <button @click="isAdvantagesExpanded = !isAdvantagesExpanded" class="mt-6 inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-forest-50 hover:bg-forest-600 text-forest-700 hover:text-white font-bold transition"><span x-text="isAdvantagesExpanded ? 'Daha az göstər' : 'Daha ətraflı'"></span><i class="fa-solid fa-chevron-down transition" :class="isAdvantagesExpanded && 'rotate-180'"></i></button>
+                            <div class="mt-6 flex flex-wrap gap-2">
+                                <template x-for="badge in ['Lak qoruması','İzobon və daş yunu','OSB qat','Dərmanlama','Soba qurudulması','Həşərata qarşı qoruma']" :key="badge"><span class="px-3 py-2 rounded-full bg-wood-50 text-wood-800 text-xs font-bold border border-wood-100" x-text="badge"></span></template>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-4" data-reveal="slide-left">
+                            <template x-for="(image, index) in visibleAdvantagesImages()" :key="image.src"><div class="rounded-3xl overflow-hidden shadow-lg border border-white" :class="index === 0 ? 'col-span-2 h-72' : 'h-44'"><img :src="image.src" :alt="image.title" class="w-full h-full object-cover hover:scale-105 transition duration-500"></div></template>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- REPAIR SERVICES -->
+                <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 ad-safe-content" data-reveal>
+                    <div class="text-center max-w-3xl mx-auto mb-10">
+                        <span class="text-wood-600 font-bold uppercase tracking-widest text-xs">Tamamlanma işləri</span>
+                        <h2 class="mt-3 text-3xl sm:text-4xl md:text-5xl font-black text-forest-950">Təmir xidmətləri</h2>
+                        <p class="mt-4 text-stone-600">Mənzil, ofis və taxta evlər üçün bütün təmir və tamamlanma işləri müqavilə əsasında görülür.</p>
+                    </div>
+                    <div class="grid lg:grid-cols-2 gap-6">
+                        <template x-for="card in [
+                            ['fa-building','Mənzil və ofis təmiri',['Xüsusi növ dizaynla mənzil və ofislərin təmiri','Bütün növ elektrik işləri','Santexnika işləri','Boya və digər üsulla rəngləmə işləri','Divar kağızlarının vurulması','Kafel və metlax döşəmə xidmətləri','Parket və laminat döşəmə işləri','Mətbəx və otaq mebellərinin hazırlanması']],
+                            ['fa-house-chimney','Taxta evlərin təmiri',['Taxta evlərin rənglənib laklanması','Taxta pilləkənlərin hazırlanması və vurulması','Ev örtüyü, dam vurulması','Mala və hörgü işləri','Manqalların qurulması','Köşklərin, besedkaların hazırlanması','Landşaft dizaynı']]
+                        ]" :key="card[1]">
+                            <div class="group bg-white rounded-[2rem] p-6 sm:p-8 border border-stone-200 shadow-sm hover:shadow-xl hover:-translate-y-1 transition duration-300">
+                                <div class="w-14 h-14 rounded-2xl bg-forest-100 text-forest-700 flex items-center justify-center text-2xl group-hover:bg-wood-100 group-hover:text-wood-700 transition"><i :class="`fa-solid ${card[0]}`"></i></div>
+                                <h3 class="mt-5 text-2xl font-black text-forest-950" x-text="card[1]"></h3>
+                                <ul class="mt-5 space-y-3">
+                                    <template x-for="item in card[2]" :key="item"><li class="flex items-start gap-3 text-stone-600"><i class="fa-solid fa-check mt-1 text-forest-600"></i><span x-text="item"></span></li></template>
+                                </ul>
+                            </div>
                         </template>
+                    </div>
+                    <div class="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4">
+                        <p class="font-bold text-forest-900">Bütün işlər müqavilə əsasında görülür.</p>
+                        <a :href="getRepairWhatsAppUrl()" target="_blank" rel="noopener" class="inline-flex items-center gap-2 bg-forest-600 hover:bg-forest-700 text-white px-7 py-4 rounded-xl font-bold shadow-lg transition hover:-translate-y-0.5"><i class="fa-brands fa-whatsapp text-xl"></i> Təmir üçün müraciət et</a>
                     </div>
                 </section>
                     </div>
