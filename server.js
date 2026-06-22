@@ -4,12 +4,19 @@ const cors = require('cors');
 const path = require('path');
 const { PrismaClient } = require('@prisma/client');
 
-const prisma = new PrismaClient();
+const prisma = new PrismaClient({ log: [{ level: 'error', emit: 'event' }, { level: 'warn', emit: 'stdout' }] });
+prisma.$on('error', (event) => console.error('[prisma:error]', event.message));
 const app = express();
 app.use(cors());
 app.use(express.json({ limit: '1mb' }));
 
-const wrap = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
+const isDbError = (err) => ['PrismaClientInitializationError', 'PrismaClientUnknownRequestError', 'PrismaClientRustPanicError'].includes(err?.name) || ['P1000', 'P1001', 'P1002', 'P1003', 'P1010', 'P1011', 'P1012', 'P1013', 'P1014', 'P1015', 'P1017', 'P2024'].includes(err?.code);
+const dbUnavailable = (res, err) => res.status(503).json({ ok: false, error: 'DATABASE_UNAVAILABLE', message: 'Database connection failed' });
+const wrap = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch((err) => {
+  console.error(`[api:error] ${req.method} ${req.originalUrl}`, { name: err?.name, code: err?.code, message: err?.message });
+  if (isDbError(err)) return dbUnavailable(res, err);
+  next(err);
+});
 const intId = (req) => Number.parseInt(req.params.id, 10);
 const jsonArray = (v) => Array.isArray(v) ? v : [];
 
@@ -29,11 +36,20 @@ function galleryIn(b) { return { mediaUrl: b.src || b.mediaUrl || '', images: b.
 function slideOut(s) { return { id: s.id, image: s.image, tag: s.tagAz, tagRu: s.tagRu, tagEn: s.tagEn, title1: s.title1Az, title1Ru: s.title1Ru, title1En: s.title1En, title2: s.title2Az, title2Ru: s.title2Ru, title2En: s.title2En, desc: s.descAz, descRu: s.descRu, descEn: s.descEn, active: s.active, sortOrder: s.sortOrder }; }
 function slideIn(b) { return { image: b.image || '', tagAz: b.tagAz || b.tag, tagRu: b.tagRu, tagEn: b.tagEn, title1Az: b.title1Az || b.title1, title1Ru: b.title1Ru, title1En: b.title1En, title2Az: b.title2Az || b.title2, title2Ru: b.title2Ru, title2En: b.title2En, descAz: b.descAz || b.desc, descRu: b.descRu, descEn: b.descEn, active: b.active ?? true, sortOrder: Number(b.sortOrder) || 0 }; }
 function normalizePlacement(value) { return ['left', 'right', 'both'].includes(value) ? value : 'both'; }
-function bannerOut(b) { return b && { id: b.id, active: b.active, type: b.type, src: b.mediaUrl, mediaUrl: b.mediaUrl, link: b.link, title: b.title, width: b.width, height: b.height, duration: b.duration, views: b.views, clicks: b.clicks, placement: normalizePlacement(b.placement || b.position), position: normalizePlacement(b.placement || b.position), createdAt: b.createdAt }; }
-function bannerIn(b) { return { active: b.active ?? true, type: b.type || 'image', mediaUrl: b.src || b.mediaUrl || '', link: b.link, title: b.title, width: Number(b.width) || 160, height: Number(b.height) || 400, duration: Number(b.duration) || 15, placement: normalizePlacement(b.placement || b.position) }; }
+function bannerOut(b) { return b && { id: b.id, active: b.active, type: b.mediaType, mediaType: b.mediaType, src: b.mediaUrl, mediaUrl: b.mediaUrl, link: b.linkUrl, linkUrl: b.linkUrl, title: b.title, width: b.width, height: b.height, duration: b.duration, views: b.views, clicks: b.clicks, placement: normalizePlacement(b.placement || b.position), position: normalizePlacement(b.placement || b.position), createdAt: b.createdAt }; }
+function bannerIn(b) { return { active: b.active ?? true, mediaType: b.mediaType || b.media_type || b.type || 'image', mediaUrl: b.src || b.mediaUrl || b.media_url || '', linkUrl: b.linkUrl || b.link_url || b.link || '#', title: b.title, width: Number(b.width) || 160, height: Number(b.height) || 400, duration: Number(b.duration) || 15, placement: normalizePlacement(b.placement || b.position) }; }
 const msgOut = (m) => ({ id: m.id, name: m.name, phone: m.phone, email: m.email || 'N/A', message: m.message, read: m.read, date: m.createdAt.toLocaleDateString('az-AZ') });
 
 app.get('/api/health', (req, res) => res.json({ ok: true, service: 'baltic-caspian-api' }));
+app.get('/api/health/db', async (req, res) => {
+  try {
+    await prisma.$queryRaw`select 1`;
+    res.json({ ok: true, db: true });
+  } catch (err) {
+    console.error('[health:db]', { name: err?.name, code: err?.code, message: err?.message });
+    res.status(503).json({ ok: false, db: false, error: err?.message || 'Database connection failed' });
+  }
+});
 
 app.get('/api/projects', wrap(async (req,res)=>res.json((await prisma.project.findMany({ where: req.query.includeArchived === 'true' ? {} : { archived:false }, orderBy:{ id:'desc' }})).map(projectOut))));
 app.get('/api/projects/:id', wrap(async (req,res)=>res.json(projectOut(await prisma.project.findUniqueOrThrow({ where:{ id:intId(req) }})))));
@@ -85,10 +101,17 @@ app.post('/api/uploads/sign', (req,res)=>{
 });
 
 app.use('/api', (req, res) => res.status(404).json({ error: 'API route not found' }));
-app.use((err, req, res, next) => { console.error(err); res.status(err.code === 'P2025' ? 404 : 500).json({ error: err.message || 'Server error' }); });
+app.use((err, req, res, next) => {
+  console.error('[express:error]', { name: err?.name, code: err?.code, message: err?.message });
+  if (isDbError(err)) return dbUnavailable(res, err);
+  res.status(err.code === 'P2025' ? 404 : 500).json({ ok: false, error: err.message || 'Server error' });
+});
 
 app.use(express.static(__dirname));
 app.get('*', (req,res)=>res.sendFile(path.join(__dirname,'index.html')));
 
 const PORT = process.env.PORT || 3000;
+console.log(`DATABASE_URL exists: ${process.env.DATABASE_URL ? 'yes' : 'no'}`);
+console.log(`NODE_ENV: ${process.env.NODE_ENV || 'development'}`);
+console.log(`Server port: ${PORT}`);
 app.listen(PORT, () => console.log(`Baltic Caspian API running on ${PORT}`));
