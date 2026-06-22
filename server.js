@@ -20,7 +20,7 @@ const supabase = process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_K
 const safeUploadFilename = (name = 'upload') => path.basename(name).replace(/[^a-zA-Z0-9._-]/g, '-').replace(/-+/g, '-');
 
 const isDbError = (err) => ['PrismaClientInitializationError', 'PrismaClientUnknownRequestError', 'PrismaClientRustPanicError'].includes(err?.name) || ['P1000', 'P1001', 'P1002', 'P1003', 'P1010', 'P1011', 'P1012', 'P1013', 'P1014', 'P1015', 'P1017', 'P2024'].includes(err?.code);
-const dbUnavailable = (res, err) => res.status(503).json({ ok: false, error: 'DATABASE_UNAVAILABLE', message: 'Database connection failed' });
+const dbUnavailable = (res, err) => res.status(503).json({ ok: false, error: 'DATABASE_UNAVAILABLE', message: err?.message || 'Database connection failed', code: err?.code, field: err?.meta?.field_name || err?.meta?.column || err?.meta?.target });
 const wrap = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch((err) => {
   console.error(`[api:error] ${req.method} ${req.originalUrl}`, { name: err?.name, code: err?.code, message: err?.message });
   if (isDbError(err)) return dbUnavailable(res, err);
@@ -53,7 +53,7 @@ function galleryOut(g) { return { id: g.id, src: g.mediaUrl, mediaUrl: g.mediaUr
 function galleryIn(b) { return { mediaUrl: b.src || b.mediaUrl || '', images: b.images || (b.src ? [b.src] : []), titleAz: b.titleAz || b.title || '', titleRu: b.titleRu, titleEn: b.titleEn, type: b.type || 'image', sortOrder: Number(b.sortOrder) || 0 }; }
 function isVideoUrl(url = '') { return /\.(mp4|webm|mov)(?:[?#].*)?$/i.test(String(url)); }
 function slideOut(s) { const mediaUrl = s.mediaUrl || s.image || ''; return { id: s.id, legacyId: s.legacyId, image: s.image || mediaUrl, mediaUrl, mediaType: s.mediaType || (isVideoUrl(mediaUrl) ? 'video' : 'image'), tag: s.tagAz, tagAz: s.tagAz, tagRu: s.tagRu, tagEn: s.tagEn, title: s.titleAz, titleAz: s.titleAz, titleRu: s.titleRu, titleEn: s.titleEn, subtitleAz: s.subtitleAz, subtitleRu: s.subtitleRu, subtitleEn: s.subtitleEn, buttonTextAz: s.buttonTextAz, buttonTextRu: s.buttonTextRu, buttonTextEn: s.buttonTextEn, buttonLink: s.buttonLink, title1: s.title1Az, title1Az: s.title1Az, title1Ru: s.title1Ru, title1En: s.title1En, title2: s.title2Az, title2Az: s.title2Az, title2Ru: s.title2Ru, title2En: s.title2En, desc: s.descAz, descAz: s.descAz, descRu: s.descRu, descEn: s.descEn, active: s.active, sortOrder: s.sortOrder }; }
-function slideIn(b = {}, options = {}) { const mediaUrl = b.mediaUrl || b.media_url || b.image || b.src; const mediaType = b.mediaType || b.media_type || b.type || (isVideoUrl(mediaUrl) ? 'video' : 'image'); const data = { tagAz: b.tagAz || b.tag, tagRu: b.tagRu, tagEn: b.tagEn, titleAz: b.titleAz || b.title, titleRu: b.titleRu, titleEn: b.titleEn, subtitleAz: b.subtitleAz, subtitleRu: b.subtitleRu, subtitleEn: b.subtitleEn, buttonTextAz: b.buttonTextAz, buttonTextRu: b.buttonTextRu, buttonTextEn: b.buttonTextEn, buttonLink: b.buttonLink, title1Az: b.title1Az || b.title1, title1Ru: b.title1Ru, title1En: b.title1En, title2Az: b.title2Az || b.title2, title2Ru: b.title2Ru, title2En: b.title2En, descAz: b.descAz || b.desc, descRu: b.descRu, descEn: b.descEn, active: b.active ?? true };
+function slideIn(b = {}, options = {}) { const mediaUrl = b.mediaUrl || b.media_url || b.image || b.src || b.url; const explicitType = b.mediaType || b.media_type || b.type; const mediaType = explicitType || (isVideoUrl(mediaUrl) ? 'video' : 'image'); const data = { tagAz: b.tagAz || b.tag, tagRu: b.tagRu, tagEn: b.tagEn, titleAz: b.titleAz || b.title, titleRu: b.titleRu, titleEn: b.titleEn, subtitleAz: b.subtitleAz, subtitleRu: b.subtitleRu, subtitleEn: b.subtitleEn, buttonTextAz: b.buttonTextAz, buttonTextRu: b.buttonTextRu, buttonTextEn: b.buttonTextEn, buttonLink: b.buttonLink, title1Az: b.title1Az || b.title1, title1Ru: b.title1Ru, title1En: b.title1En, title2Az: b.title2Az || b.title2, title2Ru: b.title2Ru, title2En: b.title2En, descAz: b.descAz || b.desc, descRu: b.descRu, descEn: b.descEn, active: b.active ?? true };
   if (mediaUrl) { data.mediaUrl = mediaUrl; data.image = b.image || mediaUrl; data.mediaType = mediaType; }
   if (options.includeSortOrder || Object.prototype.hasOwnProperty.call(b, 'sortOrder')) data.sortOrder = Number(b.sortOrder) || 0;
   return Object.fromEntries(Object.entries(data).filter(([,v]) => v !== undefined)); }
@@ -119,10 +119,46 @@ app.put('/api/gallery/:id', wrap(async (req,res)=>res.json(galleryOut(await pris
 app.delete('/api/gallery/:id', wrap(async (req,res)=>{ await prisma.galleryItem.delete({where:{id:intId(req)}}); res.json({ok:true}); }));
 app.patch('/api/gallery/:id/archive', wrap(async (req,res)=>{ const g=await prisma.galleryItem.findUniqueOrThrow({where:{id:intId(req)}}); res.json(galleryOut(await prisma.galleryItem.update({where:{id:g.id},data:{archived:req.body.archived ?? !g.archived}}))); }));
 
-app.get('/api/hero-slides', wrap(async (req,res)=>res.json((await prisma.heroSlide.findMany({ select:heroSlideSelect, where:req.query.admin==='true'?{}:{active:true}, orderBy:[{sortOrder:'asc'},{id:'asc'}] })).map(slideOut))));
-app.post('/api/hero-slides', wrap(async (req,res)=>{ const mediaUrl=req.body.mediaUrl||req.body.media_url||req.body.image||req.body.src; if(!mediaUrl) return res.status(400).json({ok:false,error:'MEDIA_REQUIRED',message:'Hero slide media is required'}); const last=await prisma.heroSlide.findFirst({select:{sortOrder:true},orderBy:{sortOrder:'desc'}}); res.status(201).json(slideOut(await prisma.heroSlide.create({select:heroSlideSelect,data:slideIn({...req.body, mediaUrl, sortOrder:(last?.sortOrder ?? -1)+1},{includeSortOrder:true})}))); }));
+app.get('/api/hero-slides', async (req, res) => {
+  try {
+    const slides = await prisma.heroSlide.findMany({ select: heroSlideSelect, where: req.query.admin === 'true' ? {} : { active: true }, orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }] });
+    res.json(slides.map(slideOut));
+  } catch (err) {
+    console.error('[hero-slides:get:error]', { name: err?.name, code: err?.code, message: err?.message, meta: err?.meta });
+    res.status(isDbError(err) ? 503 : 500).json({ ok: false, error: 'HERO_SLIDES_GET_FAILED', message: err?.message || 'Hero slides could not be loaded', code: err?.code, field: err?.meta?.field_name || err?.meta?.column || err?.meta?.target });
+  }
+});
+app.post('/api/hero-slides', async (req, res) => {
+  try {
+    const body = req.body || {};
+    const mediaUrl = body.mediaUrl || body.media_url || body.image || body.src || body.url;
+    console.info('[hero-slides:post]', { bodyKeys: Object.keys(body), mediaUrlExists: Boolean(mediaUrl), imageExists: Boolean(body.image), media_type: body.media_type, mediaType: body.mediaType, type: body.type });
+    if (!mediaUrl) return res.status(400).json({ ok: false, error: 'MEDIA_REQUIRED', message: 'Hero slayd üçün şəkil və ya video mütləqdir.' });
+    const last = await prisma.heroSlide.findFirst({ select: { sortOrder: true }, orderBy: { sortOrder: 'desc' } });
+    const mediaType = body.mediaType || body.media_type || body.type || (isVideoUrl(mediaUrl) ? 'video' : 'image');
+    const data = slideIn({ ...body, mediaUrl, image: body.image || mediaUrl, mediaType, sortOrder: (last?.sortOrder ?? -1) + 1 }, { includeSortOrder: true });
+    console.info('[hero-slides:post:data]', { keys: Object.keys(data) });
+    res.status(201).json(slideOut(await prisma.heroSlide.create({ select: heroSlideSelect, data })));
+  } catch (err) {
+    console.error('[hero-slides:post:error]', { name: err?.name, code: err?.code, message: err?.message, meta: err?.meta });
+    res.status(500).json({ ok: false, error: 'HERO_SLIDE_CREATE_FAILED', message: err?.message || 'Hero slide create failed', code: err?.code, field: err?.meta?.field_name || err?.meta?.column || err?.meta?.target });
+  }
+});
 app.put('/api/hero-slides/reorder', wrap(async (req,res)=>{ const ids=req.body.ids || (req.body.items||[]).map(it=>it.id); await Promise.all((ids||[]).map((id,i)=>prisma.heroSlide.update({where:{id:Number(id)},data:{sortOrder:i}}))); res.json((await prisma.heroSlide.findMany({select:heroSlideSelect,orderBy:[{sortOrder:'asc'},{id:'asc'}]})).map(slideOut)); }));
-app.put('/api/hero-slides/:id', wrap(async (req,res)=>{ const data=slideIn(req.body); if (!data.mediaUrl) { delete data.mediaUrl; delete data.image; delete data.mediaType; } res.json(slideOut(await prisma.heroSlide.update({select:heroSlideSelect,where:{id:intId(req)},data}))); }));
+app.put('/api/hero-slides/:id', async (req, res) => {
+  try {
+    const existing = await prisma.heroSlide.findUnique({ select: heroSlideSelect, where: { id: intId(req) } });
+    if (!existing) return res.status(404).json({ ok: false, error: 'HERO_SLIDE_NOT_FOUND' });
+    const data = slideIn(req.body || {});
+    if (!data.mediaUrl && !data.image) { data.mediaUrl = existing.mediaUrl || existing.image; data.image = existing.image || existing.mediaUrl; }
+    if (!data.mediaUrl) return res.status(400).json({ ok: false, error: 'MEDIA_REQUIRED', message: 'Hero slayd üçün şəkil və ya video mütləqdir.' });
+    if (!data.image) data.image = data.mediaUrl;
+    res.json(slideOut(await prisma.heroSlide.update({ select: heroSlideSelect, where: { id: existing.id }, data })));
+  } catch (err) {
+    console.error('[hero-slides:put:error]', { name: err?.name, code: err?.code, message: err?.message, meta: err?.meta });
+    res.status(500).json({ ok: false, error: 'HERO_SLIDE_UPDATE_FAILED', message: err?.message || 'Hero slide update failed', code: err?.code, field: err?.meta?.field_name || err?.meta?.column || err?.meta?.target });
+  }
+});
 app.delete('/api/hero-slides/:id', wrap(async (req,res)=>{await prisma.heroSlide.delete({where:{id:intId(req)}});res.json({ok:true});}));
 app.patch('/api/hero-slides/:id/toggle', wrap(async (req,res)=>{ const s=await prisma.heroSlide.findUniqueOrThrow({select:{id:true,active:true},where:{id:intId(req)}}); res.json(slideOut(await prisma.heroSlide.update({select:heroSlideSelect,where:{id:s.id},data:{active:req.body.active ?? !s.active}}))); }));
 
@@ -156,7 +192,10 @@ app.delete('/api/messages/:id', wrap(async (req,res)=>{await prisma.contactMessa
 app.get('/api/stats', wrap(async (req,res)=>{ const rows=await prisma.siteStat.findMany(); res.json(Object.fromEntries(rows.map(r=>[r.key,r.value]))); }));
 app.put('/api/stats/:key', wrap(async (req,res)=>res.json(await prisma.siteStat.upsert({where:{key:req.params.key},create:{key:req.params.key,value:Number(req.body.value)||0},update:{value:Number(req.body.value)||0}}))));
 app.post('/api/stats/event', wrap(async (req,res)=>res.status(201).json(await prisma.statEvent.create({data:{type:req.body.type,targetId:req.body.targetId,metadata:req.body.metadata||{}}}))));
+app.get('/api/health/storage', (req, res) => res.json({ ok: true, supabaseUrl: Boolean(process.env.SUPABASE_URL), serviceRole: Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY), allowedBuckets: allowedUploadBuckets }));
+
 app.post('/api/uploads', upload.single('file'), wrap(async (req, res) => {
+  console.info('[uploads:start]', { bucket: req.body.bucket, fileExists: Boolean(req.file), mimetype: req.file?.mimetype, supabaseUrl: Boolean(process.env.SUPABASE_URL), serviceRole: Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY) });
   if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY || !supabase) {
     return res.status(500).json({ ok: false, error: 'SUPABASE_ENV_MISSING' });
   }
@@ -172,6 +211,7 @@ app.post('/api/uploads', upload.single('file'), wrap(async (req, res) => {
     upsert: false
   });
   if (error) {
+    console.error('[uploads:error]', { bucket, message: error.message });
     return res.status(500).json({ ok: false, error: 'UPLOAD_FAILED', message: error.message });
   }
   const { data } = supabase.storage.from(bucket).getPublicUrl(objectPath);
