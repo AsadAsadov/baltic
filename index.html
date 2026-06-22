@@ -68,6 +68,7 @@
 
             const defaultSlides = [
                 {
+                    id: 'legacy-hero-1',
                     image: 'https://images.unsplash.com/photo-1510798831971-661eb04b3739?auto=format&fit=crop&q=80&w=1800',
                     tag: '100% Sibir Şamı & Küknar',
                     tagRu: '100% Сибирская Сосна & Ель',
@@ -83,6 +84,7 @@
                     descEn: 'The most professional choice to live in harmony with nature in an eco-friendly space.'
                 },
                 {
+                    id: 'legacy-hero-2',
                     image: 'https://images.unsplash.com/photo-1542718610-a1d656d1884c?auto=format&fit=crop&q=80&w=1800',
                     tag: '9+ Bal Seysmik Zəmanət',
                     tagRu: '9+ Сейсмическая Гарантия',
@@ -98,6 +100,7 @@
                     descEn: 'Earthquake resilient structural log engineering keeping thermal comfort year-round.'
                 },
                 {
+                    id: 'legacy-hero-3',
                     image: 'https://images.unsplash.com/photo-1613977257363-707ba9348227?auto=format&fit=crop&q=80&w=1800',
                     tag: 'Premium Memarlıq',
                     tagRu: 'Премиум Архитектура',
@@ -535,6 +538,12 @@
                 normalizeSlides(payload, fallback = []) {
                     const items = this.asArray(payload).map(item => this.normalizeSlide(item));
                     return items.length ? items : (Array.isArray(fallback) ? fallback.map(item => this.normalizeSlide(item)) : []);
+                },
+                isUuid(value) {
+                    return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(value || ''));
+                },
+                isPersistedHero(slide = {}) {
+                    return this.isUuid(slide.id);
                 },
                 getSafeBanner(banner = {}, side = 'both') {
                     const source = banner && typeof banner === 'object' ? banner : {};
@@ -1347,16 +1356,18 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                             this.showToast('Media tələb olunur', 'Hero slayd üçün şəkil və ya video seçin.');
                             return;
                         }
+                        const isExisting = this.isPersistedHero(this.newHero);
                         const payload = { ...this.newHero, active: this.newHero.active ?? true };
                         if (finalImage) Object.assign(payload, { image: finalImage, mediaUrl: finalImage, mediaType });
-                        console.info('[saveHero:payload]', { selectedHeroId: payload.id || null, hasSelectedFile: Boolean(selectedFile), selectedFile: selectedFile ? { name: selectedFile.name, type: selectedFile.type, size: selectedFile.size } : null, uploadedHeroUrl: finalImage, payload });
+                        if (!isExisting) delete payload.id;
+                        console.info('[saveHero:payload]', { selectedHeroId: isExisting ? this.newHero.id : null, hasSelectedFile: Boolean(selectedFile), selectedFile: selectedFile ? { name: selectedFile.name, type: selectedFile.type, size: selectedFile.size } : null, uploadedHeroUrl: finalImage, payload });
                         let saved;
-                        if (payload.id) {
-                            saved = await this.api(`/api/hero-slides/${payload.id}`, { method: 'PUT', body: JSON.stringify(payload) });
+                        if (isExisting) {
+                            saved = await this.api(`/api/hero-slides/${this.newHero.id}`, { method: 'PUT', body: JSON.stringify(payload) });
                             this.slides = (this.slides || []).map(slide => slide.id === saved.id ? saved : slide);
                         } else {
                             saved = await this.api('/api/hero-slides', { method: 'POST', body: JSON.stringify(payload) });
-                            this.slides = [...(this.slides || []), saved];
+                            this.slides = typeof this.newHero.activeIndex === 'number' ? (this.slides || []).map((slide, index) => index === this.newHero.activeIndex ? saved : slide) : [...(this.slides || []), saved];
                         }
                         this.cacheSave();
                         this.resetHeroForm();
@@ -1367,7 +1378,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                 deleteHeroSlide(slide) {
                     this.triggerAction(async () => {
                         this.slides = (this.slides || []).filter(item => item !== slide && item.id !== slide.id);
-                        if (slide.id) await this.api(`/api/hero-slides/${slide.id}`, { method: 'DELETE' });
+                        if (this.isPersistedHero(slide)) await this.api(`/api/hero-slides/${slide.id}`, { method: 'DELETE' });
                         if (this.activeSlide >= this.slides.length) this.activeSlide = Math.max(0, this.slides.length - 1);
                         this.cacheSave();
                         this.resetHeroForm();
@@ -1377,14 +1388,14 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
 
                 toggleHeroSlide(slide) {
                     slide.active = !slide.active;
-                    if (slide.id) this.api(`/api/hero-slides/${slide.id}/toggle`, { method: 'PATCH', body: JSON.stringify({ active: slide.active }) }).catch(() => this.showToast('API xəta', 'Hero statusu DB-yə yazılmadı.'));
+                    if (this.isPersistedHero(slide)) this.api(`/api/hero-slides/${slide.id}/toggle`, { method: 'PATCH', body: JSON.stringify({ active: slide.active }) }).catch(() => this.showToast('API xəta', 'Hero statusu DB-yə yazılmadı.'));
                     this.cacheSave();
                 },
 
                 async persistHeroOrder() {
                     this.slides = (this.slides || []).map((slide, index) => ({ ...slide, sortOrder: index }));
                     this.cacheSave();
-                    const ids = this.slides.filter(slide => slide.id).map(slide => slide.id);
+                    const ids = this.slides.filter(slide => this.isPersistedHero(slide)).map(slide => slide.id);
                     if (ids.length) {
                         this.slides = this.normalizeSlides(await this.api('/api/hero-slides/reorder', { method: 'PUT', body: JSON.stringify({ ids }) }), this.slides);
                         this.cacheSave();
