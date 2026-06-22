@@ -118,7 +118,7 @@
                 { id: 1, name: 'Həsən Əliyev', phone: '+994 50 211 44 55', email: 'hasan@mail.ru', message: 'Şamaxıda 2 mərtəbəli evin inşası ile bağlı əlaqə saxlayın.', date: '21.06.2026', read: false }
             ];
 
-            const defaultBanner = { id: null, active: true, placement: 'both', type: 'image', mediaType: 'image', src: 'https://images.unsplash.com/photo-1542718610-a1d656d1884c?auto=format&fit=crop&q=80&w=300', mediaUrl: 'https://images.unsplash.com/photo-1542718610-a1d656d1884c?auto=format&fit=crop&q=80&w=300', link: 'https://balticcaspian.com', linkUrl: 'https://balticcaspian.com', title: 'Lüks Taxta Evlər - İndi Sifariş Et', width: 160, height: 400, duration: 15, views: 1300, clicks: 46 };
+            const defaultBanner = { id: null, active: true, placement: 'both', type: 'image', mediaType: 'image', src: 'https://images.unsplash.com/photo-1542718610-a1d656d1884c?auto=format&fit=crop&q=80&w=300', mediaUrl: 'https://images.unsplash.com/photo-1542718610-a1d656d1884c?auto=format&fit=crop&q=80&w=300', link: 'https://balticcaspian.com', linkUrl: 'https://balticcaspian.com', title: 'Lüks Taxta Evlər - İndi Sifariş Et', width: 260, height: 600, duration: 15, views: 1300, clicks: 46 };
             const legacyBanners = JSON.parse(localStorage.getItem('bc_banners') || 'null');
             const storedBanner = JSON.parse(localStorage.getItem('bc_banner') || localStorage.getItem('mainBanner') || 'null');
             const migratedBanner = storedBanner || (legacyBanners ? (legacyBanners.left?.src ? legacyBanners.left : legacyBanners.right) : null) || null;
@@ -170,7 +170,7 @@
                 newHero: { activeIndex: 0, tag: '', tagRu: '', tagEn: '', title1: '', title1Ru: '', title1En: '', title2: '', title2Ru: '', title2En: '', desc: '', descRu: '', descEn: '', image: '' },
                 
                 // Single advertising form inputs
-                newAd: { id: null, placement: 'both', active: true, type: 'image', src: '', link: '', title: '', width: 160, height: 400, duration: 15 },
+                newAd: { id: null, placement: 'both', active: true, type: 'image', src: '', link: '', title: '', width: 260, height: 600, duration: 15 },
 
                 // Preview images in creation
                 projectPreviewImg: '',
@@ -345,9 +345,10 @@
 
 
                 async api(path, options = {}) {
+                    const headers = options.body instanceof FormData ? { ...(options.headers || {}) } : { 'Content-Type': 'application/json', ...(options.headers || {}) };
                     const res = await fetch(`${this.apiBase}${path}`, {
-                        headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
-                        ...options
+                        ...options,
+                        headers
                     });
                     if (!res.ok) {
                         if (res.status === 404 && path.startsWith('/api/')) console.warn('API not available. Make sure Render deployment is Web Service, not Static Site.');
@@ -363,7 +364,6 @@
                     } catch (error) {
                         if (String(error.message || '').includes('API 404')) console.warn('API not available. Make sure Render deployment is Web Service, not Static Site.');
                         console.error(`Failed ${path}`, error);
-                        this.showToast('API xəta', 'Məlumat bazası əlçatan deyil, fallback/cache istifadə olunur.');
                         return fallback;
                     }
                 },
@@ -493,9 +493,13 @@
                 },
 
                 async uploadMedia(file, bucket) {
-                    // TODO: request /api/uploads/sign, upload to Supabase Storage bucket, then return public URL.
-                    // Buckets: projects, gallery, hero, banners. Base64 is intentionally not persisted to localStorage/DB.
-                    return URL.createObjectURL(file);
+                    if (!(file instanceof File)) return file || '';
+                    const formData = new FormData();
+                    formData.append('bucket', bucket);
+                    formData.append('file', file);
+                    const data = await this.api('/api/uploads', { method: 'POST', body: formData });
+                    if (!data?.ok || !data.publicUrl) throw new Error(data?.message || data?.error || 'Upload failed');
+                    return data.publicUrl;
                 },
 
                 openProjectModal(proj) {
@@ -612,9 +616,9 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                     const file = event.target.files[0];
                     if (!file) return;
                     const previewUrl = URL.createObjectURL(file);
+                    this[`${previewProperty}File`] = file;
                     this[previewProperty] = previewUrl;
                     if (targetProperty) this[targetProperty] = previewUrl;
-                    this.showToast('Upload TODO', 'Fayl Supabase Storage upload helper strukturuna hazırlanıb.');
                 },
 
                 handleMultiFileSelect(event, previewProperty, collectionProperty) {
@@ -626,13 +630,14 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                         return;
                     }
                     const images = files.map(file => URL.createObjectURL(file));
+                    this[`${collectionProperty}Files`] = files;
                     this[collectionProperty] = images;
                     this[previewProperty] = images[0] || '';
-                    this.showToast('Upload TODO', 'Fayllar Supabase Storage upload helper strukturuna hazırlanıb.');
                 },
 
                 removeSelectedFile(previewProperty, targetProperty = null) {
                     this[previewProperty] = '';
+                    this[`${previewProperty}File`] = null;
                     if (targetProperty) {
                         this[targetProperty] = '';
                     }
@@ -811,8 +816,12 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
 
                 saveProject() {
                     this.triggerAction(async () => {
-                        const finalImages = (Array.isArray(this.projectPreviewImages) ? this.projectPreviewImages : []).length ? this.projectPreviewImages : (this.projectPreviewImg ? [this.projectPreviewImg] : ['https://images.unsplash.com/photo-1510798831971-661eb04b3739?auto=format&fit=crop&q=80&w=800']);
-                        const finalImage = finalImages[0];
+                        const selectedProjectFiles = Array.isArray(this.projectPreviewImagesFiles) ? this.projectPreviewImagesFiles : [];
+                        const finalImages = selectedProjectFiles.length
+                            ? await Promise.all(selectedProjectFiles.map(file => this.uploadMedia(file, 'projects')))
+                            : ((Array.isArray(this.projectPreviewImages) ? this.projectPreviewImages : []).length ? this.projectPreviewImages : (this.projectPreviewImg ? [this.projectPreviewImg] : ['https://images.unsplash.com/photo-1510798831971-661eb04b3739?auto=format&fit=crop&q=80&w=800']));
+                        const finalImage = this.projectPreviewImgFile ? await this.uploadMedia(this.projectPreviewImgFile, 'projects') : finalImages[0];
+                        if (this.projectPreviewImgFile && !finalImages.includes(finalImage)) finalImages.unshift(finalImage);
                         const categoryMap = {
                             house: { az: 'Taxta Ev', ru: 'Деревянный Дом', en: 'Wooden House' },
                             restaurant: { az: 'Restoran', ru: 'Ресторан', en: 'Restaurant' },
@@ -886,6 +895,8 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                         this.newProj = { id: null, cat: 'house', titleAz: '', titleRu: '', titleEn: '', descAz: '', descRu: '', descEn: '', area: '100', stories: '1', rooms: '3', buildTimeAz: '2 ay', buildTimeRu: '2 месяца', buildTimeEn: '2 months', image: '' };
                         this.projectPreviewImg = '';
                         this.projectPreviewImages = [];
+                        this.projectPreviewImgFile = null;
+                        this.projectPreviewImagesFiles = [];
                     });
                 },
 
@@ -915,8 +926,13 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
 
                 saveGalleryItem() {
                     this.triggerAction(async () => {
-                        const finalImages = this.newGallery.type === 'image' ? ((Array.isArray(this.galleryPreviewImages) ? this.galleryPreviewImages : []).length ? this.galleryPreviewImages : (this.galleryPreviewImg ? [this.galleryPreviewImg] : ['https://images.unsplash.com/photo-1542718610-a1d656d1884c?auto=format&fit=crop&q=80&w=800'])) : [];
-                        const finalSrc = this.newGallery.type === 'video' ? this.galleryPreviewImg : finalImages[0];
+                        const selectedGalleryFiles = Array.isArray(this.galleryPreviewImagesFiles) ? this.galleryPreviewImagesFiles : [];
+                        const finalImages = this.newGallery.type === 'image'
+                            ? (selectedGalleryFiles.length ? await Promise.all(selectedGalleryFiles.map(file => this.uploadMedia(file, 'gallery'))) : ((Array.isArray(this.galleryPreviewImages) ? this.galleryPreviewImages : []).length ? this.galleryPreviewImages : (this.galleryPreviewImg ? [this.galleryPreviewImg] : ['https://images.unsplash.com/photo-1542718610-a1d656d1884c?auto=format&fit=crop&q=80&w=800'])))
+                            : [];
+                        const finalSrc = this.newGallery.type === 'video'
+                            ? (this.galleryPreviewImgFile ? await this.uploadMedia(this.galleryPreviewImgFile, 'gallery') : this.galleryPreviewImg)
+                            : finalImages[0];
                         if (this.newGallery.id) {
                             // Edit
                             this.galleryItems = (Array.isArray(this.galleryItems) ? this.galleryItems : []).map(g => {
@@ -956,6 +972,8 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                         this.newGallery = { id: null, src: '', title: '', titleRu: '', titleEn: '', type: 'image' };
                         this.galleryPreviewImg = '';
                         this.galleryPreviewImages = [];
+                        this.galleryPreviewImgFile = null;
+                        this.galleryPreviewImagesFiles = [];
                     });
                 },
 
@@ -984,7 +1002,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
 
                 saveHero() {
                     this.triggerAction(async () => {
-                        const finalImage = this.heroPreviewImg || 'https://images.unsplash.com/photo-1510798831971-661eb04b3739?auto=format&fit=crop&q=80&w=1800';
+                        const finalImage = this.heroPreviewImgFile ? await this.uploadMedia(this.heroPreviewImgFile, 'hero') : (this.heroPreviewImg || 'https://images.unsplash.com/photo-1510798831971-661eb04b3739?auto=format&fit=crop&q=80&w=1800');
                         this.slides[this.newHero.activeIndex] = {
                             image: finalImage,
                             tag: this.newHero.tag,
@@ -1010,7 +1028,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                 // Saves one Advertising banner with left/right/both placement
                 saveAd() {
                     this.triggerAction(async () => {
-                        const finalSrc = this.adPreviewImg || this.newAd.src || '';
+                        const finalSrc = this.adPreviewImgFile ? await this.uploadMedia(this.adPreviewImgFile, 'banners') : (this.adPreviewImg || this.newAd.src || '');
                         this.mainBanner = {
                             ...(this.mainBanner || {}),
                             id: this.newAd.id,
@@ -1018,6 +1036,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                             placement: this.newAd.placement,
                             type: this.newAd.type,
                             src: finalSrc,
+                            mediaUrl: finalSrc,
                             link: this.newAd.link,
                             title: this.newAd.title,
                             width: parseInt(this.newAd.width) || 260,
@@ -1197,8 +1216,15 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
             -ms-overflow-style: none;
             scrollbar-width: none;
         }
+        .ad-content-grid { display: grid; grid-template-columns: minmax(0, 1fr); }
+        .ad-rail { display: none; }
         @media (min-width: 1280px) {
             .ad-safe-content { padding-left: 0; padding-right: 0; }
+            .ad-content-grid.has-ads { grid-template-columns: 300px minmax(0, 1fr) 300px; gap: 24px; align-items: start; }
+            .ad-rail { display: flex; justify-content: center; min-width: 0; }
+            .ad-sticky { position: sticky; top: 110px; align-self: start; }
+            .ad-frame { background: #fff; box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1); border-radius: 1rem; overflow: hidden; border: 1px solid rgb(231 229 228); }
+            .ad-media { display: block; object-fit: cover; max-width: 100%; }
         }
     </style>
 </head>
@@ -1380,16 +1406,16 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                     </div>
                 </section>
 
-                <div class="mx-auto w-full" :class="hasAnyRenderableBanner() ? 'max-w-[calc(100vw-2rem)] xl:grid xl:grid-cols-[184px_minmax(0,1fr)_184px] xl:gap-6 xl:items-start' : 'max-w-7xl'">
-                <aside x-show="hasRenderableBanner('left')" x-cloak class="hidden xl:flex justify-center min-w-0" data-ad-side="left">
-                    <div class="w-[184px] flex flex-col items-center py-2">
-                        <div class="relative w-[160px] max-h-[calc(100vh-140px)] bg-white shadow-xl rounded-2xl overflow-hidden border border-stone-200">
+                <div class="ad-content-grid mx-auto w-full max-w-[calc(100vw-2rem)]" :class="{ 'has-ads': hasAnyRenderableBanner(), 'max-w-7xl': !hasAnyRenderableBanner() }">
+                <aside x-show="hasRenderableBanner('left')" x-cloak class="ad-rail" data-ad-side="left">
+                    <div class="ad-sticky flex flex-col items-center py-2">
+                        <div class="ad-frame relative" :style="`width: ${bannerForSide($el.closest('[data-ad-side]')?.dataset.adSide || 'left').width || 260}px; height: ${bannerForSide($el.closest('[data-ad-side]')?.dataset.adSide || 'left').height || 600}px;`">
                             <a :href="bannerForSide('left').link || '#'" target="_blank" rel="noopener" class="block w-full h-full relative group" @click="incrementAdClick($el.closest('[data-ad-side]')?.dataset.adSide || 'left')">
-                                <template x-if="bannerForSide('left').type === 'image'"><img :src="bannerForSide('left').src" class="w-full object-cover group-hover:scale-105 transition duration-500" :style="`height: min(${bannerForSide('left').height || 400}px, calc(100vh - 140px));`" alt="Reklam banneri"></template>
-                                <template x-if="bannerForSide('left').type === 'video'"><video :src="bannerForSide('left').src" autoplay loop muted playsinline class="w-full object-cover" :style="`height: min(${bannerForSide('left').height || 400}px, calc(100vh - 140px));`"></video></template>
+                                <template x-if="bannerForSide('left').type === 'image'"><img :src="bannerForSide('left').src" class="ad-media group-hover:scale-105 transition duration-500" :style="`width: ${bannerForSide('left').width || 260}px; height: ${bannerForSide('left').height || 600}px;`" alt="Reklam banneri"></template>
+                                <template x-if="bannerForSide('left').type === 'video'"><video :src="bannerForSide('left').src" autoplay loop muted playsinline class="ad-media" :style="`width: ${bannerForSide('left').width || 260}px; height: ${bannerForSide('left').height || 600}px;`"></video></template>
                             </a>
                         </div>
-                        <p class="text-xs text-stone-500 font-bold mt-3 text-center max-w-[160px] break-words px-1" x-text="bannerForSide('left').title"></p>
+                        <p class="text-xs text-stone-500 font-bold mt-3 text-center max-w-[260px] break-words px-1" x-text="bannerForSide('left').title"></p>
                     </div>
                 </aside>
 
@@ -1465,15 +1491,15 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                     </div>
                 </section>
                     </div>
-                <aside x-show="hasRenderableBanner('right')" x-cloak class="hidden xl:flex justify-center min-w-0" data-ad-side="right">
-                    <div class="w-[184px] flex flex-col items-center py-2">
-                        <div class="relative w-[160px] max-h-[calc(100vh-140px)] bg-white shadow-xl rounded-2xl overflow-hidden border border-stone-200">
+                <aside x-show="hasRenderableBanner('right')" x-cloak class="ad-rail" data-ad-side="right">
+                    <div class="ad-sticky flex flex-col items-center py-2">
+                        <div class="ad-frame relative" :style="`width: ${bannerForSide($el.closest('[data-ad-side]')?.dataset.adSide || 'left').width || 260}px; height: ${bannerForSide($el.closest('[data-ad-side]')?.dataset.adSide || 'left').height || 600}px;`">
                             <a :href="bannerForSide('right').link || '#'" target="_blank" rel="noopener" class="block w-full h-full relative group" @click="incrementAdClick($el.closest('[data-ad-side]')?.dataset.adSide || 'left')">
-                                <template x-if="bannerForSide('right').type === 'image'"><img :src="bannerForSide('right').src" class="w-full object-cover group-hover:scale-105 transition duration-500" :style="`height: min(${bannerForSide('right').height || 400}px, calc(100vh - 140px));`" alt="Reklam banneri"></template>
-                                <template x-if="bannerForSide('right').type === 'video'"><video :src="bannerForSide('right').src" autoplay loop muted playsinline class="w-full object-cover" :style="`height: min(${bannerForSide('right').height || 400}px, calc(100vh - 140px));`"></video></template>
+                                <template x-if="bannerForSide('right').type === 'image'"><img :src="bannerForSide('right').src" class="ad-media group-hover:scale-105 transition duration-500" :style="`width: ${bannerForSide('right').width || 260}px; height: ${bannerForSide('right').height || 600}px;`" alt="Reklam banneri"></template>
+                                <template x-if="bannerForSide('right').type === 'video'"><video :src="bannerForSide('right').src" autoplay loop muted playsinline class="ad-media" :style="`width: ${bannerForSide('right').width || 260}px; height: ${bannerForSide('right').height || 600}px;`"></video></template>
                             </a>
                         </div>
-                        <p class="text-xs text-stone-500 font-bold mt-3 text-center max-w-[160px] break-words px-1" x-text="bannerForSide('right').title"></p>
+                        <p class="text-xs text-stone-500 font-bold mt-3 text-center max-w-[260px] break-words px-1" x-text="bannerForSide('right').title"></p>
                     </div>
                 </aside>
 
@@ -1481,16 +1507,16 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
             </div>
 
             <!-- 2. PROJECTS CATALOGUE PAGE -->
-            <div x-show="page !== 'home'" x-cloak class="mx-auto w-full" :class="hasAnyRenderableBanner() ? 'max-w-[calc(100vw-2rem)] xl:grid xl:grid-cols-[184px_minmax(0,1fr)_184px] xl:gap-6 xl:items-start' : 'max-w-7xl'">
-                <aside x-show="hasRenderableBanner('left')" x-cloak class="hidden xl:flex justify-center min-w-0" data-ad-side="left">
-                    <div class="w-[184px] flex flex-col items-center py-2">
-                        <div class="relative w-[160px] max-h-[calc(100vh-140px)] bg-white shadow-xl rounded-2xl overflow-hidden border border-stone-200">
+            <div x-show="page !== 'home'" x-cloak class="ad-content-grid mx-auto w-full max-w-[calc(100vw-2rem)]" :class="{ 'has-ads': hasAnyRenderableBanner(), 'max-w-7xl': !hasAnyRenderableBanner() }">
+                <aside x-show="hasRenderableBanner('left')" x-cloak class="ad-rail" data-ad-side="left">
+                    <div class="ad-sticky flex flex-col items-center py-2">
+                        <div class="ad-frame relative" :style="`width: ${bannerForSide($el.closest('[data-ad-side]')?.dataset.adSide || 'left').width || 260}px; height: ${bannerForSide($el.closest('[data-ad-side]')?.dataset.adSide || 'left').height || 600}px;`">
                             <a :href="bannerForSide('left').link || '#'" target="_blank" rel="noopener" class="block w-full h-full relative group" @click="incrementAdClick($el.closest('[data-ad-side]')?.dataset.adSide || 'left')">
-                                <template x-if="bannerForSide('left').type === 'image'"><img :src="bannerForSide('left').src" class="w-full object-cover group-hover:scale-105 transition duration-500" :style="`height: min(${bannerForSide('left').height || 400}px, calc(100vh - 140px));`" alt="Reklam banneri"></template>
-                                <template x-if="bannerForSide('left').type === 'video'"><video :src="bannerForSide('left').src" autoplay loop muted playsinline class="w-full object-cover" :style="`height: min(${bannerForSide('left').height || 400}px, calc(100vh - 140px));`"></video></template>
+                                <template x-if="bannerForSide('left').type === 'image'"><img :src="bannerForSide('left').src" class="ad-media group-hover:scale-105 transition duration-500" :style="`width: ${bannerForSide('left').width || 260}px; height: ${bannerForSide('left').height || 600}px;`" alt="Reklam banneri"></template>
+                                <template x-if="bannerForSide('left').type === 'video'"><video :src="bannerForSide('left').src" autoplay loop muted playsinline class="ad-media" :style="`width: ${bannerForSide('left').width || 260}px; height: ${bannerForSide('left').height || 600}px;`"></video></template>
                             </a>
                         </div>
-                        <p class="text-xs text-stone-500 font-bold mt-3 text-center max-w-[160px] break-words px-1" x-text="bannerForSide('left').title"></p>
+                        <p class="text-xs text-stone-500 font-bold mt-3 text-center max-w-[260px] break-words px-1" x-text="bannerForSide('left').title"></p>
                     </div>
                 </aside>
 
@@ -2030,15 +2056,15 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                     </div>
                 </div>            </div>
                 </div>
-                <aside x-show="hasRenderableBanner('right')" x-cloak class="hidden xl:flex justify-center min-w-0" data-ad-side="right">
-                    <div class="w-[184px] flex flex-col items-center py-2">
-                        <div class="relative w-[160px] max-h-[calc(100vh-140px)] bg-white shadow-xl rounded-2xl overflow-hidden border border-stone-200">
+                <aside x-show="hasRenderableBanner('right')" x-cloak class="ad-rail" data-ad-side="right">
+                    <div class="ad-sticky flex flex-col items-center py-2">
+                        <div class="ad-frame relative" :style="`width: ${bannerForSide($el.closest('[data-ad-side]')?.dataset.adSide || 'left').width || 260}px; height: ${bannerForSide($el.closest('[data-ad-side]')?.dataset.adSide || 'left').height || 600}px;`">
                             <a :href="bannerForSide('right').link || '#'" target="_blank" rel="noopener" class="block w-full h-full relative group" @click="incrementAdClick($el.closest('[data-ad-side]')?.dataset.adSide || 'left')">
-                                <template x-if="bannerForSide('right').type === 'image'"><img :src="bannerForSide('right').src" class="w-full object-cover group-hover:scale-105 transition duration-500" :style="`height: min(${bannerForSide('right').height || 400}px, calc(100vh - 140px));`" alt="Reklam banneri"></template>
-                                <template x-if="bannerForSide('right').type === 'video'"><video :src="bannerForSide('right').src" autoplay loop muted playsinline class="w-full object-cover" :style="`height: min(${bannerForSide('right').height || 400}px, calc(100vh - 140px));`"></video></template>
+                                <template x-if="bannerForSide('right').type === 'image'"><img :src="bannerForSide('right').src" class="ad-media group-hover:scale-105 transition duration-500" :style="`width: ${bannerForSide('right').width || 260}px; height: ${bannerForSide('right').height || 600}px;`" alt="Reklam banneri"></template>
+                                <template x-if="bannerForSide('right').type === 'video'"><video :src="bannerForSide('right').src" autoplay loop muted playsinline class="ad-media" :style="`width: ${bannerForSide('right').width || 260}px; height: ${bannerForSide('right').height || 600}px;`"></video></template>
                             </a>
                         </div>
-                        <p class="text-xs text-stone-500 font-bold mt-3 text-center max-w-[160px] break-words px-1" x-text="bannerForSide('right').title"></p>
+                        <p class="text-xs text-stone-500 font-bold mt-3 text-center max-w-[260px] break-words px-1" x-text="bannerForSide('right').title"></p>
                     </div>
                 </aside>
 
