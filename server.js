@@ -49,14 +49,14 @@ function projectIn(b) { const c = b.cat || b.category || 'house'; return { categ
 function galleryOut(g) { return { id: g.id, src: g.mediaUrl, mediaUrl: g.mediaUrl, images: jsonArray(g.images), title: g.titleAz, titleAz: g.titleAz, titleRu: g.titleRu, titleEn: g.titleEn, type: g.type, archived: g.archived, sortOrder: g.sortOrder }; }
 function galleryIn(b) { return { mediaUrl: b.src || b.mediaUrl || '', images: b.images || (b.src ? [b.src] : []), titleAz: b.titleAz || b.title || '', titleRu: b.titleRu, titleEn: b.titleEn, type: b.type || 'image', sortOrder: Number(b.sortOrder) || 0 }; }
 function slideOut(s) { return { id: s.id, image: s.image, tag: s.tagAz, tagRu: s.tagRu, tagEn: s.tagEn, title1: s.title1Az, title1Ru: s.title1Ru, title1En: s.title1En, title2: s.title2Az, title2Ru: s.title2Ru, title2En: s.title2En, desc: s.descAz, descRu: s.descRu, descEn: s.descEn, active: s.active, sortOrder: s.sortOrder }; }
-function slideIn(b) { return { image: b.image || '', tagAz: b.tagAz || b.tag, tagRu: b.tagRu, tagEn: b.tagEn, title1Az: b.title1Az || b.title1, title1Ru: b.title1Ru, title1En: b.title1En, title2Az: b.title2Az || b.title2, title2Ru: b.title2Ru, title2En: b.title2En, descAz: b.descAz || b.desc, descRu: b.descRu, descEn: b.descEn, active: b.active ?? true, sortOrder: Number(b.sortOrder) || 0 }; }
+function slideIn(b, options = {}) { const data = { image: b.image || '', tagAz: b.tagAz || b.tag, tagRu: b.tagRu, tagEn: b.tagEn, title1Az: b.title1Az || b.title1, title1Ru: b.title1Ru, title1En: b.title1En, title2Az: b.title2Az || b.title2, title2Ru: b.title2Ru, title2En: b.title2En, descAz: b.descAz || b.desc, descRu: b.descRu, descEn: b.descEn, active: b.active ?? true }; if (options.includeSortOrder || Object.prototype.hasOwnProperty.call(b, 'sortOrder')) data.sortOrder = Number(b.sortOrder) || 0; return data; }
 function normalizePlacement(value) { return ['left', 'right', 'both'].includes(value) ? value : 'both'; }
 function bannerOut(b) {
-  return b && { id: b.id, legacyId: b.legacyId, active: b.active, type: b.type || b.mediaType || 'image', mediaType: b.mediaType || b.type || 'image', src: b.mediaUrl || '', mediaUrl: b.mediaUrl || '', link: b.linkUrl || '', linkUrl: b.linkUrl || '', title: b.title || b.titleAz || '', titleAz: b.titleAz || b.title || '', width: b.width, height: b.height, duration: b.duration, views: b.views, clicks: b.clicks, placement: normalizePlacement(b.placement), position: normalizePlacement(b.placement), createdAt: b.createdAt };
+  return b && { id: b.id, legacyId: b.legacyId, active: b.active, type: b.type || b.mediaType || 'image', mediaType: b.mediaType || b.type || 'image', src: b.mediaUrl || '', mediaUrl: b.mediaUrl || '', link: b.linkUrl || '', linkUrl: b.linkUrl || '', title: b.title || b.titleAz || '', titleAz: b.titleAz || b.title || '', width: b.width, height: b.height, duration: b.duration, displayOrder: b.displayOrder || 0, views: b.views, clicks: b.clicks, placement: normalizePlacement(b.placement), position: normalizePlacement(b.placement), createdAt: b.createdAt };
 }
 function bannerIn(b = {}) {
   const mediaType = b.mediaType || b.media_type || b.type || 'image';
-  return {
+  const data = {
     active: b.active ?? true,
     mediaType,
     type: mediaType,
@@ -69,6 +69,8 @@ function bannerIn(b = {}) {
     duration: Number(b.duration) || 15,
     placement: normalizePlacement(b.placement || b.position)
   };
+  if (Object.prototype.hasOwnProperty.call(b, 'displayOrder') || Object.prototype.hasOwnProperty.call(b, 'display_order')) data.displayOrder = Number(b.displayOrder ?? b.display_order) || 0;
+  return data;
 }
 const msgOut = (m) => ({ id: m.id, name: m.name, phone: m.phone, email: m.email || 'N/A', message: m.message, read: m.read, date: m.createdAt.toLocaleDateString('az-AZ') });
 
@@ -107,16 +109,17 @@ app.delete('/api/gallery/:id', wrap(async (req,res)=>{ await prisma.galleryItem.
 app.patch('/api/gallery/:id/archive', wrap(async (req,res)=>{ const g=await prisma.galleryItem.findUniqueOrThrow({where:{id:intId(req)}}); res.json(galleryOut(await prisma.galleryItem.update({where:{id:g.id},data:{archived:req.body.archived ?? !g.archived}}))); }));
 
 app.get('/api/hero-slides', wrap(async (req,res)=>res.json((await prisma.heroSlide.findMany({ where:req.query.admin==='true'?{}:{active:true}, orderBy:[{sortOrder:'asc'},{id:'asc'}] })).map(slideOut))));
-app.post('/api/hero-slides', wrap(async (req,res)=>res.status(201).json(slideOut(await prisma.heroSlide.create({data:slideIn(req.body)})))));
-app.put('/api/hero-slides/reorder', wrap(async (req,res)=>{ await Promise.all((req.body.items||[]).map((it,i)=>prisma.heroSlide.update({where:{id:Number(it.id)},data:{sortOrder:Number(it.sortOrder ?? i)}}))); res.json({ok:true}); }));
+app.post('/api/hero-slides', wrap(async (req,res)=>{ const last=await prisma.heroSlide.findFirst({orderBy:{sortOrder:'desc'}}); res.status(201).json(slideOut(await prisma.heroSlide.create({data:slideIn({...req.body, sortOrder:(last?.sortOrder ?? -1)+1},{includeSortOrder:true})}))); }));
+app.put('/api/hero-slides/reorder', wrap(async (req,res)=>{ const ids=req.body.ids || (req.body.items||[]).map(it=>it.id); await Promise.all((ids||[]).map((id,i)=>prisma.heroSlide.update({where:{id:Number(id)},data:{sortOrder:i}}))); res.json((await prisma.heroSlide.findMany({orderBy:[{sortOrder:'asc'},{id:'asc'}]})).map(slideOut)); }));
 app.put('/api/hero-slides/:id', wrap(async (req,res)=>res.json(slideOut(await prisma.heroSlide.update({where:{id:intId(req)},data:slideIn(req.body)})))));
 app.delete('/api/hero-slides/:id', wrap(async (req,res)=>{await prisma.heroSlide.delete({where:{id:intId(req)}});res.json({ok:true});}));
 app.patch('/api/hero-slides/:id/toggle', wrap(async (req,res)=>{ const s=await prisma.heroSlide.findUniqueOrThrow({where:{id:intId(req)}}); res.json(slideOut(await prisma.heroSlide.update({where:{id:s.id},data:{active:req.body.active ?? !s.active}}))); }));
 
-app.get('/api/banners', wrap(async (req,res)=>res.json((await prisma.banner.findMany({orderBy:[{active:'desc'},{createdAt:'desc'}]})).map(bannerOut))));
-app.get('/api/banners/main', wrap(async (req,res)=>res.json(bannerOut(await prisma.banner.findFirst({where:{active:true},orderBy:{createdAt:'desc'}})) || null)));
-app.post('/api/banners', wrap(async (req,res)=>res.status(201).json(bannerOut(await prisma.banner.create({data:bannerIn(req.body)})))));
-app.put('/api/banners/:id', wrap(async (req,res)=>{ const b=await prisma.banner.findFirst({where:idWhere(req.params.id)}); if(!b) return res.status(404).json({ok:false,error:'BANNER_NOT_FOUND'}); res.json(bannerOut(await prisma.banner.update({where:{id:b.id},data:bannerIn(req.body)}))); }));
+app.get('/api/banners', wrap(async (req,res)=>res.json((await prisma.banner.findMany({ where:req.query.public==='true'?{active:true}:{}, orderBy:[{displayOrder:'asc'},{createdAt:'asc'}]})).map(bannerOut))));
+app.get('/api/banners/main', wrap(async (req,res)=>res.json(bannerOut(await prisma.banner.findFirst({where:{active:true},orderBy:[{displayOrder:'asc'},{createdAt:'asc'}]})) || null)));
+app.post('/api/banners', wrap(async (req,res)=>{ const last=await prisma.banner.findFirst({orderBy:{displayOrder:'desc'}}); res.status(201).json(bannerOut(await prisma.banner.create({data:{...bannerIn(req.body),displayOrder:(last?.displayOrder ?? -1)+1}}))); }));
+app.put('/api/banners/reorder', wrap(async (req,res)=>{ const ids=req.body.ids || []; await Promise.all(ids.map((id,i)=>prisma.banner.update({where:{id:String(id)},data:{displayOrder:i}}))); res.json((await prisma.banner.findMany({orderBy:[{displayOrder:'asc'},{createdAt:'asc'}]})).map(bannerOut)); }));
+app.put('/api/banners/:id', wrap(async (req,res)=>{ const b=await prisma.banner.findFirst({where:idWhere(req.params.id)}); if(!b) return res.status(404).json({ok:false,error:'BANNER_NOT_FOUND'}); const data=bannerIn(req.body); if (!Object.prototype.hasOwnProperty.call(req.body, 'displayOrder') && !Object.prototype.hasOwnProperty.call(req.body, 'display_order')) delete data.displayOrder; res.json(bannerOut(await prisma.banner.update({where:{id:b.id},data}))); }));
 app.delete('/api/banners/:id', wrap(async (req,res)=>{ const b=await prisma.banner.findFirst({where:idWhere(req.params.id)}); if (b) await prisma.banner.delete({where:{id:b.id}}); res.json({ok:true});}));
 app.patch('/api/banners/:id/toggle', wrap(async (req,res)=>{const b=await prisma.banner.findFirst({where:idWhere(req.params.id)}); if(!b) return res.status(404).json({ok:false,error:'BANNER_NOT_FOUND'}); res.json(bannerOut(await prisma.banner.update({where:{id:b.id},data:{active:req.body.active ?? !b.active}})));}));
 app.post('/api/banners/:id/view', wrap(async (req,res)=>{ const b=await prisma.banner.findFirst({where:idWhere(req.params.id)}); if(!b) return res.json({ok:false,skipped:true,reason:'BANNER_NOT_FOUND'}); res.json(bannerOut(await prisma.banner.update({where:{id:b.id},data:{views:{increment:1}}}))); }));
