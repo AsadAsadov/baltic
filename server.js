@@ -33,6 +33,8 @@ const idWhere = (id) => {
   const legacyId = Number.parseInt(id, 10);
   return Number.isFinite(legacyId) ? { legacyId } : { id: '00000000-0000-0000-0000-000000000000' };
 };
+const heroIdWhere = (id) => isUuid(id) ? { id: String(id) } : null;
+const invalidHeroId = (res) => res.status(400).json({ ok: false, error: 'INVALID_HERO_ID' });
 const jsonArray = (v) => Array.isArray(v) ? v : [];
 const heroSlideSelect = { id:true, legacyId:true, titleAz:true, titleRu:true, titleEn:true, subtitleAz:true, subtitleRu:true, subtitleEn:true, mediaType:true, mediaUrl:true, image:true, buttonTextAz:true, buttonTextRu:true, buttonTextEn:true, buttonLink:true, tagAz:true, tagRu:true, tagEn:true, title1Az:true, title1Ru:true, title1En:true, title2Az:true, title2Ru:true, title2En:true, descAz:true, descRu:true, descEn:true, sortOrder:true, active:true, createdAt:true, updatedAt:true };
 const adminTabDefaultVisibility = { dashboard:true, messages:true, projects:true, gallery:true, hero:true, homeImages:true, ads:true };
@@ -144,10 +146,12 @@ app.post('/api/hero-slides', async (req, res) => {
     res.status(500).json({ ok: false, error: 'HERO_SLIDE_CREATE_FAILED', message: err?.message || 'Hero slide create failed', code: err?.code, field: err?.meta?.field_name || err?.meta?.column || err?.meta?.target });
   }
 });
-app.put('/api/hero-slides/reorder', wrap(async (req,res)=>{ const ids=req.body.ids || (req.body.items||[]).map(it=>it.id); await Promise.all((ids||[]).map((id,i)=>prisma.heroSlide.update({where:{id:Number(id)},data:{sortOrder:i}}))); res.json((await prisma.heroSlide.findMany({select:heroSlideSelect,orderBy:[{sortOrder:'asc'},{id:'asc'}]})).map(slideOut)); }));
+app.put('/api/hero-slides/reorder', wrap(async (req,res)=>{ const ids=req.body.ids || (req.body.items||[]).map(it=>it.id); const validIds=(ids||[]).map(String).filter(isUuid); if (validIds.length !== (ids||[]).length) return invalidHeroId(res); await Promise.all(validIds.map((id,i)=>prisma.heroSlide.update({where:{id},data:{sortOrder:i}}))); res.json((await prisma.heroSlide.findMany({select:heroSlideSelect,orderBy:[{sortOrder:'asc'},{id:'asc'}]})).map(slideOut)); }));
 app.put('/api/hero-slides/:id', async (req, res) => {
   try {
-    const existing = await prisma.heroSlide.findUnique({ select: heroSlideSelect, where: { id: intId(req) } });
+    const where = heroIdWhere(req.params.id);
+    if (!where) return invalidHeroId(res);
+    const existing = await prisma.heroSlide.findUnique({ select: heroSlideSelect, where });
     if (!existing) return res.status(404).json({ ok: false, error: 'HERO_SLIDE_NOT_FOUND' });
     const data = slideIn(req.body || {});
     if (!data.mediaUrl && !data.image) { data.mediaUrl = existing.mediaUrl || existing.image; data.image = existing.image || existing.mediaUrl; }
@@ -159,8 +163,8 @@ app.put('/api/hero-slides/:id', async (req, res) => {
     res.status(500).json({ ok: false, error: 'HERO_SLIDE_UPDATE_FAILED', message: err?.message || 'Hero slide update failed', code: err?.code, field: err?.meta?.field_name || err?.meta?.column || err?.meta?.target });
   }
 });
-app.delete('/api/hero-slides/:id', wrap(async (req,res)=>{await prisma.heroSlide.delete({where:{id:intId(req)}});res.json({ok:true});}));
-app.patch('/api/hero-slides/:id/toggle', wrap(async (req,res)=>{ const s=await prisma.heroSlide.findUniqueOrThrow({select:{id:true,active:true},where:{id:intId(req)}}); res.json(slideOut(await prisma.heroSlide.update({select:heroSlideSelect,where:{id:s.id},data:{active:req.body.active ?? !s.active}}))); }));
+app.delete('/api/hero-slides/:id', wrap(async (req,res)=>{ const where=heroIdWhere(req.params.id); if(!where) return invalidHeroId(res); await prisma.heroSlide.delete({where}); res.json({ok:true});}));
+app.patch('/api/hero-slides/:id/toggle', wrap(async (req,res)=>{ const where=heroIdWhere(req.params.id); if(!where) return invalidHeroId(res); const s=await prisma.heroSlide.findUniqueOrThrow({select:{id:true,active:true},where}); res.json(slideOut(await prisma.heroSlide.update({select:heroSlideSelect,where:{id:s.id},data:{active:req.body.active ?? !s.active}}))); }));
 
 app.get('/api/admin-panel-settings/:key', wrap(async (req,res)=>{ const setting=await prisma.adminPanelSetting.findUnique({where:{key:req.params.key}}); if(setting) return res.json(settingOut(setting)); if(req.params.key==='admin_tab_visibility') return res.json({key:req.params.key,value:adminTabDefaultVisibility}); res.status(404).json({ok:false,error:'SETTING_NOT_FOUND',message:'Admin panel setting not found'}); }));
 app.put('/api/admin-panel-settings/:key', wrap(async (req,res)=>{ const value=req.body.value && typeof req.body.value==='object' ? req.body.value : req.body; res.json(settingOut(await prisma.adminPanelSetting.upsert({where:{key:req.params.key},create:{key:req.params.key,value},update:{value}}))); }));
