@@ -437,7 +437,7 @@
                     const link = source.link || source.linkUrl || source.link_url || '#';
                     const mediaType = source.mediaType || source.media_type || source.type || 'image';
                     const placement = source.placement || source.position || side || 'both';
-                    return { id: source.id ?? null, active: source.active ?? false, placement, position: placement, type: mediaType, mediaType, src, image: source.image || src, mediaUrl: source.mediaUrl || source.media_url || src, url: source.url || src, link, linkUrl: source.linkUrl || source.link_url || link, title: source.title || '', width: Number(source.width) || 160, height: Number(source.height) || 400, duration: Number(source.duration) || 15, views: Number(source.views) || 0, clicks: Number(source.clicks) || 0 };
+                    return { id: source.id ?? null, active: source.active ?? false, placement, position: placement, type: mediaType, mediaType, src, image: source.image || src, mediaUrl: source.mediaUrl || source.media_url || src, url: source.url || src, link, linkUrl: source.linkUrl || source.link_url || link, title: source.title || '', width: Number(source.width) || 260, height: Number(source.height) || 600, duration: Number(source.duration) || 15, views: Number(source.views) || 0, clicks: Number(source.clicks) || 0 };
                 },
                 normalizeBanner(banner = {}, side = 'both') {
                     return this.getSafeBanner(banner, side);
@@ -505,7 +505,7 @@
                         proj.views = (proj.views || 0) + 1;
                         this.stats.projectViews++;
                         this.cacheSave();
-                        if (proj.id) this.api(`/api/projects/${proj.id}/view`).catch(() => this.showToast('API xəta', 'Layihə baxışı DB-yə yazılmadı.'));
+                        if (proj.id) this.api(`/api/projects/${proj.id}/view`).catch(() => console.warn('Project view was not persisted.'));
                     }, false); // No global loader overlay to avoid blocking lightbox
                 },
 
@@ -654,7 +654,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                 },
 
                 resetAdForm() {
-                    this.newAd = { id: null, placement: 'both', active: true, type: 'image', src: '', link: '', title: '', width: 160, height: 400, duration: 15 };
+                    this.newAd = { id: null, placement: 'both', active: true, type: 'image', mediaType: 'image', src: '', mediaUrl: '', link: '', linkUrl: '', title: '', width: 260, height: 600, duration: 15 };
                     this.adPreviewImg = '';
                 },
 
@@ -679,7 +679,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
 
                 setupEditAd(ad = null) {
                     const selected = ad || this.mainBanner || {};
-                    this.newAd = { id: selected.id || null, placement: selected.placement || 'both', active: !!selected.active, type: selected.type || 'image', src: selected.src || '', link: selected.link || '', title: selected.title || '', width: selected.width || 160, height: selected.height || 400, duration: selected.duration || 15 };
+                    this.newAd = { id: selected.id || null, placement: selected.placement || 'both', active: !!selected.active, type: selected.type || 'image', src: selected.src || '', link: selected.link || '', title: selected.title || '', width: selected.width || 260, height: selected.height || 600, duration: selected.duration || 15 };
                     this.adPreviewImg = selected.src || '';
                 },
 
@@ -1020,8 +1020,8 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                             src: finalSrc,
                             link: this.newAd.link,
                             title: this.newAd.title,
-                            width: parseInt(this.newAd.width) || 160,
-                            height: parseInt(this.newAd.height) || 400,
+                            width: parseInt(this.newAd.width) || 260,
+                            height: parseInt(this.newAd.height) || 600,
                             duration: parseInt(this.newAd.duration) || 15,
                             views: this.mainBanner?.views || 0,
                             clicks: this.mainBanner?.clicks || 0
@@ -1983,29 +1983,50 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                         </div>
 
                         <div class="lg:col-span-7 space-y-4">
-                            <h4 class="font-extrabold text-stone-900 tracking-normal normal-case">Preview</h4>
-                            <div class="bg-stone-50 border border-stone-200 p-5 rounded-3xl space-y-4">
-                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
-                                    <template x-for="side in ['Sol tərəf', 'Sağ tərəf']" :key="side">
-                                        <div class="bg-white rounded-2xl border border-stone-200 p-4 text-center">
-                                            <span class="text-[10px] bg-forest-100 text-forest-700 px-2 py-1 rounded font-bold" x-text="side"></span>
-                                            <div class="mx-auto mt-3 rounded-xl overflow-hidden bg-stone-200 border" :style="`width: ${Math.min(mainBanner.width || 160, 220)}px; height: ${Math.min(mainBanner.height || 400, 320)}px;`"><template x-if="mainBanner.type === 'image' && mainBanner.src"><img :src="mainBanner.src" class="w-full h-full object-cover"></template><template x-if="mainBanner.type === 'video' && mainBanner.src"><video :src="mainBanner.src" muted playsinline class="w-full h-full object-cover"></video></template><div x-show="!mainBanner.src" class="w-full h-full flex items-center justify-center text-stone-400"><i class="fa-solid fa-rectangle-ad text-3xl"></i></div></div>
+                            <div class="bg-stone-50 border border-stone-200 p-5 rounded-3xl space-y-4 normal-case">
+                                <div class="flex items-center justify-between gap-3">
+                                    <div>
+                                        <h4 class="font-extrabold text-stone-900 tracking-normal">Mövcud bannerlər</h4>
+                                        <p class="text-xs text-stone-500 mt-1">Yadda saxlanmış bütün bannerlər kart formasında göstərilir.</p>
+                                    </div>
+                                    <span class="px-3 py-1 bg-white border border-stone-200 rounded-full text-[10px] font-black text-stone-600"><span x-text="(Array.isArray(banners) ? banners.length : 0)"></span> banner</span>
+                                </div>
+                                <template x-if="!(Array.isArray(banners) && banners.length)">
+                                    <div class="bg-white rounded-2xl border border-dashed border-stone-300 p-8 text-center text-stone-500">
+                                        <i class="fa-solid fa-rectangle-ad text-3xl mb-3 text-stone-300"></i>
+                                        <p class="font-bold">Hələ saxlanmış banner yoxdur.</p>
+                                    </div>
+                                </template>
+                                <div class="grid grid-cols-1 xl:grid-cols-2 gap-3">
+                                    <template x-for="ad in (Array.isArray(banners) ? banners : [])" :key="ad.id || ad.src">
+                                        <div class="bg-white rounded-2xl border border-stone-200 p-4 flex gap-3 items-start shadow-sm">
+                                            <div class="w-20 h-28 rounded-xl overflow-hidden bg-stone-100 flex-shrink-0 border border-stone-100 flex items-center justify-center text-stone-300">
+                                                <template x-if="ad.type === 'image' && ad.src"><img :src="ad.src" class="w-full h-full object-cover"></template>
+                                                <template x-if="ad.type === 'video' && ad.src"><video :src="ad.src" muted playsinline class="w-full h-full object-cover"></video></template>
+                                                <i x-show="!ad.src" class="fa-solid fa-image text-2xl"></i>
+                                            </div>
+                                            <div class="min-w-0 flex-1 space-y-2">
+                                                <div class="flex items-start justify-between gap-2">
+                                                    <p class="font-black text-stone-900 truncate" x-text="ad.title || 'Adsız banner'"></p>
+                                                    <span class="text-[10px] px-2 py-0.5 rounded-full font-black" :class="ad.active ? 'bg-green-100 text-green-700' : 'bg-stone-100 text-stone-500'" x-text="ad.active ? 'Aktiv' : 'Deaktiv'"></span>
+                                                </div>
+                                                <div class="grid grid-cols-2 gap-2 text-[10px] text-stone-500">
+                                                    <p>Yerləşim: <b class="text-stone-700" x-text="ad.placement === 'left' ? 'Sol' : (ad.placement === 'right' ? 'Sağ' : 'Hər ikisi')"></b></p>
+                                                    <p>Ölçü: <b class="text-stone-700" x-text="`${ad.width || 260} × ${ad.height || 600}`"></b></p>
+                                                    <p>Views: <b class="text-stone-700" x-text="ad.views || 0"></b></p>
+                                                    <p>Clicks: <b class="text-stone-700" x-text="ad.clicks || 0"></b></p>
+                                                </div>
+                                                <div class="flex flex-wrap gap-2 pt-1">
+                                                    <button @click="setupEditAd(ad)" class="px-3 py-1.5 bg-forest-50 text-forest-700 rounded-lg font-bold text-[10px]">Redaktə et</button>
+                                                    <button @click="toggleAdActive(ad)" class="px-3 py-1.5 bg-wood-50 text-wood-700 rounded-lg font-bold text-[10px]" x-text="ad.active ? 'Deaktiv et' : 'Aktiv et'"></button>
+                                                    <button @click="deleteAd(ad)" class="px-3 py-1.5 bg-red-50 text-red-700 rounded-lg font-bold text-[10px]">Sil</button>
+                                                </div>
+                                            </div>
                                         </div>
                                     </template>
                                 </div>
-                                <div class="grid grid-cols-4 gap-2 text-center"><div class="bg-white p-3 rounded-xl border"><span class="block text-[9px] text-stone-400">Status</span><span class="block font-black text-stone-800 text-xs" x-text="mainBanner.active ? 'Aktiv' : 'Deaktiv'"></span></div><div class="bg-white p-3 rounded-xl border"><span class="block text-[9px] text-stone-400">Views</span><span class="block font-black text-stone-800 text-xs" x-text="mainBanner.views || 0"></span></div><div class="bg-white p-3 rounded-xl border"><span class="block text-[9px] text-stone-400">Clicks</span><span class="block font-black text-stone-800 text-xs" x-text="mainBanner.clicks || 0"></span></div><div class="bg-white p-3 rounded-xl border"><span class="block text-[9px] text-stone-400">Size</span><span class="block font-black text-stone-800 text-xs" x-text="`${mainBanner.width || 160}×${mainBanner.height || 400}`"></span></div></div>
                             </div>
-
-                                <div class="mt-5 space-y-3">
-                                    <h4 class="font-extrabold text-stone-900 tracking-normal normal-case">Mövcud bannerlər</h4>
-                                    <template x-for="ad in (Array.isArray(banners) ? banners : [])" :key="ad.id || ad.src">
-                                        <div class="bg-white rounded-2xl border border-stone-200 p-3 flex gap-3 items-center normal-case">
-                                            <div class="w-16 h-20 rounded-lg overflow-hidden bg-stone-100 flex-shrink-0"><template x-if="ad.type === 'image' && ad.src"><img :src="ad.src" class="w-full h-full object-cover"></template><template x-if="ad.type === 'video' && ad.src"><video :src="ad.src" muted playsinline class="w-full h-full object-cover"></video></template></div>
-                                            <div class="min-w-0 flex-1"><p class="font-black text-stone-900 truncate" x-text="ad.title || 'Adsız banner'"></p><p class="text-[10px] text-stone-500">Placement: <span x-text="ad.placement"></span> · <span x-text="ad.active ? 'Aktiv' : 'Deaktiv'"></span></p><p class="text-[10px] text-stone-500">Views: <span x-text="ad.views || 0"></span> · Clicks: <span x-text="ad.clicks || 0"></span></p></div>
-                                            <div class="flex flex-col gap-1"><button @click="setupEditAd(ad)" class="px-2 py-1 bg-forest-50 text-forest-700 rounded font-bold">Edit</button><button @click="toggleAdActive(ad)" class="px-2 py-1 bg-wood-50 text-wood-700 rounded font-bold" x-text="ad.active ? 'Deactivate' : 'Activate'"></button><button @click="deleteAd(ad)" class="px-2 py-1 bg-red-50 text-red-700 rounded font-bold">Delete</button></div>
-                                        </div>
-                                    </template>
-                                </div></div>
+                        </div>
                     </div>
                 </div>            </div>
                 </div>
