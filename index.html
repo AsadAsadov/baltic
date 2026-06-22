@@ -163,7 +163,7 @@
                 adminUsername: '',
                 adminPassword: '',
                 adminLoginError: '',
-                adminTab: 'dashboard', // dashboard, messages, projects, gallery, hero, ads
+                adminTab: 'dashboard', // dashboard, messages, projects, gallery, hero, home-images, ads
 
                 // Dynamic App State DB
                 projects: defaultProjects,
@@ -188,6 +188,9 @@
                 // Active forms
                 newProj: { id: null, cat: 'house', titleAz: '', titleRu: '', titleEn: '', descAz: '', descRu: '', descEn: '', area: '100', stories: '1', rooms: '3', buildTimeAz: '2 ay', buildTimeRu: '2 месяца', buildTimeEn: '2 months', image: '' },
                 newGallery: { id: null, src: '', title: '', titleRu: '', titleEn: '', type: 'image' },
+                homeImageForms: { why_wood: { title: '', imageUrl: '' }, advantages: { title: '', imageUrl: '' } },
+                homeImageFiles: { why_wood: null, advantages: null },
+                homeImagePreviews: { why_wood: '', advantages: '' },
                 newHero: { activeIndex: 0, tag: '', tagRu: '', tagEn: '', title1: '', title1Ru: '', title1En: '', title2: '', title2Ru: '', title2En: '', desc: '', descRu: '', descEn: '', image: '' },
                 
                 // Single advertising form inputs
@@ -486,6 +489,7 @@
 
                 async initApp() {
                     await this.loadData();
+                    await this.loadHomeSectionImages();
                     this.homeGalleryImages = this.homeGalleryImages.length ? this.homeGalleryImages : defaultHomeGalleryImages;
                     this.homeAdvantagesImages = this.homeAdvantagesImages.length ? this.homeAdvantagesImages : defaultHomeAdvantagesImages;
                     this.startHomeGalleryRotation();
@@ -524,6 +528,24 @@
                     this.restartAdRotation();
                 },
 
+                normalizeHomeSectionImages(payload) {
+                    return this.asArray(payload).map(item => ({ id: item.id, sectionKey: item.sectionKey || item.section_key, title: item.title || '', src: item.src || item.imageUrl || item.image_url || '', imageUrl: item.imageUrl || item.image_url || item.src || '', sortOrder: Number(item.sortOrder ?? item.sort_order) || 0, active: item.active ?? true })).filter(item => item.src);
+                },
+
+                async loadHomeSectionImages() {
+                    try {
+                        const [why, adv] = await Promise.all([this.api('/api/home-section-images/why_wood'), this.api('/api/home-section-images/advantages')]);
+                        const whyItems = this.normalizeHomeSectionImages(why);
+                        const advItems = this.normalizeHomeSectionImages(adv);
+                        this.homeGalleryImages = whyItems.length ? whyItems : defaultHomeGalleryImages;
+                        this.homeAdvantagesImages = advItems.length ? advItems : defaultHomeAdvantagesImages;
+                    } catch (error) {
+                        console.warn('Home section images could not be loaded.', error);
+                        this.homeGalleryImages = defaultHomeGalleryImages;
+                        this.homeAdvantagesImages = defaultHomeAdvantagesImages;
+                    }
+                },
+
                 visibleHomeGalleryImages() {
                     return (Array.isArray(this.homeGalleryImages) && this.homeGalleryImages.length) ? this.homeGalleryImages : defaultHomeGalleryImages;
                 },
@@ -549,9 +571,26 @@
                     this.startHomeGalleryRotation();
                 },
 
+                nextAdvantagesImage() {
+                    const images = this.visibleAdvantagesImages();
+                    if (!images.length) return;
+                    this.activeAdvantagesImageIndex = (this.activeAdvantagesImageIndex + 1) % images.length;
+                },
+
+                prevAdvantagesImage() {
+                    const images = this.visibleAdvantagesImages();
+                    if (!images.length) return;
+                    this.activeAdvantagesImageIndex = (this.activeAdvantagesImageIndex - 1 + images.length) % images.length;
+                },
+
+                setAdvantagesImage(index) {
+                    this.activeAdvantagesImageIndex = index;
+                    this.startHomeGalleryRotation();
+                },
+
                 startHomeGalleryRotation() {
                     if (this.homeGalleryTimer) clearInterval(this.homeGalleryTimer);
-                    this.homeGalleryTimer = setInterval(() => this.nextHomeGalleryImage(), 4000);
+                    this.homeGalleryTimer = setInterval(() => { this.nextHomeGalleryImage(); this.nextAdvantagesImage(); }, 4000);
                 },
 
                 getRepairWhatsAppUrl() {
@@ -707,6 +746,10 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                     if (previewProperty === 'adPreviewImg') {
                         if (file.type.startsWith('video/')) this.newAd.type = this.newAd.mediaType = 'video';
                         if (file.type.startsWith('image/')) this.newAd.type = this.newAd.mediaType = 'image';
+                    }
+                    if (previewProperty === 'heroPreviewImg') {
+                        if (file.type.startsWith('video/')) this.newHero.mediaType = 'video';
+                        if (file.type.startsWith('image/')) this.newHero.mediaType = 'image';
                     }
                     if (targetProperty) this[targetProperty] = previewUrl;
                 },
@@ -1132,8 +1175,22 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
 
                 saveHero() {
                     this.triggerAction(async () => {
-                        const finalImage = this.heroPreviewImgFile ? await this.uploadMedia(this.heroPreviewImgFile, 'hero') : (this.heroPreviewImg || this.newHero.image || 'https://images.unsplash.com/photo-1510798831971-661eb04b3739?auto=format&fit=crop&q=80&w=1800');
-                        const payload = { ...this.newHero, image: finalImage, active: this.newHero.active ?? true };
+                        let finalImage = '';
+                        let mediaType = this.newHero.mediaType || 'image';
+                        const typedUrl = (this.heroPreviewImg && !this.heroPreviewImg.startsWith('blob:')) ? this.heroPreviewImg : (this.newHero.mediaUrl || this.newHero.image || '');
+                        if (this.heroPreviewImgFile) {
+                            finalImage = await this.uploadMedia(this.heroPreviewImgFile, 'hero');
+                            mediaType = this.heroPreviewImgFile.type.startsWith('video/') ? 'video' : 'image';
+                        } else if (typedUrl) {
+                            finalImage = typedUrl;
+                            mediaType = /\.(mp4|webm|mov)(?:[?#].*)?$/i.test(finalImage) ? 'video' : 'image';
+                        }
+                        if (!this.newHero.id && !finalImage) {
+                            this.showToast('Media tələb olunur', 'Hero slayd üçün şəkil və ya video seçin.');
+                            return;
+                        }
+                        const payload = { ...this.newHero, active: this.newHero.active ?? true };
+                        if (finalImage) Object.assign(payload, { image: finalImage, mediaUrl: finalImage, mediaType });
                         let saved;
                         if (payload.id) {
                             saved = await this.api(`/api/hero-slides/${payload.id}`, { method: 'PUT', body: JSON.stringify(payload) });
@@ -1266,9 +1323,58 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                     this.persistBannerOrder().catch(() => this.showToast('API xəta', 'Banner sırası DB-yə yazılmadı.'));
                 },
 
+
+                handleHomeImageFile(sectionKey, event) {
+                    const file = event.target.files[0];
+                    if (!file) return;
+                    this.homeImageFiles[sectionKey] = file;
+                    this.homeImagePreviews[sectionKey] = URL.createObjectURL(file);
+                },
+
+                async uploadHomeImageFile(file) {
+                    try { return await this.uploadMedia(file, 'home'); }
+                    catch (error) { console.warn('Home bucket upload failed, falling back to gallery bucket.', error); return this.uploadMedia(file, 'gallery'); }
+                },
+
+                saveHomeSectionImage(sectionKey) {
+                    this.triggerAction(async () => {
+                        const file = this.homeImageFiles[sectionKey];
+                        const form = this.homeImageForms[sectionKey] || {};
+                        const imageUrl = file ? await this.uploadHomeImageFile(file) : (form.imageUrl || '');
+                        if (!imageUrl || imageUrl.startsWith('blob:') || imageUrl.startsWith('data:')) { this.showToast('Şəkil tələb olunur', 'Ana səhifə bölməsi üçün şəkil seçin.'); return; }
+                        await this.api('/api/home-section-images', { method: 'POST', body: JSON.stringify({ sectionKey, title: form.title, imageUrl }) });
+                        this.homeImageForms[sectionKey] = { title: '', imageUrl: '' };
+                        this.homeImageFiles[sectionKey] = null;
+                        this.homeImagePreviews[sectionKey] = '';
+                        await this.loadHomeSectionImages();
+                        this.showToast('Uğurlu', 'Ana səhifə şəkli əlavə edildi.');
+                    });
+                },
+
+                deleteHomeSectionImage(sectionKey, item) {
+                    this.triggerAction(async () => { await this.api(`/api/home-section-images/${item.id}`, { method: 'DELETE' }); await this.loadHomeSectionImages(); this.showToast('Silindi', 'Şəkil silindi.'); });
+                },
+
+                toggleHomeSectionImage(sectionKey, item) {
+                    item.active = !item.active;
+                    this.api(`/api/home-section-images/${item.id}/toggle`, { method: 'PATCH', body: JSON.stringify({ active: item.active }) }).catch(() => this.showToast('API xəta', 'Şəkil statusu DB-yə yazılmadı.'));
+                },
+
+                moveHomeSectionImage(sectionKey, index, direction) {
+                    const prop = sectionKey === 'why_wood' ? 'homeGalleryImages' : 'homeAdvantagesImages';
+                    const list = [...(this[prop] || [])];
+                    const next = index + direction;
+                    if (next < 0 || next >= list.length) return;
+                    [list[index], list[next]] = [list[next], list[index]];
+                    this[prop] = list;
+                    const ids = list.filter(item => item.id).map(item => item.id);
+                    if (ids.length) this.api('/api/home-section-images/reorder', { method: 'PUT', body: JSON.stringify({ sectionKey, ids }) }).catch(() => this.showToast('API xəta', 'Şəkil sırası DB-yə yazılmadı.'));
+                },
+
                 resetHeroForm() {
-                    this.newHero = { id: null, activeIndex: null, active: true, tag: '', tagRu: '', tagEn: '', title1: '', title1Ru: '', title1En: '', title2: '', title2Ru: '', title2En: '', desc: '', descRu: '', descEn: '', image: '' };
+                    this.newHero = { id: null, activeIndex: null, active: true, mediaUrl: '', mediaType: 'image', tag: '', tagRu: '', tagEn: '', title1: '', title1Ru: '', title1En: '', title2: '', title2Ru: '', title2En: '', desc: '', descRu: '', descEn: '', image: '' };
                     this.heroPreviewImg = '';
+                    this.heroPreviewImgFile = null;
                 },
 
                 markMessageRead(id) {
@@ -1745,8 +1851,19 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                                 <template x-for="badge in ['Lak qoruması','İzobon və daş yunu','OSB qat','Dərmanlama','Soba qurudulması','Həşərata qarşı qoruma']" :key="badge"><span class="px-3 py-2 rounded-full bg-wood-50 text-wood-800 text-xs font-bold border border-wood-100" x-text="badge"></span></template>
                             </div>
                         </div>
-                        <div class="grid grid-cols-2 gap-4" data-reveal="slide-left">
-                            <template x-for="(image, index) in visibleAdvantagesImages()" :key="image.src"><div class="rounded-3xl overflow-hidden shadow-lg border border-white" :class="index === 0 ? 'col-span-2 h-72' : 'h-44'"><img :src="image.src" :alt="image.title" class="w-full h-full object-cover hover:scale-105 transition duration-500"></div></template>
+                        <div class="bg-white rounded-[2rem] p-3 shadow-lg border border-stone-200" data-reveal="slide-left">
+                            <div class="relative h-[420px] overflow-hidden rounded-[1.5rem]">
+                                <template x-for="(image, index) in visibleAdvantagesImages()" :key="image.src">
+                                    <img x-show="activeAdvantagesImageIndex === index" x-transition.opacity.duration.500ms :src="image.src" :alt="image.title" class="absolute inset-0 w-full h-full object-cover">
+                                </template>
+                                <div class="absolute inset-0 bg-gradient-to-t from-forest-950/45 via-transparent to-transparent"></div>
+                                <h3 class="absolute left-5 bottom-5 right-5 text-2xl font-black text-white" x-text="visibleAdvantagesImages()[activeAdvantagesImageIndex]?.title"></h3>
+                                <button @click="prevAdvantagesImage(); startHomeGalleryRotation()" class="absolute left-4 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white/85 hover:bg-white text-forest-900 shadow flex items-center justify-center"><i class="fa-solid fa-chevron-left"></i></button>
+                                <button @click="nextAdvantagesImage(); startHomeGalleryRotation()" class="absolute right-4 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white/85 hover:bg-white text-forest-900 shadow flex items-center justify-center"><i class="fa-solid fa-chevron-right"></i></button>
+                                <div class="absolute bottom-4 left-0 right-0 flex justify-center gap-2">
+                                    <template x-for="(image, index) in visibleAdvantagesImages()" :key="`adv-dot-${image.src}`"><button @click="setAdvantagesImage(index)" class="h-2 rounded-full transition-all" :class="activeAdvantagesImageIndex === index ? 'w-8 bg-wood-400' : 'w-2 bg-white/70'"></button></template>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </section>
@@ -1964,6 +2081,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                     <button @click="adminTab = 'projects'" class="px-4 py-2.5 rounded-xl transition" :class="adminTab === 'projects' ? 'bg-forest-700 text-white shadow-sm' : 'bg-white text-stone-600 border border-stone-200'" x-text="t('adminTabProjects')">Layihə Əlavə / Redaktə</button>
                     <button @click="adminTab = 'gallery'" class="px-4 py-2.5 rounded-xl transition" :class="adminTab === 'gallery' ? 'bg-forest-700 text-white shadow-sm' : 'bg-white text-stone-600 border border-stone-200'" x-text="t('adminTabGallery')">Qalereya & Youtube</button>
                     <button @click="adminTab = 'hero'" class="px-4 py-2.5 rounded-xl transition" :class="adminTab === 'hero' ? 'bg-forest-700 text-white shadow-sm' : 'bg-white text-stone-600 border border-stone-200'" x-text="t('adminTabHero')">Hero Slaydlar</button>
+                    <button @click="adminTab = 'home-images'" class="px-4 py-2.5 rounded-xl transition" :class="adminTab === 'home-images' ? 'bg-forest-700 text-white shadow-sm' : 'bg-white text-stone-600 border border-stone-200'">Ana səhifə şəkilləri</button>
                     <button @click="adminTab = 'ads'" class="px-4 py-2.5 rounded-xl transition" :class="adminTab === 'ads' ? 'bg-forest-700 text-white shadow-sm' : 'bg-white text-stone-600 border border-stone-200'" x-text="t('adminTabAds')">Reklam / Banner</button>
                 </div>
 
@@ -2237,12 +2355,16 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                         <div class="order-2 lg:order-1 bg-stone-50 border border-stone-200 rounded-3xl p-5 sm:p-6 space-y-5">
                             <div class="bg-white border-2 border-dashed border-stone-300 hover:border-wood-500 rounded-3xl p-5 text-center transition">
                                 <label class="cursor-pointer block">
-                                    <input type="file" accept="image/*" @change="handleFileSelect($event, 'heroPreviewImg')" class="sr-only">
+                                    <input type="file" accept="image/*,video/*" @change="handleFileSelect($event, 'heroPreviewImg')" class="sr-only">
                                     <span class="mx-auto w-12 h-12 rounded-2xl bg-wood-50 text-wood-700 flex items-center justify-center text-xl"><i class="fa-solid fa-cloud-arrow-up"></i></span>
                                     <span class="block mt-3 text-stone-900 text-sm font-black normal-case">Fon şəkli seç</span>
                                     <span class="block mt-1 text-[10px] text-stone-400 normal-case">Premium hero background üçün şəkil yükləyin</span>
                                 </label>
-                                <template x-if="heroPreviewImg"><div class="relative mt-4 w-full h-44 rounded-2xl overflow-hidden shadow bg-stone-900"><img :src="heroPreviewImg" class="w-full h-full object-cover"><button @click="removeSelectedFile('heroPreviewImg')" class="absolute top-2 right-2 w-8 h-8 bg-black/60 hover:bg-black/85 text-white rounded-full flex items-center justify-center text-xs"><i class="fa-solid fa-x"></i></button></div></template>
+                                <template x-if="heroPreviewImg"><div class="relative mt-4 w-full h-44 rounded-2xl overflow-hidden shadow bg-stone-900"><template x-if="newHero.mediaType !== 'video'"><img :src="heroPreviewImg" class="w-full h-full object-cover"></template><template x-if="newHero.mediaType === 'video'"><video :src="heroPreviewImg" class="w-full h-full object-cover" controls muted></video></template><button @click="removeSelectedFile('heroPreviewImg')" class="absolute top-2 right-2 w-8 h-8 bg-black/60 hover:bg-black/85 text-white rounded-full flex items-center justify-center text-xs"><i class="fa-solid fa-x"></i></button></div></template>
+                            </div>
+                            <div>
+                                <label>Media URL (optional)</label>
+                                <input type="url" x-model="heroPreviewImg" @input="newHero.mediaType = /\.(mp4|webm|mov)(?:[?#].*)?$/i.test(heroPreviewImg) ? 'video' : 'image'" class="w-full px-3 py-2 bg-white border border-stone-200 rounded-lg text-stone-800 tracking-normal mt-1 font-medium normal-case" placeholder="https://.../hero.jpg və ya .mp4">
                             </div>
                             <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
                                 <div><label>Tagline AZ</label><input type="text" x-model="newHero.tag" @input="autocompleteHeroField('tag')" class="w-full px-3 py-2 bg-white border border-stone-200 rounded-lg text-stone-800 tracking-normal mt-1 font-medium"><p class="text-[10px] text-wood-600 mt-1 normal-case" x-text="translationStatusText('heroTag')"></p></div>
@@ -2277,6 +2399,32 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                             </template>
                         </div>
                     </div>
+                </div>
+
+
+                <div x-show="adminTab === 'home-images'" x-transition class="grid grid-cols-1 lg:grid-cols-2 gap-6 text-xs font-bold uppercase text-stone-500">
+                    <template x-for="cfg in [{key:'why_wood', title:'Niyə taxta evlər?', items: visibleHomeGalleryImages()}, {key:'advantages', title:'Üstünlüklərimiz', items: visibleAdvantagesImages()}]" :key="cfg.key">
+                        <div class="bg-white p-6 rounded-3xl border border-stone-200/80 shadow-sm space-y-4">
+                            <h3 class="text-lg font-black text-stone-900 tracking-normal" x-text="cfg.title"></h3>
+                            <input type="file" accept="image/*" @change="handleHomeImageFile(cfg.key, $event)" class="w-full text-stone-600 font-medium tracking-normal text-xs">
+                            <input type="text" x-model="homeImageForms[cfg.key].title" class="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg text-stone-800 tracking-normal font-medium" placeholder="Optional title">
+                            <template x-if="homeImagePreviews[cfg.key]"><img :src="homeImagePreviews[cfg.key]" class="w-full h-36 object-cover rounded-xl shadow"></template>
+                            <button @click="saveHomeSectionImage(cfg.key)" class="w-full py-3 bg-forest-700 text-white rounded-xl font-bold normal-case">Save</button>
+                            <div class="space-y-3">
+                                <template x-for="(item, idx) in cfg.items" :key="item.id || item.src">
+                                    <div class="p-3 bg-stone-50 rounded-2xl border border-stone-200 flex items-center justify-between gap-3">
+                                        <div class="flex items-center gap-3 min-w-0"><img :src="item.src" class="w-14 h-14 object-cover rounded-xl shadow"><div class="min-w-0"><p class="text-stone-900 normal-case truncate" x-text="item.title || item.src"></p><p class="text-[9px]" x-text="item.active === false ? 'Deaktiv' : 'Aktiv'"></p></div></div>
+                                        <div class="grid grid-cols-2 gap-1 shrink-0">
+                                            <button @click="toggleHomeSectionImage(cfg.key, item)" class="px-2 py-1 bg-wood-50 text-wood-700 rounded" x-text="item.active === false ? 'Aktiv et' : 'Deaktiv et'"></button>
+                                            <button @click="deleteHomeSectionImage(cfg.key, item)" class="px-2 py-1 bg-red-50 text-red-700 rounded">Sil</button>
+                                            <button @click="moveHomeSectionImage(cfg.key, idx, -1)" :disabled="idx === 0" class="px-2 py-1 bg-stone-100 rounded disabled:opacity-40">↑</button>
+                                            <button @click="moveHomeSectionImage(cfg.key, idx, 1)" :disabled="idx === cfg.items.length - 1" class="px-2 py-1 bg-stone-100 rounded disabled:opacity-40">↓</button>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                    </template>
                 </div>
 
                 <!-- SUB-TAB 6: SINGLE AD BANNER CUSTOMIZER -->

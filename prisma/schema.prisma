@@ -53,24 +53,37 @@ model GalleryItem {
 }
 
 model HeroSlide {
-  id        Int      @id @default(autoincrement())
-  image     String
-  tagAz     String?  @map("tag_az")
-  tagRu     String?  @map("tag_ru")
-  tagEn     String?  @map("tag_en")
-  title1Az  String?  @map("title1_az")
-  title1Ru  String?  @map("title1_ru")
-  title1En  String?  @map("title1_en")
-  title2Az  String?  @map("title2_az")
-  title2Ru  String?  @map("title2_ru")
-  title2En  String?  @map("title2_en")
-  descAz    String?  @map("desc_az")
-  descRu    String?  @map("desc_ru")
-  descEn    String?  @map("desc_en")
-  sortOrder Int      @default(0) @map("sort_order")
-  active    Boolean  @default(true)
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  id           Int      @id @default(autoincrement())
+  legacyId     Int?     @unique @map("legacy_id")
+  titleAz      String?  @map("title_az")
+  titleRu      String?  @map("title_ru")
+  titleEn      String?  @map("title_en")
+  subtitleAz   String?  @map("subtitle_az")
+  subtitleRu   String?  @map("subtitle_ru")
+  subtitleEn   String?  @map("subtitle_en")
+  mediaType    String   @default("image") @map("media_type")
+  mediaUrl     String   @map("media_url")
+  image        String?
+  buttonTextAz String?  @map("button_text_az")
+  buttonTextRu String?  @map("button_text_ru")
+  buttonTextEn String?  @map("button_text_en")
+  buttonLink   String?  @map("button_link")
+  tagAz        String?  @map("tag_az")
+  tagRu        String?  @map("tag_ru")
+  tagEn        String?  @map("tag_en")
+  title1Az     String?  @map("title1_az")
+  title1Ru     String?  @map("title1_ru")
+  title1En     String?  @map("title1_en")
+  title2Az     String?  @map("title2_az")
+  title2Ru     String?  @map("title2_ru")
+  title2En     String?  @map("title2_en")
+  descAz       String?  @map("desc_az")
+  descRu       String?  @map("desc_ru")
+  descEn       String?  @map("desc_en")
+  sortOrder    Int      @default(0) @map("sort_order")
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
 
   @@map("hero_slides")
 }
@@ -105,14 +118,30 @@ model Banner {
 
 model ContactMessage {
   id        Int      @id @default(autoincrement())
-  name      String
-  phone     String
+  legacyId  Int?     @unique @map("legacy_id")
+  name      String?
+  fullname  String?
+  phone     String?
   email     String?
   message   String
-  read      Boolean  @default(false)
+  isRead    Boolean  @default(false) @map("is_read")
   createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   @@map("contact_messages")
+}
+
+model HomeSectionImage {
+  id         String   @id @default(uuid()) @db.Uuid
+  sectionKey String   @map("section_key")
+  title      String?
+  imageUrl   String   @map("image_url")
+  sortOrder  Int      @default(0) @map("sort_order")
+  active     Boolean  @default(true)
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@map("home_section_images")
 }
 
 model SiteStat {
