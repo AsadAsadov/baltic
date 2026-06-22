@@ -86,7 +86,7 @@ model Banner {
   duration  Int      @default(15)
   views     Int      @default(0)
   clicks    Int      @default(0)
-  position  String   @default("main")
+  placement String   @default("both")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 

@@ -118,7 +118,7 @@
                 { id: 1, name: 'Həsən Əliyev', phone: '+994 50 211 44 55', email: 'hasan@mail.ru', message: 'Şamaxıda 2 mərtəbəli evin inşası ile bağlı əlaqə saxlayın.', date: '21.06.2026', read: false }
             ];
 
-            const defaultBanner = { active: true, type: 'image', src: 'https://images.unsplash.com/photo-1542718610-a1d656d1884c?auto=format&fit=crop&q=80&w=300', link: 'https://balticcaspian.com', title: 'Lüks Taxta Evlər - İndi Sifariş Et', width: 160, height: 400, duration: 15, views: 1300, clicks: 46 };
+            const defaultBanner = { active: true, placement: 'both', type: 'image', src: 'https://images.unsplash.com/photo-1542718610-a1d656d1884c?auto=format&fit=crop&q=80&w=300', link: 'https://balticcaspian.com', title: 'Lüks Taxta Evlər - İndi Sifariş Et', width: 160, height: 400, duration: 15, views: 1300, clicks: 46 };
             const legacyBanners = JSON.parse(localStorage.getItem('bc_banners') || 'null');
             const storedBanner = JSON.parse(localStorage.getItem('bc_banner') || localStorage.getItem('mainBanner') || 'null');
             const migratedBanner = storedBanner || (legacyBanners ? (legacyBanners.left?.src ? legacyBanners.left : legacyBanners.right) : null) || defaultBanner;
@@ -160,7 +160,8 @@
                     messagesCount: 1
                 },
 
-                // Single advertising banner mirrored automatically on both side rails
+                // Advertising banners with left/right/both placement
+                banners: [],
                 mainBanner: migratedBanner,
 
                 // Active forms
@@ -169,7 +170,7 @@
                 newHero: { activeIndex: 0, tag: '', tagRu: '', tagEn: '', title1: '', title1Ru: '', title1En: '', title2: '', title2Ru: '', title2En: '', desc: '', descRu: '', descEn: '', image: '' },
                 
                 // Single advertising form inputs
-                newAd: { active: true, type: 'image', src: '', link: '', title: '', width: 160, height: 400, duration: 15 },
+                newAd: { id: null, placement: 'both', active: true, type: 'image', src: '', link: '', title: '', width: 160, height: 400, duration: 15 },
 
                 // Preview images in creation
                 projectPreviewImg: '',
@@ -348,7 +349,10 @@
                         headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
                         ...options
                     });
-                    if (!res.ok) throw new Error(`API ${res.status}: ${path}`);
+                    if (!res.ok) {
+                        if (res.status === 404 && path.startsWith('/api/')) console.warn('API not available. Make sure Render deployment is Web Service, not Static Site.');
+                        throw new Error(`API ${res.status}: ${path}`);
+                    }
                     return res.status === 204 ? null : res.json();
                 },
 
@@ -357,6 +361,7 @@
                         const data = await this.api(path, options);
                         return data ?? fallback;
                     } catch (error) {
+                        if (String(error.message || '').includes('API 404')) console.warn('API not available. Make sure Render deployment is Web Service, not Static Site.');
                         console.error(`Failed ${path}`, error);
                         this.showToast('API xəta', 'Məlumat bazası əlçatan deyil, fallback/cache istifadə olunur.');
                         return fallback;
@@ -428,7 +433,7 @@
                 },
                 normalizeBanner(banner = {}) {
                     const src = banner.src || banner.image || banner.mediaUrl || banner.url || '';
-                    return { id: banner.id ?? '', active: banner.active ?? false, type: banner.type || 'image', src, image: banner.image || src, mediaUrl: banner.mediaUrl || src, url: banner.url || src, link: banner.link || '', title: banner.title || '', width: Number(banner.width) || 160, height: Number(banner.height) || 400, duration: Number(banner.duration) || 15, views: Number(banner.views) || 0, clicks: Number(banner.clicks) || 0, position: banner.position || 'main' };
+                    return { id: banner.id ?? '', active: banner.active ?? false, type: banner.type || 'image', src, image: banner.image || src, mediaUrl: banner.mediaUrl || src, url: banner.url || src, link: banner.link || '', title: banner.title || '', width: Number(banner.width) || 160, height: Number(banner.height) || 400, duration: Number(banner.duration) || 15, views: Number(banner.views) || 0, clicks: Number(banner.clicks) || 0, placement: banner.placement || banner.position || 'both', position: banner.placement || banner.position || 'both' };
                 },
                 normalizeBanners(payload, fallback = migratedBanner) {
                     const banners = this.asArray(payload).map(item => this.normalizeBanner(item));
@@ -454,7 +459,8 @@
                     this.galleryItems = this.normalizeGallery(valueAt(1, cached('bc_gallery', defaultGallery)), defaultGallery);
                     this.slides = this.normalizeSlides(valueAt(2, cached('bc_slides', defaultSlides)), defaultSlides);
                     const banners = this.normalizeBanners(valueAt(3, cached('bc_banner', migratedBanner)), migratedBanner);
-                    this.mainBanner = banners.find(b => b.position === 'main') || banners[0] || this.normalizeBanner(migratedBanner);
+                    this.banners = banners;
+                    this.mainBanner = this.bannerForSide('left') || this.bannerForSide('right') || banners[0] || this.normalizeBanner(migratedBanner);
                     this.stats = { ...this.stats, ...(valueAt(4, cached('bc_stats', this.stats)) || {}) };
                     console.info('GET /api/projects'); console.info(`Loaded projects: ${this.projects.length}`);
                     console.info('GET /api/gallery'); console.info(`Loaded gallery: ${this.galleryItems.length}`);
@@ -622,6 +628,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                     localStorage.setItem('bc_messages', JSON.stringify(this.messages));
                     localStorage.setItem('bc_stats', JSON.stringify(this.stats));
                     localStorage.setItem('bc_banner', JSON.stringify(this.mainBanner));
+                    localStorage.setItem('bc_banners_list', JSON.stringify(this.banners));
                     localStorage.setItem('mainBanner', JSON.stringify(this.mainBanner));
                 },
 
@@ -630,34 +637,37 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                 },
 
                 resetAdForm() {
-                    this.newAd = { active: true, type: 'image', src: '', link: '', title: '', width: 160, height: 400, duration: 15 };
+                    this.newAd = { id: null, placement: 'both', active: true, type: 'image', src: '', link: '', title: '', width: 160, height: 400, duration: 15 };
                     this.adPreviewImg = '';
                 },
 
-                getMainBanner() {
-                    return this.mainBanner || {};
+                bannerForSide(side) {
+                    const list = Array.isArray(this.banners) && this.banners.length ? this.banners : [this.normalizeBanner(this.mainBanner || migratedBanner)];
+                    return list.find(b => b.active && b.src && (b.placement === side || b.placement === 'both')) || null;
                 },
 
-                setupEditAd() {
-                    const ad = this.getMainBanner();
-                    this.newAd = { active: !!ad.active, type: ad.type || 'image', src: ad.src || '', link: ad.link || '', title: ad.title || '', width: ad.width || 160, height: ad.height || 400, duration: ad.duration || 15 };
-                    this.adPreviewImg = ad.src || '';
+                setupEditAd(ad = null) {
+                    const selected = ad || this.mainBanner || {};
+                    this.newAd = { id: selected.id || null, placement: selected.placement || 'both', active: !!selected.active, type: selected.type || 'image', src: selected.src || '', link: selected.link || '', title: selected.title || '', width: selected.width || 160, height: selected.height || 400, duration: selected.duration || 15 };
+                    this.adPreviewImg = selected.src || '';
                 },
 
-                deleteAd() {
+                deleteAd(ad = null) {
                     this.triggerAction(async () => {
-                        const oldId = this.mainBanner?.id;
-                        this.mainBanner = { ...(this.mainBanner || {}), active: false, src: '', title: '', views: this.mainBanner?.views || 0, clicks: this.mainBanner?.clicks || 0 };
-                        if (oldId) await this.api(`/api/banners/${oldId}`, { method: 'DELETE' });
+                        const selected = ad || this.newAd;
+                        if (selected?.id) await this.api(`/api/banners/${selected.id}`, { method: 'DELETE' });
+                        this.banners = (this.banners || []).filter(b => b.id !== selected?.id);
+                        this.mainBanner = this.bannerForSide('left') || this.bannerForSide('right') || {};
                         this.cacheSave();
                         this.resetAdForm();
-                        this.showToast('Silindi', 'Əsas reklam banneri silindi.');
+                        this.showToast('Silindi', 'Reklam banneri silindi.');
                     });
                 },
 
-                toggleAdActive() {
-                    this.mainBanner.active = !this.mainBanner.active;
-                    if (this.mainBanner.id) this.api(`/api/banners/${this.mainBanner.id}/toggle`, { method: 'PATCH', body: JSON.stringify({ active: this.mainBanner.active }) }).catch(() => this.showToast('API xəta', 'Banner statusu DB-yə yazılmadı.'));
+                toggleAdActive(ad) {
+                    ad.active = !ad.active;
+                    if (ad.id) this.api(`/api/banners/${ad.id}/toggle`, { method: 'PATCH', body: JSON.stringify({ active: ad.active }) }).catch(() => this.showToast('API xəta', 'Banner statusu DB-yə yazılmadı.'));
+                    this.mainBanner = this.bannerForSide('left') || this.bannerForSide('right') || ad;
                     this.cacheSave();
                 },
 
@@ -703,14 +713,15 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                 },
 
                 incrementAdView(side) {
-                    const sessionKey = `bc_ad_viewed_main_${side}`;
-                    if (!this.mainBanner || this.viewedAdsThisSession[side] || sessionStorage.getItem(sessionKey)) return;
+                    const banner = this.bannerForSide(side);
+                    const sessionKey = `bc_ad_viewed_${banner?.id || 'fallback'}_${side}`;
+                    if (!banner || this.viewedAdsThisSession[side] || sessionStorage.getItem(sessionKey)) return;
                     this.viewedAdsThisSession[side] = true;
                     sessionStorage.setItem(sessionKey, 'true');
-                    this.mainBanner.views = (this.mainBanner.views || 0) + 1;
-                    this.stats.adViews = this.mainBanner.views || 0;
+                    banner.views = (banner.views || 0) + 1;
+                    this.stats.adViews = banner.views || 0;
                     this.cacheSave();
-                    if (this.mainBanner.id) this.api(`/api/banners/${this.mainBanner.id}/view`, { method: 'POST' }).catch(() => this.showToast('API xəta', 'Reklam baxışı DB-yə yazılmadı.'));
+                    if (banner.id) this.api(`/api/banners/${banner.id}/view`, { method: 'POST' }).catch(() => this.showToast('API xəta', 'Reklam baxışı DB-yə yazılmadı.'));
                 },
 
                 initAdObservers() {
@@ -724,10 +735,11 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                     });
                 },
 
-                incrementAdClick() {
-                    if (this.mainBanner) {
-                        this.mainBanner.clicks = (this.mainBanner.clicks || 0) + 1;
-                        if (this.mainBanner.id) this.api(`/api/banners/${this.mainBanner.id}/click`, { method: 'POST' }).catch(() => this.showToast('API xəta', 'Reklam klik DB-yə yazılmadı.'));
+                incrementAdClick(side = 'left') {
+                    const banner = this.bannerForSide(side);
+                    if (banner) {
+                        banner.clicks = (banner.clicks || 0) + 1;
+                        if (banner.id) this.api(`/api/banners/${banner.id}/click`, { method: 'POST' }).catch(() => this.showToast('API xəta', 'Reklam klik DB-yə yazılmadı.'));
                     }
                     this.cacheSave();
                 },
@@ -962,13 +974,15 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                     });
                 },
 
-                // Saves the single Advertising banner mirrored on both desktop sides
+                // Saves one Advertising banner with left/right/both placement
                 saveAd() {
                     this.triggerAction(async () => {
                         const finalSrc = this.adPreviewImg || this.newAd.src || '';
                         this.mainBanner = {
                             ...(this.mainBanner || {}),
+                            id: this.newAd.id,
                             active: this.newAd.active,
+                            placement: this.newAd.placement,
                             type: this.newAd.type,
                             src: finalSrc,
                             link: this.newAd.link,
@@ -979,10 +993,11 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                             views: this.mainBanner?.views || 0,
                             clicks: this.mainBanner?.clicks || 0
                         };
-                        const saved = await this.api(this.mainBanner.id ? `/api/banners/${this.mainBanner.id}` : '/api/banners', { method: this.mainBanner.id ? 'PUT' : 'POST', body: JSON.stringify(this.mainBanner) });
-                        this.mainBanner = saved;
+                        const saved = await this.api(this.newAd.id ? `/api/banners/${this.newAd.id}` : '/api/banners', { method: this.newAd.id ? 'PUT' : 'POST', body: JSON.stringify(this.mainBanner) });
+                        this.banners = [saved, ...(this.banners || []).filter(b => b.id !== saved.id)];
+                        this.mainBanner = this.bannerForSide('left') || this.bannerForSide('right') || saved;
                         this.cacheSave();
-                        this.showToast('Yadda Saxlanıldı', 'Əsas reklam banneri yeniləndi!');
+                        this.showToast('Yadda Saxlanıldı', 'Reklam banneri yeniləndi!');
                         this.resetAdForm();
                     });
                 },
@@ -1331,16 +1346,16 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                     </div>
                 </section>
 
-                <div class="mx-auto w-full max-w-[calc(100vw-2rem)] xl:grid xl:grid-cols-[184px_minmax(0,1fr)_184px] xl:gap-6 xl:items-start" :class="mainBanner.active && mainBanner.src ? '' : 'xl:block'">
-                <aside x-show="mainBanner.active && mainBanner.src" x-cloak class="hidden xl:flex justify-center min-w-0" data-ad-side="left">
-                    <div class="sticky top-24 self-start w-[184px] flex flex-col items-center py-2">
+                <div class="mx-auto w-full max-w-[calc(100vw-2rem)] xl:grid xl:grid-cols-[184px_minmax(0,1fr)_184px] xl:gap-6 xl:items-start" :class="(bannerForSide('left') || bannerForSide('right')) ? '' : 'xl:block'">
+                <aside x-show="bannerForSide('left')" x-cloak class="hidden xl:flex justify-center min-w-0" data-ad-side="left">
+                    <div class="w-[184px] flex flex-col items-center py-2">
                         <div class="relative w-[160px] max-h-[calc(100vh-140px)] bg-white shadow-xl rounded-2xl overflow-hidden border border-stone-200">
-                            <a :href="mainBanner.link || '#'" target="_blank" rel="noopener" class="block w-full h-full relative group" @click="incrementAdClick()">
-                                <template x-if="mainBanner.type === 'image'"><img :src="mainBanner.src" class="w-full object-cover group-hover:scale-105 transition duration-500" :style="`height: min(${mainBanner.height || 400}px, calc(100vh - 140px));`" alt="Reklam banneri"></template>
-                                <template x-if="mainBanner.type === 'video'"><video :src="mainBanner.src" autoplay loop muted playsinline class="w-full object-cover" :style="`height: min(${mainBanner.height || 400}px, calc(100vh - 140px));`"></video></template>
+                            <a :href="bannerForSide('left').link || '#'" target="_blank" rel="noopener" class="block w-full h-full relative group" @click="incrementAdClick($el.closest('[data-ad-side]')?.dataset.adSide || 'left')">
+                                <template x-if="bannerForSide('left').type === 'image'"><img :src="bannerForSide('left').src" class="w-full object-cover group-hover:scale-105 transition duration-500" :style="`height: min(${bannerForSide('left').height || 400}px, calc(100vh - 140px));`" alt="Reklam banneri"></template>
+                                <template x-if="bannerForSide('left').type === 'video'"><video :src="bannerForSide('left').src" autoplay loop muted playsinline class="w-full object-cover" :style="`height: min(${bannerForSide('left').height || 400}px, calc(100vh - 140px));`"></video></template>
                             </a>
                         </div>
-                        <p class="text-xs text-stone-500 font-bold mt-3 text-center max-w-[160px] break-words px-1" x-text="mainBanner.title"></p>
+                        <p class="text-xs text-stone-500 font-bold mt-3 text-center max-w-[160px] break-words px-1" x-text="bannerForSide('left').title"></p>
                     </div>
                 </aside>
 
@@ -1416,15 +1431,15 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                     </div>
                 </section>
                     </div>
-                <aside x-show="mainBanner.active && mainBanner.src" x-cloak class="hidden xl:flex justify-center min-w-0" data-ad-side="right">
-                    <div class="sticky top-24 self-start w-[184px] flex flex-col items-center py-2">
+                <aside x-show="bannerForSide('right')" x-cloak class="hidden xl:flex justify-center min-w-0" data-ad-side="right">
+                    <div class="w-[184px] flex flex-col items-center py-2">
                         <div class="relative w-[160px] max-h-[calc(100vh-140px)] bg-white shadow-xl rounded-2xl overflow-hidden border border-stone-200">
-                            <a :href="mainBanner.link || '#'" target="_blank" rel="noopener" class="block w-full h-full relative group" @click="incrementAdClick()">
-                                <template x-if="mainBanner.type === 'image'"><img :src="mainBanner.src" class="w-full object-cover group-hover:scale-105 transition duration-500" :style="`height: min(${mainBanner.height || 400}px, calc(100vh - 140px));`" alt="Reklam banneri"></template>
-                                <template x-if="mainBanner.type === 'video'"><video :src="mainBanner.src" autoplay loop muted playsinline class="w-full object-cover" :style="`height: min(${mainBanner.height || 400}px, calc(100vh - 140px));`"></video></template>
+                            <a :href="bannerForSide('right').link || '#'" target="_blank" rel="noopener" class="block w-full h-full relative group" @click="incrementAdClick($el.closest('[data-ad-side]')?.dataset.adSide || 'left')">
+                                <template x-if="bannerForSide('right').type === 'image'"><img :src="bannerForSide('right').src" class="w-full object-cover group-hover:scale-105 transition duration-500" :style="`height: min(${bannerForSide('right').height || 400}px, calc(100vh - 140px));`" alt="Reklam banneri"></template>
+                                <template x-if="bannerForSide('right').type === 'video'"><video :src="bannerForSide('right').src" autoplay loop muted playsinline class="w-full object-cover" :style="`height: min(${bannerForSide('right').height || 400}px, calc(100vh - 140px));`"></video></template>
                             </a>
                         </div>
-                        <p class="text-xs text-stone-500 font-bold mt-3 text-center max-w-[160px] break-words px-1" x-text="mainBanner.title"></p>
+                        <p class="text-xs text-stone-500 font-bold mt-3 text-center max-w-[160px] break-words px-1" x-text="bannerForSide('right').title"></p>
                     </div>
                 </aside>
 
@@ -1432,16 +1447,16 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
             </div>
 
             <!-- 2. PROJECTS CATALOGUE PAGE -->
-            <div x-show="page !== 'home'" x-cloak class="mx-auto w-full max-w-[calc(100vw-2rem)] xl:grid xl:grid-cols-[184px_minmax(0,1fr)_184px] xl:gap-6 xl:items-start" :class="mainBanner.active && mainBanner.src ? '' : 'xl:block'">
-                <aside x-show="mainBanner.active && mainBanner.src" x-cloak class="hidden xl:flex justify-center min-w-0" data-ad-side="left">
-                    <div class="sticky top-24 self-start w-[184px] flex flex-col items-center py-2">
+            <div x-show="page !== 'home'" x-cloak class="mx-auto w-full max-w-[calc(100vw-2rem)] xl:grid xl:grid-cols-[184px_minmax(0,1fr)_184px] xl:gap-6 xl:items-start" :class="(bannerForSide('left') || bannerForSide('right')) ? '' : 'xl:block'">
+                <aside x-show="bannerForSide('left')" x-cloak class="hidden xl:flex justify-center min-w-0" data-ad-side="left">
+                    <div class="w-[184px] flex flex-col items-center py-2">
                         <div class="relative w-[160px] max-h-[calc(100vh-140px)] bg-white shadow-xl rounded-2xl overflow-hidden border border-stone-200">
-                            <a :href="mainBanner.link || '#'" target="_blank" rel="noopener" class="block w-full h-full relative group" @click="incrementAdClick()">
-                                <template x-if="mainBanner.type === 'image'"><img :src="mainBanner.src" class="w-full object-cover group-hover:scale-105 transition duration-500" :style="`height: min(${mainBanner.height || 400}px, calc(100vh - 140px));`" alt="Reklam banneri"></template>
-                                <template x-if="mainBanner.type === 'video'"><video :src="mainBanner.src" autoplay loop muted playsinline class="w-full object-cover" :style="`height: min(${mainBanner.height || 400}px, calc(100vh - 140px));`"></video></template>
+                            <a :href="bannerForSide('left').link || '#'" target="_blank" rel="noopener" class="block w-full h-full relative group" @click="incrementAdClick($el.closest('[data-ad-side]')?.dataset.adSide || 'left')">
+                                <template x-if="bannerForSide('left').type === 'image'"><img :src="bannerForSide('left').src" class="w-full object-cover group-hover:scale-105 transition duration-500" :style="`height: min(${bannerForSide('left').height || 400}px, calc(100vh - 140px));`" alt="Reklam banneri"></template>
+                                <template x-if="bannerForSide('left').type === 'video'"><video :src="bannerForSide('left').src" autoplay loop muted playsinline class="w-full object-cover" :style="`height: min(${bannerForSide('left').height || 400}px, calc(100vh - 140px));`"></video></template>
                             </a>
                         </div>
-                        <p class="text-xs text-stone-500 font-bold mt-3 text-center max-w-[160px] break-words px-1" x-text="mainBanner.title"></p>
+                        <p class="text-xs text-stone-500 font-bold mt-3 text-center max-w-[160px] break-words px-1" x-text="bannerForSide('left').title"></p>
                     </div>
                 </aside>
 
@@ -1908,10 +1923,10 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                 <div x-show="adminTab === 'ads'" x-transition class="bg-white p-6 rounded-3xl border border-stone-200/80 shadow-sm space-y-6 text-xs font-bold uppercase text-stone-500">
                     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                         <div>
-                            <h3 class="text-lg font-black text-stone-900 tracking-normal">Əsas reklam banneri</h3>
-                            <p class="text-stone-500 normal-case mt-1">Bu 1 banner avtomatik həm solda, həm də sağda eyni göstərilir.</p>
+                            <h3 class="text-lg font-black text-stone-900 tracking-normal">Reklam bannerləri</h3>
+                            <p class="text-stone-500 normal-case mt-1">Hər banner üçün sol, sağ və ya hər iki tərəf yerləşimini seçin.</p>
                         </div>
-                        <div class="flex flex-wrap gap-2"><button @click="setupEditAd()" class="px-4 py-2 bg-wood-600 hover:bg-wood-700 text-white rounded-xl font-black normal-case"><i class="fa-solid fa-pen-to-square mr-2"></i>Mövcud reklamı redaktə et</button><button @click="resetAdForm()" class="px-4 py-2 bg-white hover:bg-stone-50 text-forest-800 border border-stone-200 rounded-xl font-black normal-case"><i class="fa-solid fa-plus mr-2"></i>Yeni reklam</button></div>
+                        <div class="flex flex-wrap gap-2"><button @click="resetAdForm()" class="px-4 py-2 bg-white hover:bg-stone-50 text-forest-800 border border-stone-200 rounded-xl font-black normal-case"><i class="fa-solid fa-plus mr-2"></i>Yeni reklam</button></div>
                     </div>
 
                     <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
@@ -1919,6 +1934,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                             <h4 class="font-extrabold text-stone-900 tracking-normal normal-case">Banner məlumatları</h4>
                             <label class="flex items-center gap-1.5 font-bold text-stone-700 normal-case"><input type="checkbox" x-model="newAd.active" class="w-4 h-4 rounded text-forest-700"><span>Aktiv</span></label>
                             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <div><label>Yerləşim</label><select x-model="newAd.placement" class="w-full px-3 py-2 bg-white border border-stone-200 rounded-lg text-stone-800 tracking-normal mt-1 font-medium"><option value="left">Sol</option><option value="right">Sağ</option><option value="both">Hər ikisi</option></select></div>
                                 <div><label>Tip</label><select x-model="newAd.type" class="w-full px-3 py-2 bg-white border border-stone-200 rounded-lg text-stone-800 tracking-normal mt-1 font-medium"><option value="image">Şəkil</option><option value="video">Video</option></select></div>
                                 <div><label>Link</label><input type="text" x-model="newAd.link" class="w-full px-3 py-2 bg-white border border-stone-200 rounded-lg text-stone-800 tracking-normal mt-1 font-medium"></div>
                             </div>
@@ -1945,19 +1961,29 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                                 </div>
                                 <div class="grid grid-cols-4 gap-2 text-center"><div class="bg-white p-3 rounded-xl border"><span class="block text-[9px] text-stone-400">Status</span><span class="block font-black text-stone-800 text-xs" x-text="mainBanner.active ? 'Aktiv' : 'Deaktiv'"></span></div><div class="bg-white p-3 rounded-xl border"><span class="block text-[9px] text-stone-400">Views</span><span class="block font-black text-stone-800 text-xs" x-text="mainBanner.views || 0"></span></div><div class="bg-white p-3 rounded-xl border"><span class="block text-[9px] text-stone-400">Clicks</span><span class="block font-black text-stone-800 text-xs" x-text="mainBanner.clicks || 0"></span></div><div class="bg-white p-3 rounded-xl border"><span class="block text-[9px] text-stone-400">Size</span><span class="block font-black text-stone-800 text-xs" x-text="`${mainBanner.width || 160}×${mainBanner.height || 400}`"></span></div></div>
                             </div>
-                        </div>
+
+                                <div class="mt-5 space-y-3">
+                                    <h4 class="font-extrabold text-stone-900 tracking-normal normal-case">Mövcud bannerlər</h4>
+                                    <template x-for="ad in (Array.isArray(banners) ? banners : [])" :key="ad.id || ad.src">
+                                        <div class="bg-white rounded-2xl border border-stone-200 p-3 flex gap-3 items-center normal-case">
+                                            <div class="w-16 h-20 rounded-lg overflow-hidden bg-stone-100 flex-shrink-0"><template x-if="ad.type === 'image' && ad.src"><img :src="ad.src" class="w-full h-full object-cover"></template><template x-if="ad.type === 'video' && ad.src"><video :src="ad.src" muted playsinline class="w-full h-full object-cover"></video></template></div>
+                                            <div class="min-w-0 flex-1"><p class="font-black text-stone-900 truncate" x-text="ad.title || 'Adsız banner'"></p><p class="text-[10px] text-stone-500">Placement: <span x-text="ad.placement"></span> · <span x-text="ad.active ? 'Aktiv' : 'Deaktiv'"></span></p><p class="text-[10px] text-stone-500">Views: <span x-text="ad.views || 0"></span> · Clicks: <span x-text="ad.clicks || 0"></span></p></div>
+                                            <div class="flex flex-col gap-1"><button @click="setupEditAd(ad)" class="px-2 py-1 bg-forest-50 text-forest-700 rounded font-bold">Edit</button><button @click="toggleAdActive(ad)" class="px-2 py-1 bg-wood-50 text-wood-700 rounded font-bold" x-text="ad.active ? 'Deactivate' : 'Activate'"></button><button @click="deleteAd(ad)" class="px-2 py-1 bg-red-50 text-red-700 rounded font-bold">Delete</button></div>
+                                        </div>
+                                    </template>
+                                </div></div>
                     </div>
                 </div>            </div>
                 </div>
-                <aside x-show="mainBanner.active && mainBanner.src" x-cloak class="hidden xl:flex justify-center min-w-0" data-ad-side="right">
-                    <div class="sticky top-24 self-start w-[184px] flex flex-col items-center py-2">
+                <aside x-show="bannerForSide('right')" x-cloak class="hidden xl:flex justify-center min-w-0" data-ad-side="right">
+                    <div class="w-[184px] flex flex-col items-center py-2">
                         <div class="relative w-[160px] max-h-[calc(100vh-140px)] bg-white shadow-xl rounded-2xl overflow-hidden border border-stone-200">
-                            <a :href="mainBanner.link || '#'" target="_blank" rel="noopener" class="block w-full h-full relative group" @click="incrementAdClick()">
-                                <template x-if="mainBanner.type === 'image'"><img :src="mainBanner.src" class="w-full object-cover group-hover:scale-105 transition duration-500" :style="`height: min(${mainBanner.height || 400}px, calc(100vh - 140px));`" alt="Reklam banneri"></template>
-                                <template x-if="mainBanner.type === 'video'"><video :src="mainBanner.src" autoplay loop muted playsinline class="w-full object-cover" :style="`height: min(${mainBanner.height || 400}px, calc(100vh - 140px));`"></video></template>
+                            <a :href="bannerForSide('right').link || '#'" target="_blank" rel="noopener" class="block w-full h-full relative group" @click="incrementAdClick($el.closest('[data-ad-side]')?.dataset.adSide || 'left')">
+                                <template x-if="bannerForSide('right').type === 'image'"><img :src="bannerForSide('right').src" class="w-full object-cover group-hover:scale-105 transition duration-500" :style="`height: min(${bannerForSide('right').height || 400}px, calc(100vh - 140px));`" alt="Reklam banneri"></template>
+                                <template x-if="bannerForSide('right').type === 'video'"><video :src="bannerForSide('right').src" autoplay loop muted playsinline class="w-full object-cover" :style="`height: min(${bannerForSide('right').height || 400}px, calc(100vh - 140px));`"></video></template>
                             </a>
                         </div>
-                        <p class="text-xs text-stone-500 font-bold mt-3 text-center max-w-[160px] break-words px-1" x-text="mainBanner.title"></p>
+                        <p class="text-xs text-stone-500 font-bold mt-3 text-center max-w-[160px] break-words px-1" x-text="bannerForSide('right').title"></p>
                     </div>
                 </aside>
 
