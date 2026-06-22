@@ -121,7 +121,7 @@
             const defaultBanner = { id: null, active: true, placement: 'both', type: 'image', mediaType: 'image', src: 'https://images.unsplash.com/photo-1542718610-a1d656d1884c?auto=format&fit=crop&q=80&w=300', mediaUrl: 'https://images.unsplash.com/photo-1542718610-a1d656d1884c?auto=format&fit=crop&q=80&w=300', link: 'https://balticcaspian.com', linkUrl: 'https://balticcaspian.com', title: 'Lüks Taxta Evlər - İndi Sifariş Et', width: 160, height: 400, duration: 15, views: 1300, clicks: 46 };
             const legacyBanners = JSON.parse(localStorage.getItem('bc_banners') || 'null');
             const storedBanner = JSON.parse(localStorage.getItem('bc_banner') || localStorage.getItem('mainBanner') || 'null');
-            const migratedBanner = storedBanner || (legacyBanners ? (legacyBanners.left?.src ? legacyBanners.left : legacyBanners.right) : null) || defaultBanner;
+            const migratedBanner = storedBanner || (legacyBanners ? (legacyBanners.left?.src ? legacyBanners.left : legacyBanners.right) : null) || null;
 
             return {
                 lang: 'az',
@@ -442,7 +442,7 @@
                 normalizeBanner(banner = {}, side = 'both') {
                     return this.getSafeBanner(banner, side);
                 },
-                normalizeBanners(payload, fallback = migratedBanner) {
+                normalizeBanners(payload, fallback = null) {
                     const list = [];
                     const add = (item, side = 'both') => { const banner = this.normalizeBanner(item, side); if (banner.src || banner.mediaUrl || banner.active || banner.id) list.push(banner); };
                     if (Array.isArray(payload)) payload.forEach(item => add(item));
@@ -467,7 +467,7 @@
                         ['/api/projects', cached('bc_projects', defaultProjects)],
                         ['/api/gallery', cached('bc_gallery', defaultGallery)],
                         ['/api/hero-slides', cached('bc_slides', defaultSlides)],
-                        ['/api/banners', cached('bc_banners_list', this.normalizeBanners(cached('bc_banner', migratedBanner), migratedBanner))],
+                        ['/api/banners', cached('bc_banners_list', [])],
                         ['/api/stats', cached('bc_stats', this.stats)]
                     ];
                     const settled = await Promise.allSettled(requests.map(([path, fallback]) => this.safeApi(path, fallback)));
@@ -475,9 +475,9 @@
                     this.projects = this.normalizeProjects(valueAt(0, cached('bc_projects', defaultProjects)), defaultProjects);
                     this.galleryItems = this.normalizeGallery(valueAt(1, cached('bc_gallery', defaultGallery)), defaultGallery);
                     this.slides = this.normalizeSlides(valueAt(2, cached('bc_slides', defaultSlides)), defaultSlides);
-                    const banners = this.normalizeBanners(valueAt(3, cached('bc_banner', migratedBanner)), migratedBanner);
+                    const banners = this.normalizeBanners(valueAt(3, cached('bc_banners_list', [])), null);
                     this.banners = banners;
-                    this.mainBanner = this.firstActiveBanner() || banners[0] || this.normalizeBanner(migratedBanner);
+                    this.mainBanner = this.firstActiveBanner() || banners[0] || this.normalizeBanner({}, 'both');
                     this.stats = { ...this.stats, ...(valueAt(4, cached('bc_stats', this.stats)) || {}) };
                     console.info('GET /api/projects'); console.info(`Loaded projects: ${this.projects.length}`);
                     console.info('GET /api/gallery'); console.info(`Loaded gallery: ${this.galleryItems.length}`);
@@ -663,6 +663,10 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                     return !!(banner.active && (banner.src || banner.mediaUrl));
                 },
 
+                hasAnyRenderableBanner() {
+                    return (Array.isArray(this.banners) ? this.banners : []).some(b => !!(b?.active && (b.src || b.mediaUrl)));
+                },
+
                 firstActiveBanner() {
                     return (Array.isArray(this.banners) ? this.banners : []).find(b => b?.active && (b.src || b.mediaUrl)) || null;
                 },
@@ -682,8 +686,10 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                 deleteAd(ad = null) {
                     this.triggerAction(async () => {
                         const selected = ad || this.newAd;
-                        if (selected?.id) await this.api(`/api/banners/${selected.id}`, { method: 'DELETE' });
-                        this.banners = (this.banners || []).filter(b => b.id !== selected?.id);
+                        if (selected?.id) {
+                            await this.api(`/api/banners/${selected.id}`, { method: 'DELETE' }).catch(() => this.showToast('API xəta', 'Banner lokal/cache-dən silindi, DB əlçatan deyil.'));
+                        }
+                        this.banners = (Array.isArray(this.banners) ? this.banners : []).filter(b => b.id !== selected?.id);
                         this.mainBanner = this.firstActiveBanner() || this.normalizeBanner({}, 'both');
                         this.cacheSave();
                         this.resetAdForm();
@@ -1374,7 +1380,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                     </div>
                 </section>
 
-                <div class="mx-auto w-full max-w-[calc(100vw-2rem)] xl:grid xl:grid-cols-[184px_minmax(0,1fr)_184px] xl:gap-6 xl:items-start" :class="(hasRenderableBanner('left') || hasRenderableBanner('right')) ? '' : 'xl:block'">
+                <div class="mx-auto w-full" :class="hasAnyRenderableBanner() ? 'max-w-[calc(100vw-2rem)] xl:grid xl:grid-cols-[184px_minmax(0,1fr)_184px] xl:gap-6 xl:items-start' : 'max-w-7xl'">
                 <aside x-show="hasRenderableBanner('left')" x-cloak class="hidden xl:flex justify-center min-w-0" data-ad-side="left">
                     <div class="w-[184px] flex flex-col items-center py-2">
                         <div class="relative w-[160px] max-h-[calc(100vh-140px)] bg-white shadow-xl rounded-2xl overflow-hidden border border-stone-200">
@@ -1475,7 +1481,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
             </div>
 
             <!-- 2. PROJECTS CATALOGUE PAGE -->
-            <div x-show="page !== 'home'" x-cloak class="mx-auto w-full max-w-[calc(100vw-2rem)] xl:grid xl:grid-cols-[184px_minmax(0,1fr)_184px] xl:gap-6 xl:items-start" :class="(hasRenderableBanner('left') || hasRenderableBanner('right')) ? '' : 'xl:block'">
+            <div x-show="page !== 'home'" x-cloak class="mx-auto w-full" :class="hasAnyRenderableBanner() ? 'max-w-[calc(100vw-2rem)] xl:grid xl:grid-cols-[184px_minmax(0,1fr)_184px] xl:gap-6 xl:items-start' : 'max-w-7xl'">
                 <aside x-show="hasRenderableBanner('left')" x-cloak class="hidden xl:flex justify-center min-w-0" data-ad-side="left">
                     <div class="w-[184px] flex flex-col items-center py-2">
                         <div class="relative w-[160px] max-h-[calc(100vh-140px)] bg-white shadow-xl rounded-2xl overflow-hidden border border-stone-200">
