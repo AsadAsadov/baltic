@@ -2012,12 +2012,13 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                                 </div>
                             </div>
                             <div class="bg-white rounded-[1.75rem] p-3 shadow-2xl shadow-forest-950/10 border border-stone-200" data-reveal="slide-left">
-                                <div class="relative h-[320px] sm:h-[430px] overflow-hidden rounded-[1.35rem]">
+                                <div class="relative h-[320px] sm:h-[430px] overflow-hidden rounded-[1.35rem] cursor-pointer"
+                                     @click="openHomeLightbox('why_wood', activeHomeGalleryIndex)">
                                     <template x-for="(image, index) in visibleHomeGalleryImages()" :key="image.src">
-                                        <img x-show="activeHomeGalleryIndex === index" x-transition.opacity.duration.500ms :src="image.src" :alt="image.title" class="absolute inset-0 w-full h-full object-cover cursor-pointer" @click.stop="openHomeLightbox('why_wood', activeHomeGalleryIndex)">
+                                        <img x-show="activeHomeGalleryIndex === index" x-transition.opacity.duration.500ms :src="image.src" :alt="image.title" class="absolute inset-0 w-full h-full object-cover">
                                     </template>
-                                    <div class="absolute inset-0 bg-gradient-to-t from-forest-950/55 via-transparent to-transparent"></div>
-                                    <div class="absolute left-5 bottom-5 right-5 text-white">
+                                    <div class="absolute inset-0 pointer-events-none bg-gradient-to-t from-forest-950/55 via-transparent to-transparent"></div>
+                                    <div class="absolute left-5 bottom-5 right-5 pointer-events-none text-white">
                                         <p class="text-xs font-bold uppercase tracking-widest text-wood-200" x-text="t('woodHomeAtmosphere')">Taxta ev atmosferi</p>
                                         <h3 class="text-2xl font-black" x-text="visibleHomeGalleryImages()[activeHomeGalleryIndex]?.title"></h3>
                                     </div>
@@ -2053,12 +2054,13 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                             </div>
                         </div>
                         <div class="bg-white rounded-[2rem] p-3 shadow-lg border border-stone-200" data-reveal="slide-left">
-                            <div class="relative h-[420px] overflow-hidden rounded-[1.5rem]">
+                            <div class="relative h-[420px] overflow-hidden rounded-[1.5rem] cursor-pointer"
+                                 @click="openHomeLightbox('advantages', activeAdvantagesImageIndex)">
                                 <template x-for="(image, index) in visibleAdvantagesImages()" :key="image.src">
-                                    <img x-show="activeAdvantagesImageIndex === index" x-transition.opacity.duration.500ms :src="image.src" :alt="image.title" class="absolute inset-0 w-full h-full object-cover cursor-pointer" @click.stop="openHomeLightbox('advantages', activeAdvantagesImageIndex)">
+                                    <img x-show="activeAdvantagesImageIndex === index" x-transition.opacity.duration.500ms :src="image.src" :alt="image.title" class="absolute inset-0 w-full h-full object-cover">
                                 </template>
-                                <div class="absolute inset-0 bg-gradient-to-t from-forest-950/45 via-transparent to-transparent"></div>
-                                <h3 class="absolute left-5 bottom-5 right-5 text-2xl font-black text-white" x-text="visibleAdvantagesImages()[activeAdvantagesImageIndex]?.title"></h3>
+                                <div class="absolute inset-0 pointer-events-none bg-gradient-to-t from-forest-950/45 via-transparent to-transparent"></div>
+                                <h3 class="absolute left-5 bottom-5 right-5 pointer-events-none text-2xl font-black text-white" x-text="visibleAdvantagesImages()[activeAdvantagesImageIndex]?.title"></h3>
                                 <button @click.stop="prevAdvantagesImage(); startHomeGalleryRotation()" class="absolute left-4 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white/85 hover:bg-white text-forest-900 shadow flex items-center justify-center"><i class="fa-solid fa-chevron-left"></i></button>
                                 <button @click.stop="nextAdvantagesImage(); startHomeGalleryRotation()" class="absolute right-4 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white/85 hover:bg-white text-forest-900 shadow flex items-center justify-center"><i class="fa-solid fa-chevron-right"></i></button>
                                 <div class="absolute bottom-4 left-0 right-0 flex justify-center gap-2">
