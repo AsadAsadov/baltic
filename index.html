@@ -302,9 +302,10 @@
                     'galleryDesc': { az: 'Tamamladığımız layihələrdən xarici və daxili dizayn görüntüləri.', ru: 'Кадры экстерьеров и интерьеров.', en: 'Real snapshots of finished constructions.' },
                     'aboutSubtitle': { az: 'Baltic Caspian Ltd', ru: 'Baltic Caspian Ltd', en: 'Baltic Caspian Ltd' },
                     'aboutTitle': { az: '2008-ci İldən Ekologiyanın Zirvəsindəyik', ru: 'С 2008 года на Пике Экологичности', en: 'At the Pinnacle of Eco-Living Since 2008' },
-                    'aboutP1': { az: 'BALTIC CASPIAN LTD 2008-ci ildə yaradılmışdır. Əsas fəaliyyətimiz ağacın kəsilməsi və rəndələnməsidir. Təsisçilərimiz 1998-ci ildən ev tikintisində ağac emalı və yapışdırılmış tirlərin istehsalı sahəsində ixtisaslaşmışdır.', ru: 'Компания BALTIC CASPIAN LTD создана в 2008 году.', en: 'BALTIC CASPIAN LTD was established in 2008.' },
-                    'aboutP2': { az: 'Müştərinin istəyinə uyğun olaraq fərdi qaydada evlər, yay evləri, hamamlar və s. istehsal olunur. BALTIC CASPIAN LTD Rusiyadan şam və küknar ağacı idxal edir.', ru: 'Мы производим дома по индивидуальным эскизам.', en: 'We fabricate custom homes, cottages, and spas.' },
-                    'aboutP3': { az: 'İstehsalatda yeni rəndələmə maşınlarından istifadə olunur ki, bu da həm daxili, həm də xarici bazarda satış üçün böyük həcmdə məhsul istehsal etməyə imkan verir.', ru: 'В производстве используется современное европейское оборудование.', en: 'Equipped with top-tier industrial machinery.' },
+                    'aboutTextAz': { az: 'BALTIC CASPIAN LTD 2008-ci ildə yaradılmışdır. Əsas fəaliyyətimiz ağacın kəsilməsi və rəndələnməsidir. Təsisçilərimiz 1998-ci ildən ev tikintisində ağac emalı və yapışdırılmış tirlərin istehsalı sahəsində ixtisaslaşmışdır.\n\nMüştərinin istəyinə uyğun olaraq fərdi qaydada evlər, yay evləri, hamamlar və s. istehsal olunur. BALTIC CASPIAN LTD Rusiyadan şam və küknar ağacı idxal edir.\n\nİstehsalatda yeni rəndələmə maşınlarından istifadə olunur ki, bu da həm daxili, həm də xarici bazarda satış üçün böyük həcmdə məhsul istehsal etməyə imkan verir.', ru: '', en: '' },
+                    'aboutTextRu': { az: '', ru: 'BALTIC CASPIAN LTD была создана в 2008 году. Основным направлением нашей деятельности является распиловка и строгание древесины. Наши учредители с 1998 года специализируются в сфере деревообработки для домостроения и производства клееного бруса.\n\nПо желанию клиента в индивидуальном порядке производятся дома, летние дома, бани и другие строения. BALTIC CASPIAN LTD импортирует сосну и ель из России.\n\nВ производстве используются новые строгальные станки, что позволяет выпускать большие объемы продукции как для внутреннего, так и для внешнего рынка.', en: '' },
+                    'aboutTextEn': { az: '', ru: '', en: 'BALTIC CASPIAN LTD was established in 2008. Our main activity is wood cutting and planing. Since 1998, our founders have specialized in wood processing for house construction and the production of glued beams.\n\nAccording to each customer’s request, we produce custom houses, summer houses, baths and other structures. BALTIC CASPIAN LTD imports pine and fir timber from Russia.\n\nNew planing machines are used in production, allowing us to manufacture large volumes of products for both domestic and export markets.' },
+                    'findUsOnMap': { az: '📍 Bizi xəritədə tapın', ru: '📍 Найдите нас на карте', en: '📍 Find us on the map' },
                     'qualityGuarantee': { az: 'Ekologiya & Keyfiyyət Zəmanəti', ru: 'Гарантия Качества и Экологии', en: 'Eco & Quality Guarantee' },
                     'valuesTitle': { az: 'Əsas Dəyərlərimiz', ru: 'Наши Ценности', en: 'Core Company Values' },
                     'valuesDesc': { az: 'Tikinti prosesinin başlanğıcından təhvilinə qədər hər bir prosesi peşəkar standartlar çərçivəsində tətbiq edirik.', ru: 'Мы придерживаемся строгих стандартов качества.', en: 'We execute every stage with precision.' },
@@ -801,9 +802,6 @@
                 get encodedAddress() { return encodeURIComponent(this.addressText); },
                 get googleMapsUrl() { return `https://www.google.com/maps/search/?api=1&query=${this.encodedAddress}`; },
                 get yandexMapsUrl() { return `https://yandex.com/maps/?text=${this.encodedAddress}`; },
-                get wazeUrl() { return `https://waze.com/ul?q=${this.encodedAddress}&navigate=yes`; },
-                get yangoUrl() { return `https://yango.com/en_az/search/?text=${this.encodedAddress}`; },
-                get boltUrl() { return `https://bolt.eu/en-az/?q=${this.encodedAddress}`; },
 
                 isMobileViewport() { return window.matchMedia('(max-width: 767px)').matches; },
                 openMapChoice() {
@@ -814,7 +812,15 @@
 
                 openGalleryModal(idx) { this.activeGalleryIndex = idx; this.activeGalleryImageIndex = 0; this.isGalleryModalOpen = true; },
 
-                currentGalleryItem() { return (Array.isArray(this.galleryItems) ? this.galleryItems : []).filter(g => !g.archived)[this.activeGalleryIndex] || {}; },
+                closeGalleryModal() { this.isGalleryModalOpen = false; },
+
+                visibleGalleryItems() { return (Array.isArray(this.galleryItems) ? this.galleryItems : []).filter(g => !g.archived); },
+
+                nextGalleryPost() { const items = this.visibleGalleryItems(); if (items.length) { this.activeGalleryIndex = (this.activeGalleryIndex + 1) % items.length; this.activeGalleryImageIndex = 0; } },
+
+                prevGalleryPost() { const items = this.visibleGalleryItems(); if (items.length) { this.activeGalleryIndex = (this.activeGalleryIndex - 1 + items.length) % items.length; this.activeGalleryImageIndex = 0; } },
+
+                currentGalleryItem() { return this.visibleGalleryItems()[this.activeGalleryIndex] || {}; },
 
                 currentGalleryImages() { const item = this.currentGalleryItem(); const imgs = Array.isArray(item.images) && item.images.length ? item.images : (item.src ? [item.src] : []); return imgs.filter(Boolean); },
 
@@ -824,12 +830,13 @@
 
                 prevGalleryImage() { const imgs = this.currentGalleryImages(); if (imgs.length) this.activeGalleryImageIndex = (this.activeGalleryImageIndex - 1 + imgs.length) % imgs.length; },
 
-                handleGalleryKeydown(event) { if (!this.isGalleryModalOpen) return; if (event.key === 'Escape') this.isGalleryModalOpen = false; if (event.key === 'ArrowRight') this.nextGalleryImage(); if (event.key === 'ArrowLeft') this.prevGalleryImage(); },
+                handleGalleryKeydown(event) { if (!this.isGalleryModalOpen) return; if (event.key === 'Escape') this.closeGalleryModal(); if (event.key === 'ArrowRight') { this.currentGalleryImages().length > 1 ? this.nextGalleryImage() : this.nextGalleryPost(); } if (event.key === 'ArrowLeft') { this.currentGalleryImages().length > 1 ? this.prevGalleryImage() : this.prevGalleryPost(); } },
 
                 homeLightboxImages() { const safeImages = Array.isArray(this.homeLightbox.images) ? this.homeLightbox.images.filter(Boolean) : []; return safeImages; },
                 homeImageSrc(img = {}) { return img?.imageUrl || img?.image_url || img?.url || img?.src || img?.image || ''; },
                 currentHomeLightboxImage() { const images = this.homeLightboxImages(); return images[this.homeLightbox.index] || images[0] || {}; },
                 openHomeLightbox(section, index) {
+                    console.log('openHomeLightbox', section, index);
                     const sourceImages = section === 'why_wood' ? this.visibleHomeGalleryImages() : this.visibleAdvantagesImages();
                     const safeImages = Array.isArray(sourceImages) ? sourceImages.filter(Boolean).filter(img => this.homeImageSrc(img)) : [];
                     if (!safeImages.length) return;
@@ -1995,7 +2002,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                             <div class="bg-white rounded-[1.75rem] p-3 shadow-2xl shadow-forest-950/10 border border-stone-200" data-reveal="slide-left">
                                 <div class="relative h-[320px] sm:h-[430px] overflow-hidden rounded-[1.35rem]">
                                     <template x-for="(image, index) in visibleHomeGalleryImages()" :key="image.src">
-                                        <img x-show="activeHomeGalleryIndex === index" x-transition.opacity.duration.500ms :src="image.src" :alt="image.title" class="absolute inset-0 w-full h-full object-cover cursor-pointer" @click.stop="openHomeLightbox('why_wood', whyWoodSlideIndex || 0)">
+                                        <img x-show="activeHomeGalleryIndex === index" x-transition.opacity.duration.500ms :src="image.src" :alt="image.title" class="absolute inset-0 w-full h-full object-cover cursor-pointer" @click.stop="openHomeLightbox('why_wood', whyWoodSlideIndex)">
                                     </template>
                                     <div class="absolute inset-0 bg-gradient-to-t from-forest-950/55 via-transparent to-transparent"></div>
                                     <div class="absolute left-5 bottom-5 right-5 text-white">
@@ -2036,7 +2043,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                         <div class="bg-white rounded-[2rem] p-3 shadow-lg border border-stone-200" data-reveal="slide-left">
                             <div class="relative h-[420px] overflow-hidden rounded-[1.5rem]">
                                 <template x-for="(image, index) in visibleAdvantagesImages()" :key="image.src">
-                                    <img x-show="activeAdvantagesImageIndex === index" x-transition.opacity.duration.500ms :src="image.src" :alt="image.title" class="absolute inset-0 w-full h-full object-cover cursor-pointer" @click.stop="openHomeLightbox('advantages', advantagesSlideIndex || 0)">
+                                    <img x-show="activeAdvantagesImageIndex === index" x-transition.opacity.duration.500ms :src="image.src" :alt="image.title" class="absolute inset-0 w-full h-full object-cover cursor-pointer" @click.stop="openHomeLightbox('advantages', advantagesSlideIndex)">
                                 </template>
                                 <div class="absolute inset-0 bg-gradient-to-t from-forest-950/45 via-transparent to-transparent"></div>
                                 <h3 class="absolute left-5 bottom-5 right-5 text-2xl font-black text-white" x-text="visibleAdvantagesImages()[activeAdvantagesImageIndex]?.title"></h3>
@@ -2184,8 +2191,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                             <span class="text-wood-600 font-bold uppercase tracking-widest text-sm block" x-text="t('aboutSubtitle')">Baltic Caspian Ltd</span>
                             <h1 class="text-3xl sm:text-5xl font-black text-forest-950 leading-tight" x-text="t('aboutTitle')">2008-ci İldən Ekologiyanın Zirvəsindəyik</h1>
                             <div class="space-y-4 text-stone-600 leading-relaxed text-sm sm:text-base">
-                                <p x-text="t('aboutP1')">BALTIC CASPIAN LTD 2008-ci ildə yaradılmışdır.</p>
-                                <p x-text="t('aboutP2')">Müştərinin istəyinə uyğun taxta evlər tikirik.</p>
+                                <p class="whitespace-pre-line" x-text="lang === 'ru' ? (t('aboutTextRu') || t('aboutTextAz')) : (lang === 'en' ? (t('aboutTextEn') || t('aboutTextAz')) : t('aboutTextAz'))">BALTIC CASPIAN LTD 2008-ci ildə yaradılmışdır.</p>
                             </div>
                         </div>
                         <div class="lg:col-span-6">
@@ -2197,11 +2203,11 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 bg-white rounded-[2rem] border border-stone-200/70 shadow-sm p-4 sm:p-6">
                         <div class="rounded-[1.5rem] overflow-hidden min-h-[320px] border border-stone-200"><iframe class="w-full h-full min-h-[320px]" loading="lazy" :src="`https://www.google.com/maps?q=${encodedAddress}&output=embed`"></iframe></div>
                         <div class="p-4 sm:p-6 flex flex-col justify-center space-y-5">
-                            <span class="text-wood-600 font-bold uppercase tracking-widest text-xs">Location</span><h2 class="text-3xl font-black text-forest-950">Bizə necə gəlmək olar?</h2>
+                            <span class="text-wood-600 font-bold uppercase tracking-widest text-xs">Location</span><h2 class="text-3xl font-black text-forest-950" x-text="t('findUsOnMap')">📍 Bizi xəritədə tapın</h2>
                             <p class="text-stone-500">Ofisimizə rahat marşrut qurmaq üçün xəritə tətbiqinizi seçin.</p>
                             <p class="font-bold text-stone-800"><i class="fa-solid fa-location-dot text-wood-600 mr-2"></i>Baksol küçəsi, Bakı, Azərbaycan</p>
                             <button @click="openMapChoice()" class="bg-forest-700 hover:bg-forest-800 text-white rounded-xl px-5 py-3 font-bold shadow">Xəritədə aç</button>
-                            <div class="flex flex-wrap gap-2"><button @click="openExternalMap(googleMapsUrl)" class="px-3 py-2 rounded-lg bg-stone-100 font-bold text-xs">Google</button><button @click="openExternalMap(yandexMapsUrl)" class="px-3 py-2 rounded-lg bg-stone-100 font-bold text-xs">Yandex</button><button @click="openExternalMap(wazeUrl)" class="px-3 py-2 rounded-lg bg-stone-100 font-bold text-xs">Waze</button></div>
+                            <div class="flex flex-wrap gap-2"><button @click="openExternalMap(googleMapsUrl)" class="px-3 py-2 rounded-lg bg-stone-100 font-bold text-xs">Google Maps</button><button @click="openExternalMap(yandexMapsUrl)" class="px-3 py-2 rounded-lg bg-stone-100 font-bold text-xs">Yandex Maps</button></div>
                         </div>
                     </div>
                 </section>
@@ -2755,7 +2761,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
         <div class="relative w-full bg-white rounded-t-[2rem] p-6 shadow-2xl space-y-3">
             <div class="w-12 h-1.5 bg-stone-200 rounded-full mx-auto mb-3"></div>
             <h3 class="text-xl font-black text-forest-950">Marşrut tətbiqini seçin</h3>
-            <template x-for="app in [{n:'Google Maps',u:googleMapsUrl,i:'fa-map-location-dot'},{n:'Yandex Maps',u:yandexMapsUrl,i:'fa-location-arrow'},{n:'Waze',u:wazeUrl,i:'fa-waze'},{n:'Yango',u:yangoUrl,i:'fa-taxi'},{n:'Bolt',u:boltUrl,i:'fa-car'}]">
+            <template x-for="app in [{n:'Google Maps',u:googleMapsUrl,i:'fa-map-location-dot'},{n:'Yandex Maps',u:yandexMapsUrl,i:'fa-location-arrow'}]">
                 <button @click="openExternalMap(app.u)" class="w-full flex items-center gap-3 p-4 rounded-2xl bg-stone-50 border border-stone-200 font-bold text-stone-800"><i class="fa-solid w-6 text-forest-700" :class="app.i"></i><span x-text="app.n"></span></button>
             </template>
         </div>
@@ -2819,24 +2825,32 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
     </div>
 
     <!-- GALLERY LIGHTBOX MODAL WITH YOUTUBE -->
-    <div x-show="isGalleryModalOpen" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-950/95" x-transition @keydown.window="handleGalleryKeydown($event)">
-        <button @click="isGalleryModalOpen = false" class="absolute top-6 right-6 w-12 h-12 rounded-full bg-white/10 text-white hover:bg-white/20 flex items-center justify-center z-10"><i class="fa-solid fa-xmark text-xl"></i></button>
+    <div x-show="isGalleryModalOpen" x-cloak class="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-6 bg-stone-950/95" x-transition @keydown.window="handleGalleryKeydown($event)" @click="closeGalleryModal()">
+        <button @click.stop="closeGalleryModal()" class="absolute top-4 right-4 sm:top-6 sm:right-6 w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-white/15 text-white hover:bg-white/25 flex items-center justify-center z-30 shadow-lg" aria-label="Close gallery"><i class="fa-solid fa-xmark text-2xl"></i></button>
+        <button @click.stop="prevGalleryPost()" class="absolute left-3 sm:left-6 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white/15 text-white hover:bg-white/25 flex items-center justify-center z-20" aria-label="Previous post"><i class="fa-solid fa-angles-left"></i></button>
+        <button @click.stop="nextGalleryPost()" class="absolute right-3 sm:right-6 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white/15 text-white hover:bg-white/25 flex items-center justify-center z-20" aria-label="Next post"><i class="fa-solid fa-angles-right"></i></button>
 
-        <div class="max-w-4xl w-full flex flex-col items-center justify-center gap-4">
+        <div class="max-w-5xl w-full flex flex-col items-center justify-center gap-4 px-10 sm:px-16" @click.stop>
             <div class="relative w-full aspect-[4/3] max-h-[70vh] rounded-3xl overflow-hidden shadow-2xl bg-black">
                 <template x-if="currentGalleryItem()?.type === 'image'">
-                    <img :src="currentGalleryImage()" class="w-full h-full object-cover">
+                    <img :src="currentGalleryImage()" class="w-full h-full object-contain sm:object-cover">
                 </template>
                 <template x-if="currentGalleryItem()?.type === 'video'">
-                    <!-- Embedded YouTube responsive player inside visual lightbox -->
                     <iframe class="w-full h-full" :src="getYouTubeEmbed(currentGalleryItem()?.src)" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+                </template>
+                <template x-if="currentGalleryItem()?.type === 'image' && currentGalleryImages().length > 1">
+                    <div>
+                        <button @click.stop="prevGalleryImage()" class="absolute left-3 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-black/45 text-white hover:bg-black/70" aria-label="Previous image"><i class="fa-solid fa-chevron-left"></i></button>
+                        <button @click.stop="nextGalleryImage()" class="absolute right-3 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-black/45 text-white hover:bg-black/70" aria-label="Next image"><i class="fa-solid fa-chevron-right"></i></button>
+                    </div>
                 </template>
             </div>
             
-            <div class="text-center text-white space-y-4">
+            <div class="text-center text-white space-y-3 max-w-full">
                 <h4 class="text-xl font-bold" x-text="lang === 'en' ? currentGalleryItem()?.titleEn : (lang === 'ru' ? currentGalleryItem()?.titleRu : currentGalleryItem()?.title)"></h4>
+                <p class="text-sm text-white/75" x-text="`${activeGalleryIndex + 1} / ${visibleGalleryItems().length}`"></p>
                 <template x-if="currentGalleryItem()?.type === 'image' && currentGalleryImages().length > 1">
-                    <div class="space-y-3"><div class="flex items-center justify-center gap-4"><button @click="prevGalleryImage()" class="w-10 h-10 rounded-full bg-white/10 hover:bg-white/20"><i class="fa-solid fa-chevron-left"></i></button><span x-text="`${activeGalleryImageIndex + 1} / ${currentGalleryImages().length}`"></span><button @click="nextGalleryImage()" class="w-10 h-10 rounded-full bg-white/10 hover:bg-white/20"><i class="fa-solid fa-chevron-right"></i></button></div><div class="flex justify-center gap-2 max-h-32 overflow-y-auto flex-wrap"><template x-for="(src,index) in currentGalleryImages()" :key="src"><button @click="activeGalleryImageIndex = index"><img :src="src" class="w-20 h-16 object-cover rounded-lg border-2" :class="index === activeGalleryImageIndex ? 'border-wood-400' : 'border-white/20'"></button></template></div></div>
+                    <div class="space-y-3"><span class="text-sm text-white/80" x-text="`${activeGalleryImageIndex + 1} / ${currentGalleryImages().length}`"></span><div class="flex justify-center gap-2 max-h-28 overflow-y-auto flex-wrap"><template x-for="(src,index) in currentGalleryImages()" :key="src"><button @click.stop="activeGalleryImageIndex = index"><img :src="src" class="w-16 sm:w-20 h-14 sm:h-16 object-cover rounded-lg border-2" :class="index === activeGalleryImageIndex ? 'border-wood-400' : 'border-white/20'"></button></template></div></div>
                 </template>
             </div>
         </div>
