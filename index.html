@@ -834,16 +834,28 @@
 
                 homeLightboxImages() { const safeImages = Array.isArray(this.homeLightbox.images) ? this.homeLightbox.images.filter(Boolean) : []; return safeImages; },
                 homeImageSrc(img = {}) { return img?.imageUrl || img?.image_url || img?.url || img?.src || img?.image || ''; },
-                currentHomeLightboxImage() { const images = this.homeLightboxImages(); return images[this.homeLightbox.index] || images[0] || {}; },
+                currentHomeLightboxImage() { return this.homeLightbox.images[this.homeLightbox.index] || {}; },
                 openHomeLightbox(section, index) {
-                    console.log('openHomeLightbox', section, index);
-                    const sourceImages = section === 'why_wood' ? this.visibleHomeGalleryImages() : this.visibleAdvantagesImages();
-                    const safeImages = Array.isArray(sourceImages) ? sourceImages.filter(Boolean).filter(img => this.homeImageSrc(img)) : [];
+                    const images = section === 'why_wood'
+                        ? this.visibleHomeGalleryImages()
+                        : this.visibleAdvantagesImages();
+
+                    const safeImages = Array.isArray(images) ? images.filter(Boolean) : [];
                     if (!safeImages.length) return;
-                    const safeIndex = Math.min(Math.max(Number(index) || 0, 0), safeImages.length - 1);
-                    this.homeLightbox = { open: true, section, images: safeImages, index: safeIndex };
+
+                    const safeIndex = Math.max(0, Math.min(Number(index) || 0, safeImages.length - 1));
+
+                    this.homeLightbox = {
+                        open: true,
+                        section,
+                        images: safeImages,
+                        index: safeIndex
+                    };
+
+                    console.log('openHomeLightbox', section, safeIndex, safeImages.length);
+                    document.body.classList.add('overflow-hidden');
                 },
-                closeHomeLightbox() { this.homeLightbox.open = false; },
+                closeHomeLightbox() { this.homeLightbox.open = false; document.body.classList.remove('overflow-hidden'); },
                 nextHomeLightbox() { const images = this.homeLightboxImages(); if (images.length) this.homeLightbox.index = (this.homeLightbox.index + 1) % images.length; },
                 prevHomeLightbox() { const images = this.homeLightboxImages(); if (images.length) this.homeLightbox.index = (this.homeLightbox.index - 1 + images.length) % images.length; },
                 nextHomeLightboxImage() { this.nextHomeLightbox(); },
@@ -2002,7 +2014,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                             <div class="bg-white rounded-[1.75rem] p-3 shadow-2xl shadow-forest-950/10 border border-stone-200" data-reveal="slide-left">
                                 <div class="relative h-[320px] sm:h-[430px] overflow-hidden rounded-[1.35rem]">
                                     <template x-for="(image, index) in visibleHomeGalleryImages()" :key="image.src">
-                                        <img x-show="activeHomeGalleryIndex === index" x-transition.opacity.duration.500ms :src="image.src" :alt="image.title" class="absolute inset-0 w-full h-full object-cover cursor-pointer" @click.stop="openHomeLightbox('why_wood', whyWoodSlideIndex)">
+                                        <img x-show="activeHomeGalleryIndex === index" x-transition.opacity.duration.500ms :src="image.src" :alt="image.title" class="absolute inset-0 w-full h-full object-cover cursor-pointer" @click.stop="openHomeLightbox('why_wood', activeHomeGalleryIndex)">
                                     </template>
                                     <div class="absolute inset-0 bg-gradient-to-t from-forest-950/55 via-transparent to-transparent"></div>
                                     <div class="absolute left-5 bottom-5 right-5 text-white">
@@ -2043,7 +2055,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                         <div class="bg-white rounded-[2rem] p-3 shadow-lg border border-stone-200" data-reveal="slide-left">
                             <div class="relative h-[420px] overflow-hidden rounded-[1.5rem]">
                                 <template x-for="(image, index) in visibleAdvantagesImages()" :key="image.src">
-                                    <img x-show="activeAdvantagesImageIndex === index" x-transition.opacity.duration.500ms :src="image.src" :alt="image.title" class="absolute inset-0 w-full h-full object-cover cursor-pointer" @click.stop="openHomeLightbox('advantages', advantagesSlideIndex)">
+                                    <img x-show="activeAdvantagesImageIndex === index" x-transition.opacity.duration.500ms :src="image.src" :alt="image.title" class="absolute inset-0 w-full h-full object-cover cursor-pointer" @click.stop="openHomeLightbox('advantages', activeAdvantagesImageIndex)">
                                 </template>
                                 <div class="absolute inset-0 bg-gradient-to-t from-forest-950/45 via-transparent to-transparent"></div>
                                 <h3 class="absolute left-5 bottom-5 right-5 text-2xl font-black text-white" x-text="visibleAdvantagesImages()[activeAdvantagesImageIndex]?.title"></h3>
