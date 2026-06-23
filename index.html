@@ -142,6 +142,7 @@
                 lang: 'az',
                 page: 'home',
                 mobileMenuOpen: false,
+                isHeaderScrolled: false,
                 isCalculatorOpen: false,
                 isProjectModalOpen: false,
                 isGalleryModalOpen: false,
@@ -429,6 +430,18 @@
                     this.page = newPage;
                     this.adminLoginError = '';
                     window.scrollTo({ top: 0, behavior: 'smooth' });
+                    this.$nextTick(() => this.updateHeaderScrollState());
+                },
+
+                updateHeaderScrollState() {
+                    this.isHeaderScrolled = window.scrollY > 80;
+                },
+
+                initHeaderScroll() {
+                    this.updateHeaderScrollState();
+                    window.addEventListener('scroll', () => {
+                        this.updateHeaderScrollState();
+                    }, { passive: true });
                 },
 
                 activeHeroSlides() {
@@ -1726,7 +1739,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
         }
     </style>
 </head>
-<body class="bg-stone-50 text-stone-800 antialiased font-sans min-h-screen flex flex-col overflow-x-hidden" x-data="siteState()" x-init="initApp(); initAdObservers(); initLayoutObservers()">
+<body class="bg-stone-50 text-stone-800 antialiased font-sans min-h-screen flex flex-col overflow-x-hidden" x-data="siteState()" x-init="initHeaderScroll(); initApp(); initAdObservers(); initLayoutObservers()">
 
     <div x-show="isLoading" x-cloak class="fixed inset-0 bg-stone-950/70 backdrop-blur-md z-[9999] flex flex-col items-center justify-center space-y-4" x-transition>
         <div class="w-16 h-16 border-4 border-wood-500 border-t-transparent rounded-full animate-spin"></div>
@@ -1734,7 +1747,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
     </div>
 
     <!-- MAIN HEADER -->
-    <header class="z-50 border-b transition-all duration-300" :class="page === 'home' ? 'fixed top-0 left-0 right-0 bg-white/10 backdrop-blur-[14px] border-white/[0.18] shadow-none' : 'sticky top-0 bg-white glass border-stone-200/80 shadow-sm'">
+    <header class="z-50 border-b transition-all duration-300" :class="page === 'home' ? (isHeaderScrolled ? 'fixed top-0 left-0 right-0 bg-white/90 backdrop-blur-xl border-stone-200 shadow-sm text-forest-950' : 'fixed top-0 left-0 right-0 bg-forest-950/25 backdrop-blur-xl border-white/15 shadow-none text-white') : 'sticky top-0 bg-white glass border-stone-200/80 shadow-sm text-forest-950'">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between items-center h-16 lg:h-[72px]">
                 <!-- Logo -->
@@ -1743,30 +1756,30 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                         <i class="fa-solid fa-tree-city text-xl lg:text-2xl"></i>
                     </div>
                     <div>
-                        <span class="block text-base lg:text-xl font-extrabold tracking-tight group-hover:text-wood-600 transition leading-none" :class="page === 'home' ? 'text-white drop-shadow' : 'text-forest-900'">BALTIC CASPIAN</span>
-                        <span class="block text-[9px] lg:text-xxs tracking-widest uppercase font-bold mt-1" :class="page === 'home' ? 'text-wood-200 drop-shadow' : 'text-wood-600'" x-text="t('logoSub')">Taxta Evlər Müəssisəsi</span>
+                        <span class="block text-base lg:text-xl font-extrabold tracking-tight group-hover:text-wood-600 transition leading-none" :class="page === 'home' && !isHeaderScrolled ? 'text-white drop-shadow' : 'text-forest-900'">BALTIC CASPIAN</span>
+                        <span class="block text-[9px] lg:text-xxs tracking-widest uppercase font-bold mt-1" :class="page === 'home' && !isHeaderScrolled ? 'text-wood-200 drop-shadow' : 'text-wood-600'" x-text="t('logoSub')">Taxta Evlər Müəssisəsi</span>
                     </div>
                 </a>
 
                 <!-- Desktop Nav (Optimized sizes to prevent breaking/wrapping on Ru/En selection) -->
                 <nav class="hidden md:flex items-center gap-3 lg:gap-6 xl:gap-8 font-semibold text-xs lg:text-sm xl:text-base">
-                    <a @click.prevent="setPage('home')" href="#" class="transition relative py-2" :class="page === 'home' ? 'text-white hover:text-wood-200 drop-shadow' : 'text-stone-600 hover:text-forest-700'">
+                    <a @click.prevent="setPage('home')" href="#" class="transition relative py-2" :class="page === 'home' && !isHeaderScrolled ? 'text-white hover:text-wood-200 drop-shadow' : 'text-stone-700 hover:text-forest-700'">
                         <span x-text="t('navHome')">Ana Səhifə</span>
                         <span x-show="page === 'home'" class="absolute bottom-0 left-0 right-0 h-0.5 bg-wood-500 rounded" x-transition></span>
                     </a>
-                    <a @click.prevent="setPage('projects')" href="#" class="transition relative py-2" :class="page === 'home' ? 'text-white hover:text-wood-200 drop-shadow' : (page === 'projects' ? 'text-forest-700' : 'text-stone-600 hover:text-forest-700')">
+                    <a @click.prevent="setPage('projects')" href="#" class="transition relative py-2" :class="page === 'home' && !isHeaderScrolled ? 'text-white hover:text-wood-200 drop-shadow' : (page === 'projects' ? 'text-forest-700' : 'text-stone-700 hover:text-forest-700')">
                         <span x-text="t('navProjects')">Layihələr</span>
                         <span x-show="page === 'projects'" class="absolute bottom-0 left-0 right-0 h-0.5 bg-wood-500 rounded" x-transition></span>
                     </a>
-                    <a @click.prevent="setPage('gallery')" href="#" class="transition relative py-2" :class="page === 'home' ? 'text-white hover:text-wood-200 drop-shadow' : (page === 'gallery' ? 'text-forest-700' : 'text-stone-600 hover:text-forest-700')">
+                    <a @click.prevent="setPage('gallery')" href="#" class="transition relative py-2" :class="page === 'home' && !isHeaderScrolled ? 'text-white hover:text-wood-200 drop-shadow' : (page === 'gallery' ? 'text-forest-700' : 'text-stone-700 hover:text-forest-700')">
                         <span x-text="t('navGallery')">Qalereya</span>
                         <span x-show="page === 'gallery'" class="absolute bottom-0 left-0 right-0 h-0.5 bg-wood-500 rounded" x-transition></span>
                     </a>
-                    <a @click.prevent="setPage('about')" href="#" class="transition relative py-2" :class="page === 'home' ? 'text-white hover:text-wood-200 drop-shadow' : (page === 'about' ? 'text-forest-700' : 'text-stone-600 hover:text-forest-700')">
+                    <a @click.prevent="setPage('about')" href="#" class="transition relative py-2" :class="page === 'home' && !isHeaderScrolled ? 'text-white hover:text-wood-200 drop-shadow' : (page === 'about' ? 'text-forest-700' : 'text-stone-700 hover:text-forest-700')">
                         <span x-text="t('navAbout')">Haqqımızda</span>
                         <span x-show="page === 'about'" class="absolute bottom-0 left-0 right-0 h-0.5 bg-wood-500 rounded" x-transition></span>
                     </a>
-                    <a @click.prevent="setPage('contact')" href="#" class="transition relative py-2" :class="page === 'home' ? 'text-white hover:text-wood-200 drop-shadow' : (page === 'contact' ? 'text-forest-700' : 'text-stone-600 hover:text-forest-700')">
+                    <a @click.prevent="setPage('contact')" href="#" class="transition relative py-2" :class="page === 'home' && !isHeaderScrolled ? 'text-white hover:text-wood-200 drop-shadow' : (page === 'contact' ? 'text-forest-700' : 'text-stone-700 hover:text-forest-700')">
                         <span x-text="t('navContact')">Əlaqə</span>
                         <span x-show="page === 'contact'" class="absolute bottom-0 left-0 right-0 h-0.5 bg-wood-500 rounded" x-transition></span>
                     </a>
@@ -1775,17 +1788,17 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                 <!-- Header actions -->
                 <div class="flex items-center gap-2 lg:gap-3">
                     <a href="tel:+994553221109" class="hidden lg:flex items-center gap-2 group">
-                        <div class="w-8 h-8 rounded-full flex items-center justify-center transition" :class="page === 'home' ? 'bg-white/15 border border-white/25 text-white shadow-sm shadow-black/10 group-hover:bg-white/25' : 'bg-forest-50 text-forest-700 group-hover:bg-forest-100'">
+                        <div class="w-8 h-8 rounded-full flex items-center justify-center transition" :class="page === 'home' && !isHeaderScrolled ? 'bg-white/15 border border-white/25 text-white shadow-sm shadow-black/10 group-hover:bg-white/25' : 'bg-forest-50 text-forest-700 group-hover:bg-forest-100'">
                             <i class="fa-solid fa-phone text-xs"></i>
                         </div>
                         <div>
-                            <span class="block text-[10px]" :class="page === 'home' ? 'text-white/75' : 'text-stone-500'" x-text="t('callUs')">Zəng edin</span>
-                            <span class="block font-bold text-xs" :class="page === 'home' ? 'text-white drop-shadow' : 'text-stone-800'">(994 55) 322 11 09</span>
+                            <span class="block text-[10px]" :class="page === 'home' && !isHeaderScrolled ? 'text-white/75' : 'text-stone-500'" x-text="t('callUs')">Zəng edin</span>
+                            <span class="block font-bold text-xs" :class="page === 'home' && !isHeaderScrolled ? 'text-white drop-shadow' : 'text-forest-950'">(994 55) 322 11 09</span>
                         </div>
                     </a>
 
                     <div class="relative hidden sm:block" x-data="{ open: false }" @click.outside="open = false">
-                        <button @click="open = !open" class="h-9 min-w-[68px] px-3 rounded-full border text-xs font-bold uppercase tracking-wide flex items-center justify-center gap-1.5 transition shadow-sm" :class="page === 'home' ? 'bg-white/15 border-white/25 text-white hover:bg-white/25 drop-shadow' : 'bg-white border-stone-200 text-forest-900 hover:border-wood-300 hover:text-wood-700'" aria-label="Language selector">
+                        <button @click="open = !open" class="h-9 min-w-[68px] px-3 rounded-full border text-xs font-bold uppercase tracking-wide flex items-center justify-center gap-1.5 transition shadow-sm" :class="page === 'home' && !isHeaderScrolled ? 'bg-white/15 border-white/25 text-white hover:bg-white/25 drop-shadow' : 'bg-white border-stone-200 text-forest-900 hover:border-wood-300 hover:text-wood-700'" aria-label="Language selector">
                             <span x-text="lang.toUpperCase()">AZ</span>
                             <i class="fa-solid fa-chevron-down text-[10px] transition" :class="open && 'rotate-180'"></i>
                         </button>
@@ -1796,13 +1809,13 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                         </div>
                     </div>
 
-                    <button @click="setPage(adminLoggedIn ? 'admin' : 'login')" class="hidden sm:flex h-9 items-center gap-1.5 px-3 rounded-full border text-xs font-bold transition shadow-sm" :class="page === 'home' ? 'bg-white/15 border-white/25 text-white hover:bg-white/25 drop-shadow' : 'bg-white border-stone-200 text-forest-900 hover:border-wood-300 hover:text-wood-700'">
+                    <button @click="setPage(adminLoggedIn ? 'admin' : 'login')" class="hidden sm:flex h-9 items-center gap-1.5 px-3 rounded-full border text-xs font-bold transition shadow-sm" :class="page === 'home' && !isHeaderScrolled ? 'bg-white/15 border-white/25 text-white hover:bg-white/25 drop-shadow' : 'bg-white border-stone-200 text-forest-900 hover:border-wood-300 hover:text-wood-700'">
                         <i class="fa-solid text-[11px]" :class="adminLoggedIn ? 'fa-user-shield' : 'fa-lock'"></i>
                         <span x-text="adminLoggedIn ? (lang === 'ru' ? 'Панель' : 'Panel') : (lang === 'az' ? 'Giriş' : (lang === 'ru' ? 'Вход' : 'Login'))">Giriş</span>
                     </button>
 
                     <!-- Mobile menu toggle -->
-                    <button @click="mobileMenuOpen = !mobileMenuOpen" class="md:hidden p-2 focus:outline-none" :class="page === 'home' ? 'text-white drop-shadow hover:text-wood-200' : 'text-stone-600 hover:text-forest-700'" aria-label="Menu">
+                    <button @click="mobileMenuOpen = !mobileMenuOpen" class="md:hidden p-2 focus:outline-none" :class="page === 'home' && !isHeaderScrolled ? 'text-white drop-shadow hover:text-wood-200' : 'text-stone-700 hover:text-forest-700'" aria-label="Menu">
                         <i class="fa-solid" :class="mobileMenuOpen ? 'fa-xmark text-2xl' : 'fa-bars text-2xl'"></i>
                     </button>
                 </div>
@@ -1810,19 +1823,19 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
         </div>
 
         <!-- Mobile Nav Menu -->
-        <div x-show="mobileMenuOpen" x-cloak class="md:hidden border-t px-4 py-4 space-y-3 shadow-inner" :class="page === 'home' ? 'border-white/20 bg-stone-950/70 backdrop-blur-[14px]' : 'border-stone-200 bg-white'">
-            <a @click="setPage('home'); mobileMenuOpen = false" href="#" class="block px-3 py-2 rounded-lg font-medium transition" :class="page === 'home' ? 'text-white drop-shadow hover:bg-white/10 hover:text-wood-200' : (page === 'home' ? 'bg-forest-50 text-forest-700' : 'text-stone-700 hover:bg-stone-50')" x-text="t('navHome')">Ana Səhifə</a>
-            <a @click="setPage('projects'); mobileMenuOpen = false" href="#" class="block px-3 py-2 rounded-lg font-medium transition" :class="page === 'home' ? 'text-white drop-shadow hover:bg-white/10 hover:text-wood-200' : (page === 'projects' ? 'bg-forest-50 text-forest-700' : 'text-stone-700 hover:bg-stone-50')" x-text="t('navProjects')">Layihələr</a>
-            <a @click="setPage('gallery'); mobileMenuOpen = false" href="#" class="block px-3 py-2 rounded-lg font-medium transition" :class="page === 'home' ? 'text-white drop-shadow hover:bg-white/10 hover:text-wood-200' : (page === 'gallery' ? 'bg-forest-50 text-forest-700' : 'text-stone-700 hover:bg-stone-50')" x-text="t('navGallery')">Qalereya</a>
-            <a @click="setPage('about'); mobileMenuOpen = false" href="#" class="block px-3 py-2 rounded-lg font-medium transition" :class="page === 'home' ? 'text-white drop-shadow hover:bg-white/10 hover:text-wood-200' : (page === 'about' ? 'bg-forest-50 text-forest-700' : 'text-stone-700 hover:bg-stone-50')" x-text="t('navAbout')">Haqqımızda</a>
-            <a @click="setPage('contact'); mobileMenuOpen = false" href="#" class="block px-3 py-2 rounded-lg font-medium transition" :class="page === 'home' ? 'text-white drop-shadow hover:bg-white/10 hover:text-wood-200' : (page === 'contact' ? 'bg-forest-50 text-forest-700' : 'text-stone-700 hover:bg-stone-50')" x-text="t('navContact')">Əlaqə</a>
-            <div class="sm:hidden grid grid-cols-[1fr_auto] gap-2 border-t pt-3" :class="page === 'home' ? 'border-white/15' : 'border-stone-100'">
-                <div class="flex items-center rounded-full border p-1" :class="page === 'home' ? 'border-white/25 bg-white/10' : 'border-stone-200 bg-stone-50'">
+        <div x-show="mobileMenuOpen" x-cloak class="md:hidden border-t px-4 py-4 space-y-3 shadow-inner" :class="page === 'home' && !isHeaderScrolled ? 'border-white/20 bg-stone-950/70 backdrop-blur-[14px]' : 'border-stone-200 bg-white'">
+            <a @click="setPage('home'); mobileMenuOpen = false" href="#" class="block px-3 py-2 rounded-lg font-medium transition" :class="page === 'home' && !isHeaderScrolled ? 'text-white drop-shadow hover:bg-white/10 hover:text-wood-200' : (page === 'home' ? 'bg-forest-50 text-forest-700' : 'text-stone-700 hover:bg-stone-50')" x-text="t('navHome')">Ana Səhifə</a>
+            <a @click="setPage('projects'); mobileMenuOpen = false" href="#" class="block px-3 py-2 rounded-lg font-medium transition" :class="page === 'home' && !isHeaderScrolled ? 'text-white drop-shadow hover:bg-white/10 hover:text-wood-200' : (page === 'projects' ? 'bg-forest-50 text-forest-700' : 'text-stone-700 hover:bg-stone-50')" x-text="t('navProjects')">Layihələr</a>
+            <a @click="setPage('gallery'); mobileMenuOpen = false" href="#" class="block px-3 py-2 rounded-lg font-medium transition" :class="page === 'home' && !isHeaderScrolled ? 'text-white drop-shadow hover:bg-white/10 hover:text-wood-200' : (page === 'gallery' ? 'bg-forest-50 text-forest-700' : 'text-stone-700 hover:bg-stone-50')" x-text="t('navGallery')">Qalereya</a>
+            <a @click="setPage('about'); mobileMenuOpen = false" href="#" class="block px-3 py-2 rounded-lg font-medium transition" :class="page === 'home' && !isHeaderScrolled ? 'text-white drop-shadow hover:bg-white/10 hover:text-wood-200' : (page === 'about' ? 'bg-forest-50 text-forest-700' : 'text-stone-700 hover:bg-stone-50')" x-text="t('navAbout')">Haqqımızda</a>
+            <a @click="setPage('contact'); mobileMenuOpen = false" href="#" class="block px-3 py-2 rounded-lg font-medium transition" :class="page === 'home' && !isHeaderScrolled ? 'text-white drop-shadow hover:bg-white/10 hover:text-wood-200' : (page === 'contact' ? 'bg-forest-50 text-forest-700' : 'text-stone-700 hover:bg-stone-50')" x-text="t('navContact')">Əlaqə</a>
+            <div class="sm:hidden grid grid-cols-[1fr_auto] gap-2 border-t pt-3" :class="page === 'home' && !isHeaderScrolled ? 'border-white/15' : 'border-stone-100'">
+                <div class="flex items-center rounded-full border p-1" :class="page === 'home' && !isHeaderScrolled ? 'border-white/25 bg-white/10' : 'border-stone-200 bg-stone-50'">
                     <template x-for="option in ['az','ru','en']" :key="option">
-                        <button @click="changeLang(option); mobileMenuOpen = false" class="flex-1 rounded-full py-2 text-xs font-bold uppercase transition" :class="page === 'home' ? (lang === option ? 'bg-white/20 text-white shadow-sm drop-shadow' : 'text-white/75 hover:text-wood-200') : (lang === option ? 'bg-white text-forest-800 shadow-sm' : 'text-stone-500 hover:text-wood-700')" x-text="option.toUpperCase()"></button>
+                        <button @click="changeLang(option); mobileMenuOpen = false" class="flex-1 rounded-full py-2 text-xs font-bold uppercase transition" :class="page === 'home' && !isHeaderScrolled ? (lang === option ? 'bg-white/20 text-white shadow-sm drop-shadow' : 'text-white/75 hover:text-wood-200') : (lang === option ? 'bg-white text-forest-800 shadow-sm' : 'text-stone-500 hover:text-wood-700')" x-text="option.toUpperCase()"></button>
                     </template>
                 </div>
-                <button @click="setPage(adminLoggedIn ? 'admin' : 'login'); mobileMenuOpen = false" class="flex items-center gap-1.5 rounded-full border px-4 py-2 text-xs font-bold transition" :class="page === 'home' ? 'border-white/25 bg-white/15 text-white hover:bg-white/25 drop-shadow' : 'border-stone-200 bg-white text-forest-900 hover:border-wood-300 hover:text-wood-700'">
+                <button @click="setPage(adminLoggedIn ? 'admin' : 'login'); mobileMenuOpen = false" class="flex items-center gap-1.5 rounded-full border px-4 py-2 text-xs font-bold transition" :class="page === 'home' && !isHeaderScrolled ? 'border-white/25 bg-white/15 text-white hover:bg-white/25 drop-shadow' : 'border-stone-200 bg-white text-forest-900 hover:border-wood-300 hover:text-wood-700'">
                     <i class="fa-solid text-[11px]" :class="adminLoggedIn ? 'fa-user-shield' : 'fa-lock'"></i>
                     <span x-text="adminLoggedIn ? (lang === 'ru' ? 'Панель' : 'Panel') : (lang === 'az' ? 'Giriş' : (lang === 'ru' ? 'Вход' : 'Login'))">Giriş</span>
                 </button>
