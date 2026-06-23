@@ -157,10 +157,12 @@
                 galleryPreviewIndex: 0,
                 activeHomeGalleryIndex: 0,
                 activeAdvantagesImageIndex: 0,
+                whyWoodSlideIndex: 0,
+                advantagesSlideIndex: 0,
                 homeGalleryTimer: null,
                 isAdvantagesExpanded: false,
-                homeGalleryImages: [],
-                homeAdvantagesImages: [],
+                homeGalleryImages: defaultHomeGalleryImages,
+                homeAdvantagesImages: defaultHomeAdvantagesImages,
                 isLoading: false,
                 apiBase: '',
 
@@ -585,14 +587,14 @@
                     return list;
                 },
 
-                async initApp() {
-                    await this.loadAdminTabVisibility();
-                    await this.loadData();
-                    await this.loadHomeSectionImages();
-                    this.homeGalleryImages = this.homeGalleryImages.length ? this.homeGalleryImages : defaultHomeGalleryImages;
-                    this.homeAdvantagesImages = this.homeAdvantagesImages.length ? this.homeAdvantagesImages : defaultHomeAdvantagesImages;
+                initApp() {
+                    this.homeGalleryImages = this.visibleHomeGalleryImages();
+                    this.homeAdvantagesImages = this.visibleAdvantagesImages();
                     this.startHomeGalleryRotation();
                     this.initRevealAnimations();
+                    this.loadAdminTabVisibility().catch(error => console.warn('Admin tab visibility loaded from local fallback.', error));
+                    this.loadData().catch(error => console.warn('Initial API data loaded from fallback/cache.', error));
+                    this.loadHomeSectionImages().catch(error => console.warn('Home section images loaded from fallback.', error));
                 },
 
                 async loadData() {
@@ -657,16 +659,19 @@
                     const images = this.visibleHomeGalleryImages();
                     if (!images.length) return;
                     this.activeHomeGalleryIndex = (this.activeHomeGalleryIndex + 1) % images.length;
+                    this.whyWoodSlideIndex = this.activeHomeGalleryIndex;
                 },
 
                 prevHomeGalleryImage() {
                     const images = this.visibleHomeGalleryImages();
                     if (!images.length) return;
                     this.activeHomeGalleryIndex = (this.activeHomeGalleryIndex - 1 + images.length) % images.length;
+                    this.whyWoodSlideIndex = this.activeHomeGalleryIndex;
                 },
 
                 setHomeGalleryImage(index) {
                     this.activeHomeGalleryIndex = index;
+                    this.whyWoodSlideIndex = index;
                     this.startHomeGalleryRotation();
                 },
 
@@ -674,16 +679,19 @@
                     const images = this.visibleAdvantagesImages();
                     if (!images.length) return;
                     this.activeAdvantagesImageIndex = (this.activeAdvantagesImageIndex + 1) % images.length;
+                    this.advantagesSlideIndex = this.activeAdvantagesImageIndex;
                 },
 
                 prevAdvantagesImage() {
                     const images = this.visibleAdvantagesImages();
                     if (!images.length) return;
                     this.activeAdvantagesImageIndex = (this.activeAdvantagesImageIndex - 1 + images.length) % images.length;
+                    this.advantagesSlideIndex = this.activeAdvantagesImageIndex;
                 },
 
                 setAdvantagesImage(index) {
                     this.activeAdvantagesImageIndex = index;
+                    this.advantagesSlideIndex = index;
                     this.startHomeGalleryRotation();
                 },
 
@@ -732,10 +740,14 @@
                 initRevealAnimations() {
                     this.$nextTick(() => {
                         const elements = document.querySelectorAll('[data-reveal]');
-                        if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+                        if (window.matchMedia('(prefers-reduced-motion: reduce)').matches || !('IntersectionObserver' in window)) {
                             elements.forEach(el => el.classList.add('is-visible'));
                             return;
                         }
+                        const revealNowIfVisible = el => {
+                            const rect = el.getBoundingClientRect();
+                            if (rect.top < window.innerHeight && rect.bottom > 0) el.classList.add('is-visible');
+                        };
                         const observer = new IntersectionObserver(entries => {
                             entries.forEach(entry => {
                                 if (entry.isIntersecting) {
@@ -743,8 +755,12 @@
                                     observer.unobserve(entry.target);
                                 }
                             });
-                        }, { threshold: 0.12, rootMargin: '0px 0px -50px 0px' });
-                        elements.forEach(el => observer.observe(el));
+                        }, { threshold: 0.12, rootMargin: '0px 0px -8% 0px' });
+                        elements.forEach(el => {
+                            el.classList.add('reveal-ready');
+                            revealNowIfVisible(el);
+                            if (!el.classList.contains('is-visible')) observer.observe(el);
+                        });
                     });
                 },
 
@@ -810,9 +826,16 @@
 
                 handleGalleryKeydown(event) { if (!this.isGalleryModalOpen) return; if (event.key === 'Escape') this.isGalleryModalOpen = false; if (event.key === 'ArrowRight') this.nextGalleryImage(); if (event.key === 'ArrowLeft') this.prevGalleryImage(); },
 
-                homeLightboxImages() { return Array.isArray(this.homeLightbox.images) ? this.homeLightbox.images : []; },
+                homeLightboxImages() { const safeImages = Array.isArray(this.homeLightbox.images) ? this.homeLightbox.images.filter(Boolean) : []; return safeImages; },
+                homeImageSrc(img = {}) { return img?.imageUrl || img?.image_url || img?.url || img?.src || img?.image || ''; },
                 currentHomeLightboxImage() { const images = this.homeLightboxImages(); return images[this.homeLightbox.index] || images[0] || {}; },
-                openHomeLightbox(section, index) { const images = section === 'why_wood' ? this.visibleHomeGalleryImages() : this.visibleAdvantagesImages(); if (!images.length) return; this.homeLightbox = { open: true, section, images, index: Math.min(Math.max(index || 0, 0), images.length - 1) }; },
+                openHomeLightbox(section, index) {
+                    const sourceImages = section === 'why_wood' ? this.visibleHomeGalleryImages() : this.visibleAdvantagesImages();
+                    const safeImages = Array.isArray(sourceImages) ? sourceImages.filter(Boolean).filter(img => this.homeImageSrc(img)) : [];
+                    if (!safeImages.length) return;
+                    const safeIndex = Math.min(Math.max(Number(index) || 0, 0), safeImages.length - 1);
+                    this.homeLightbox = { open: true, section, images: safeImages, index: safeIndex };
+                },
                 closeHomeLightbox() { this.homeLightbox.open = false; },
                 nextHomeLightbox() { const images = this.homeLightboxImages(); if (images.length) this.homeLightbox.index = (this.homeLightbox.index + 1) % images.length; },
                 prevHomeLightbox() { const images = this.homeLightboxImages(); if (images.length) this.homeLightbox.index = (this.homeLightbox.index - 1 + images.length) % images.length; },
@@ -1078,27 +1101,11 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                 },
 
                 updateSideAdVisibility() {
-                    const header = document.querySelector('header');
-                    const hero = document.querySelector('[data-home-hero]');
-                    const headerHeight = header?.offsetHeight || 80;
-                    const heroBottom = hero ? hero.offsetTop + hero.offsetHeight : window.innerHeight;
-                    const afterHero = this.page === 'home' ? window.scrollY >= heroBottom - headerHeight : window.scrollY >= Math.max(0, headerHeight - 24);
-                    this.showSideAds = window.innerWidth >= 1280 && afterHero && !this.footerInView;
+                    this.showSideAds = window.innerWidth >= 1280;
                 },
 
                 initLayoutObservers() {
-                    const footer = document.querySelector('footer');
-                    if (footer) {
-                        const footerObserver = new IntersectionObserver(entries => {
-                            this.footerInView = entries.some(entry => entry.isIntersecting);
-                            this.updateSideAdVisibility();
-                        }, { rootMargin: '0px 0px 120px 0px', threshold: 0 });
-                        footerObserver.observe(footer);
-                    }
                     this.updateSideAdVisibility();
-                    window.addEventListener('scroll', () => this.updateSideAdVisibility(), { passive: true });
-                    window.addEventListener('resize', () => this.updateSideAdVisibility());
-                    this.$watch('page', () => this.$nextTick(() => this.updateSideAdVisibility()));
                 },
 
                 incrementAdView(side) {
@@ -1720,13 +1727,17 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
             -ms-overflow-style: none;
             scrollbar-width: none;
         }
+        :root { --header-height: 72px; }
+        .header-main { position: fixed; top: 0; left: 0; right: 0; z-index: 100; }
+        .page-shell { padding-top: var(--header-height); }
         .ad-content-grid { display: grid; grid-template-columns: minmax(0, 1fr); }
         .ad-rail { display: none; }
-        [data-reveal] { opacity: 0; transform: translateY(22px) scale(.985); transition: opacity 600ms ease, transform 600ms ease; }
-        [data-reveal=slide-left] { transform: translateX(28px) scale(.985); }
-        [data-reveal=slide-right] { transform: translateX(-28px) scale(.985); }
-        [data-reveal].is-visible { opacity: 1; transform: translate(0, 0) scale(1); }
-        @media (prefers-reduced-motion: reduce) { [data-reveal] { opacity: 1; transform: none; transition: none; } }
+        [data-reveal] { opacity: 1; transform: none; }
+        [data-reveal].reveal-ready { opacity: 0; transform: translateY(18px) scale(.99); transition: opacity 420ms ease, transform 420ms ease; }
+        [data-reveal=slide-left].reveal-ready { transform: translateX(18px) scale(.99); }
+        [data-reveal=slide-right].reveal-ready { transform: translateX(-18px) scale(.99); }
+        [data-reveal].reveal-ready.is-visible { opacity: 1; transform: translate(0, 0) scale(1); }
+        @media (prefers-reduced-motion: reduce) { [data-reveal], [data-reveal].reveal-ready { opacity: 1; transform: none; transition: none; } }
         @media (min-width: 1280px) {
             .ad-safe-content { padding-left: 0; padding-right: 0; }
             .ad-content-grid.has-ads { grid-template-columns: 280px minmax(0, 1fr) 280px; gap: 20px; align-items: start; }
@@ -1739,7 +1750,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
         }
     </style>
 </head>
-<body class="bg-stone-50 text-stone-800 antialiased font-sans min-h-screen flex flex-col overflow-x-hidden" x-data="siteState()" x-init="initHeaderScroll(); initApp(); initAdObservers(); initLayoutObservers()">
+<body class="bg-stone-50 text-stone-800 antialiased font-sans min-h-screen flex flex-col overflow-x-hidden" x-data="siteState()" x-init="initHeaderScroll(); initApp(); initAdObservers()">
 
     <div x-show="isLoading" x-cloak class="fixed inset-0 bg-stone-950/70 backdrop-blur-md z-[9999] flex flex-col items-center justify-center space-y-4" x-transition>
         <div class="w-16 h-16 border-4 border-wood-500 border-t-transparent rounded-full animate-spin"></div>
@@ -1747,7 +1758,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
     </div>
 
     <!-- MAIN HEADER -->
-    <header class="z-50 border-b transition-all duration-300" :class="page === 'home' ? (isHeaderScrolled ? 'fixed top-0 left-0 right-0 bg-white/90 backdrop-blur-xl border-stone-200 shadow-sm text-forest-950' : 'fixed top-0 left-0 right-0 bg-forest-950/25 backdrop-blur-xl border-white/15 shadow-none text-white') : 'sticky top-0 bg-white glass border-stone-200/80 shadow-sm text-forest-950'">
+    <header class="header-main border-b transition-all duration-300" :class="page === 'home' ? (isHeaderScrolled ? 'bg-white/90 backdrop-blur-xl border-stone-200 shadow-sm text-forest-950' : 'bg-forest-950/25 backdrop-blur-xl border-white/15 shadow-none text-white') : 'bg-white glass border-stone-200/80 shadow-sm text-forest-950'">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between items-center h-16 lg:h-[72px]">
                 <!-- Logo -->
@@ -1984,17 +1995,17 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                             <div class="bg-white rounded-[1.75rem] p-3 shadow-2xl shadow-forest-950/10 border border-stone-200" data-reveal="slide-left">
                                 <div class="relative h-[320px] sm:h-[430px] overflow-hidden rounded-[1.35rem]">
                                     <template x-for="(image, index) in visibleHomeGalleryImages()" :key="image.src">
-                                        <img x-show="activeHomeGalleryIndex === index" x-transition.opacity.duration.500ms :src="image.src" :alt="image.title" class="absolute inset-0 w-full h-full object-cover cursor-zoom-in" @click="openHomeLightbox('why_wood', index)">
+                                        <img x-show="activeHomeGalleryIndex === index" x-transition.opacity.duration.500ms :src="image.src" :alt="image.title" class="absolute inset-0 w-full h-full object-cover cursor-pointer" @click.stop="openHomeLightbox('why_wood', whyWoodSlideIndex || 0)">
                                     </template>
                                     <div class="absolute inset-0 bg-gradient-to-t from-forest-950/55 via-transparent to-transparent"></div>
                                     <div class="absolute left-5 bottom-5 right-5 text-white">
                                         <p class="text-xs font-bold uppercase tracking-widest text-wood-200" x-text="t('woodHomeAtmosphere')">Taxta ev atmosferi</p>
                                         <h3 class="text-2xl font-black" x-text="visibleHomeGalleryImages()[activeHomeGalleryIndex]?.title"></h3>
                                     </div>
-                                    <button @click="prevHomeGalleryImage(); startHomeGalleryRotation()" class="absolute left-4 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white/85 hover:bg-white text-forest-900 shadow flex items-center justify-center"><i class="fa-solid fa-chevron-left"></i></button>
-                                    <button @click="nextHomeGalleryImage(); startHomeGalleryRotation()" class="absolute right-4 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white/85 hover:bg-white text-forest-900 shadow flex items-center justify-center"><i class="fa-solid fa-chevron-right"></i></button>
+                                    <button @click.stop="prevHomeGalleryImage(); startHomeGalleryRotation()" class="absolute left-4 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white/85 hover:bg-white text-forest-900 shadow flex items-center justify-center"><i class="fa-solid fa-chevron-left"></i></button>
+                                    <button @click.stop="nextHomeGalleryImage(); startHomeGalleryRotation()" class="absolute right-4 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white/85 hover:bg-white text-forest-900 shadow flex items-center justify-center"><i class="fa-solid fa-chevron-right"></i></button>
                                     <div class="absolute bottom-4 left-0 right-0 flex justify-center gap-2">
-                                        <template x-for="(image, index) in visibleHomeGalleryImages()" :key="`dot-${image.src}`"><button @click="setHomeGalleryImage(index)" class="h-2 rounded-full transition-all" :class="activeHomeGalleryIndex === index ? 'w-8 bg-wood-400' : 'w-2 bg-white/70'"></button></template>
+                                        <template x-for="(image, index) in visibleHomeGalleryImages()" :key="`dot-${image.src}`"><button @click.stop="setHomeGalleryImage(index)" class="h-2 rounded-full transition-all" :class="activeHomeGalleryIndex === index ? 'w-8 bg-wood-400' : 'w-2 bg-white/70'"></button></template>
                                     </div>
                                 </div>
                             </div>
@@ -2025,14 +2036,14 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                         <div class="bg-white rounded-[2rem] p-3 shadow-lg border border-stone-200" data-reveal="slide-left">
                             <div class="relative h-[420px] overflow-hidden rounded-[1.5rem]">
                                 <template x-for="(image, index) in visibleAdvantagesImages()" :key="image.src">
-                                    <img x-show="activeAdvantagesImageIndex === index" x-transition.opacity.duration.500ms :src="image.src" :alt="image.title" class="absolute inset-0 w-full h-full object-cover cursor-zoom-in" @click="openHomeLightbox('advantages', index)">
+                                    <img x-show="activeAdvantagesImageIndex === index" x-transition.opacity.duration.500ms :src="image.src" :alt="image.title" class="absolute inset-0 w-full h-full object-cover cursor-pointer" @click.stop="openHomeLightbox('advantages', advantagesSlideIndex || 0)">
                                 </template>
                                 <div class="absolute inset-0 bg-gradient-to-t from-forest-950/45 via-transparent to-transparent"></div>
                                 <h3 class="absolute left-5 bottom-5 right-5 text-2xl font-black text-white" x-text="visibleAdvantagesImages()[activeAdvantagesImageIndex]?.title"></h3>
-                                <button @click="prevAdvantagesImage(); startHomeGalleryRotation()" class="absolute left-4 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white/85 hover:bg-white text-forest-900 shadow flex items-center justify-center"><i class="fa-solid fa-chevron-left"></i></button>
-                                <button @click="nextAdvantagesImage(); startHomeGalleryRotation()" class="absolute right-4 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white/85 hover:bg-white text-forest-900 shadow flex items-center justify-center"><i class="fa-solid fa-chevron-right"></i></button>
+                                <button @click.stop="prevAdvantagesImage(); startHomeGalleryRotation()" class="absolute left-4 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white/85 hover:bg-white text-forest-900 shadow flex items-center justify-center"><i class="fa-solid fa-chevron-left"></i></button>
+                                <button @click.stop="nextAdvantagesImage(); startHomeGalleryRotation()" class="absolute right-4 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white/85 hover:bg-white text-forest-900 shadow flex items-center justify-center"><i class="fa-solid fa-chevron-right"></i></button>
                                 <div class="absolute bottom-4 left-0 right-0 flex justify-center gap-2">
-                                    <template x-for="(image, index) in visibleAdvantagesImages()" :key="`adv-dot-${image.src}`"><button @click="setAdvantagesImage(index)" class="h-2 rounded-full transition-all" :class="activeAdvantagesImageIndex === index ? 'w-8 bg-wood-400' : 'w-2 bg-white/70'"></button></template>
+                                    <template x-for="(image, index) in visibleAdvantagesImages()" :key="`adv-dot-${image.src}`"><button @click.stop="setAdvantagesImage(index)" class="h-2 rounded-full transition-all" :class="activeAdvantagesImageIndex === index ? 'w-8 bg-wood-400' : 'w-2 bg-white/70'"></button></template>
                                 </div>
                             </div>
                         </div>
@@ -2082,7 +2093,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
             </div>
 
             <!-- 2. PROJECTS CATALOGUE PAGE -->
-            <div x-show="page !== 'home'" x-cloak class="ad-content-grid mx-auto w-full max-w-[calc(100vw-2rem)]" :class="{ 'has-ads': hasAnyRenderableBanner(), 'has-left-ad': hasRenderableBanner('left'), 'has-right-ad': hasRenderableBanner('right'), 'max-w-7xl': !hasAnyRenderableBanner() }">
+            <div x-show="page !== 'home'" x-cloak class="page-shell ad-content-grid mx-auto w-full max-w-[calc(100vw-2rem)]" :class="{ 'has-ads': hasAnyRenderableBanner(), 'has-left-ad': hasRenderableBanner('left'), 'has-right-ad': hasRenderableBanner('right'), 'max-w-7xl': !hasAnyRenderableBanner() }">
                 <aside x-show="hasRenderableBanner('left')" x-cloak class="ad-rail" data-ad-side="left">
                     <div class="ad-box flex flex-col items-center py-2">
                         <div class="ad-frame relative" :style="`--ad-width: ${Math.min(bannerForSide($el.closest('[data-ad-side]')?.dataset.adSide || 'left').width || 260, 260)}px; --ad-height: ${bannerForSide($el.closest('[data-ad-side]')?.dataset.adSide || 'left').height || 600}px;`">
@@ -2834,12 +2845,12 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
 
 
     <!-- HOME SECTION IMAGE LIGHTBOX -->
-    <div x-show="homeLightbox.open" x-cloak class="fixed inset-0 z-[60] flex items-center justify-center p-3 sm:p-6 bg-stone-950/95" x-transition @keydown.window="handleHomeLightboxKeydown($event)">
-        <button @click="closeHomeLightbox()" class="absolute top-4 right-4 sm:top-6 sm:right-6 w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-white/10 text-white hover:bg-white/20 flex items-center justify-center z-10" aria-label="Close"><i class="fa-solid fa-xmark text-xl"></i></button>
-        <button @click="prevHomeLightbox()" class="absolute left-3 sm:left-6 top-1/2 -translate-y-1/2 w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-white/10 text-white hover:bg-white/20 flex items-center justify-center z-10" aria-label="Previous"><i class="fa-solid fa-chevron-left"></i></button>
-        <button @click="nextHomeLightbox()" class="absolute right-3 sm:right-6 top-1/2 -translate-y-1/2 w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-white/10 text-white hover:bg-white/20 flex items-center justify-center z-10" aria-label="Next"><i class="fa-solid fa-chevron-right"></i></button>
-        <div class="w-full max-w-6xl flex flex-col items-center gap-4 text-white">
-            <img :src="currentHomeLightboxImage().src" :alt="currentHomeLightboxImage().title || ''" class="max-h-[78vh] w-auto max-w-full rounded-2xl object-contain shadow-2xl">
+    <div x-show="homeLightbox.open" x-cloak class="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-6 bg-stone-950/95" x-transition @click="closeHomeLightbox()" @keydown.window="handleHomeLightboxKeydown($event)">
+        <button @click.stop="closeHomeLightbox()" class="absolute top-4 right-4 sm:top-6 sm:right-6 w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-white/10 text-white hover:bg-white/20 flex items-center justify-center z-10" aria-label="Close"><i class="fa-solid fa-xmark text-xl"></i></button>
+        <button @click.stop="prevHomeLightbox()" class="absolute left-3 sm:left-6 top-1/2 -translate-y-1/2 w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-white/10 text-white hover:bg-white/20 flex items-center justify-center z-10" aria-label="Previous"><i class="fa-solid fa-chevron-left"></i></button>
+        <button @click.stop="nextHomeLightbox()" class="absolute right-3 sm:right-6 top-1/2 -translate-y-1/2 w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-white/10 text-white hover:bg-white/20 flex items-center justify-center z-10" aria-label="Next"><i class="fa-solid fa-chevron-right"></i></button>
+        <div class="w-full max-w-6xl flex flex-col items-center gap-4 text-white" @click.stop>
+            <img :src="homeImageSrc(currentHomeLightboxImage())" :alt="currentHomeLightboxImage().title || ''" class="max-h-[78vh] w-auto max-w-full rounded-2xl object-contain shadow-2xl">
             <div class="text-center space-y-1">
                 <p class="text-lg font-bold" x-text="currentHomeLightboxImage().title || (homeLightbox.section === 'advantages' ? t('advantagesTitle') : t('homeWhyWood'))"></p>
                 <p class="text-sm text-white/75" x-text="homeLightboxImages().length ? `${homeLightbox.index + 1} / ${homeLightboxImages().length}` : `0 / 0`"></p>
