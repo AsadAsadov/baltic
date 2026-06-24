@@ -432,8 +432,17 @@
                 setPage(newPage) {
                     this.page = newPage;
                     this.adminLoginError = '';
+                    this.closeMobileMenu();
                     window.scrollTo({ top: 0, behavior: 'smooth' });
                     this.$nextTick(() => this.updateHeaderScrollState());
+                },
+
+                toggleMobileMenu() {
+                    this.mobileMenuOpen = !this.mobileMenuOpen;
+                },
+
+                closeMobileMenu() {
+                    this.mobileMenuOpen = false;
                 },
 
                 updateHeaderScrollState() {
@@ -1757,6 +1766,68 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
         [data-reveal=slide-right].reveal-ready { transform: translateX(-18px) scale(.99); }
         [data-reveal].reveal-ready.is-visible { opacity: 1; transform: translate(0, 0) scale(1); }
         @media (prefers-reduced-motion: reduce) { [data-reveal], [data-reveal].reveal-ready { opacity: 1; transform: none; transition: none; } }
+        #mobileMenuPanel.hidden {
+            display: none !important;
+        }
+        #mobileMenuPanel.mobile-menu-open {
+            display: block !important;
+        }
+        #mobileMenuPanel {
+            position: fixed;
+            top: calc(var(--header-height) + 10px);
+            left: 16px;
+            right: 16px;
+            z-index: 999999;
+            max-width: calc(100vw - 32px);
+            overflow-x: hidden;
+            border-radius: 22px;
+            padding: 14px;
+            background: rgba(255, 255, 255, 0.98);
+            border: 1px solid rgba(231, 229, 228, 0.95);
+            box-shadow: 0 24px 70px rgba(15, 35, 26, 0.28), 0 8px 24px rgba(0, 0, 0, 0.14);
+        }
+        #mobileMenuPanel .mobile-menu-link {
+            display: flex;
+            align-items: center;
+            width: 100%;
+            min-height: 48px;
+            padding: 12px 14px;
+            border-radius: 16px;
+            font-weight: 800;
+            color: #1c3e2d;
+            transition: background 180ms ease, color 180ms ease;
+        }
+        #mobileMenuPanel .mobile-menu-link:hover,
+        #mobileMenuPanel .mobile-menu-link:focus-visible {
+            background: #f2f8f4;
+            color: #275d40;
+            outline: none;
+        }
+        @media (prefers-color-scheme: dark) {
+            #mobileMenuPanel {
+                background: rgba(15, 23, 20, 0.98);
+                border-color: rgba(255, 255, 255, 0.14);
+                box-shadow: 0 24px 70px rgba(0, 0, 0, 0.58), 0 8px 24px rgba(0, 0, 0, 0.34);
+            }
+            #mobileMenuPanel .mobile-menu-link { color: #f5f5f4; }
+            #mobileMenuPanel .mobile-menu-link:hover,
+            #mobileMenuPanel .mobile-menu-link:focus-visible { background: rgba(255, 255, 255, 0.1); color: #f5dcd0; }
+        }
+        .login-page-wrap { width: 100%; max-width: 520px; margin-left: auto; margin-right: auto; padding: 4rem 1rem; }
+        .login-card-premium { border-radius: 32px; border: 1px solid rgba(231, 229, 228, .9); background: rgba(255,255,255,.96); box-shadow: 0 24px 70px rgba(15,35,26,.14); padding: 2rem; }
+        .login-input { width: 100%; min-height: 52px; border-radius: 16px; border: 1px solid #e7e5e4; background: #fafaf9; padding: 0 1rem; font-size: .95rem; outline: none; }
+        .login-input:focus { border-color: #33734f; box-shadow: 0 0 0 4px rgba(51, 115, 79, .12); background: #fff; }
+        @media (min-width: 640px) { .login-card-premium { padding: 2.5rem; } }
+        @media (prefers-color-scheme: dark) {
+            .login-card-premium { background: rgba(28, 25, 23, .96); border-color: rgba(255,255,255,.12); box-shadow: 0 24px 70px rgba(0,0,0,.42); }
+            .login-card-premium h2 { color: #f5f5f4; }
+            .login-card-premium p { color: #d6d3d1; }
+            .login-input { background: rgba(255,255,255,.06); border-color: rgba(255,255,255,.14); color: #f5f5f4; }
+            .login-input::placeholder { color: #a8a29e; }
+            .login-input:focus { background: rgba(255,255,255,.09); border-color: #99caad; }
+            .google-login-button { background: rgba(255,255,255,.08); border-color: rgba(255,255,255,.16); color: #f5f5f4; }
+            .google-login-button:hover { background: rgba(255,255,255,.12); border-color: #99caad; }
+        }
         @media (min-width: 1280px) {
             .ad-safe-content { padding-left: 0; padding-right: 0; }
             .ad-content-grid.has-ads { grid-template-columns: 280px minmax(0, 1fr) 280px; gap: 20px; align-items: start; }
@@ -1845,7 +1916,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                     </button>
 
                     <!-- Mobile menu toggle -->
-                    <button @click="mobileMenuOpen = !mobileMenuOpen" class="md:hidden p-2 focus:outline-none" :class="page === 'home' && !isHeaderScrolled ? 'text-white drop-shadow hover:text-wood-200' : 'text-stone-700 hover:text-forest-700'" aria-label="Menu">
+                    <button @click="toggleMobileMenu()" data-mobile-menu-button aria-expanded="false" x-bind:aria-expanded="mobileMenuOpen ? 'true' : 'false'" aria-controls="mobileMenuPanel" class="md:hidden p-2 focus:outline-none" :class="page === 'home' && !isHeaderScrolled ? 'text-white drop-shadow hover:text-wood-200' : 'text-stone-700 hover:text-forest-700'" aria-label="Menu">
                         <i class="fa-solid" :class="mobileMenuOpen ? 'fa-xmark text-2xl' : 'fa-bars text-2xl'"></i>
                     </button>
                 </div>
@@ -1853,19 +1924,23 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
         </div>
 
         <!-- Mobile Nav Menu -->
-        <div x-show="mobileMenuOpen" x-cloak class="md:hidden border-t px-4 py-4 space-y-3 shadow-inner" :class="page === 'home' && !isHeaderScrolled ? 'border-white/20 bg-stone-950/70 backdrop-blur-[14px]' : 'border-stone-200 bg-white'">
-            <a @click="setPage('home'); mobileMenuOpen = false" href="#" class="block px-3 py-2 rounded-lg font-medium transition" :class="page === 'home' && !isHeaderScrolled ? 'text-white drop-shadow hover:bg-white/10 hover:text-wood-200' : (page === 'home' ? 'bg-forest-50 text-forest-700' : 'text-stone-700 hover:bg-stone-50')" x-text="t('navHome')">Ana Səhifə</a>
-            <a @click="setPage('projects'); mobileMenuOpen = false" href="#" class="block px-3 py-2 rounded-lg font-medium transition" :class="page === 'home' && !isHeaderScrolled ? 'text-white drop-shadow hover:bg-white/10 hover:text-wood-200' : (page === 'projects' ? 'bg-forest-50 text-forest-700' : 'text-stone-700 hover:bg-stone-50')" x-text="t('navProjects')">Layihələr</a>
-            <a @click="setPage('gallery'); mobileMenuOpen = false" href="#" class="block px-3 py-2 rounded-lg font-medium transition" :class="page === 'home' && !isHeaderScrolled ? 'text-white drop-shadow hover:bg-white/10 hover:text-wood-200' : (page === 'gallery' ? 'bg-forest-50 text-forest-700' : 'text-stone-700 hover:bg-stone-50')" x-text="t('navGallery')">Qalereya</a>
-            <a @click="setPage('about'); mobileMenuOpen = false" href="#" class="block px-3 py-2 rounded-lg font-medium transition" :class="page === 'home' && !isHeaderScrolled ? 'text-white drop-shadow hover:bg-white/10 hover:text-wood-200' : (page === 'about' ? 'bg-forest-50 text-forest-700' : 'text-stone-700 hover:bg-stone-50')" x-text="t('navAbout')">Haqqımızda</a>
-            <a @click="setPage('contact'); mobileMenuOpen = false" href="#" class="block px-3 py-2 rounded-lg font-medium transition" :class="page === 'home' && !isHeaderScrolled ? 'text-white drop-shadow hover:bg-white/10 hover:text-wood-200' : (page === 'contact' ? 'bg-forest-50 text-forest-700' : 'text-stone-700 hover:bg-stone-50')" x-text="t('navContact')">Əlaqə</a>
-            <div class="sm:hidden grid grid-cols-[1fr_auto] gap-2 border-t pt-3" :class="page === 'home' && !isHeaderScrolled ? 'border-white/15' : 'border-stone-100'">
-                <div class="flex items-center rounded-full border p-1" :class="page === 'home' && !isHeaderScrolled ? 'border-white/25 bg-white/10' : 'border-stone-200 bg-stone-50'">
+        <div id="mobileMenuPanel" :class="mobileMenuOpen ? 'mobile-menu-open' : 'hidden'" class="md:hidden hidden">
+            <nav class="flex flex-col gap-1" aria-label="Mobile navigation">
+                <a @click.prevent="setPage('projects')" href="#" class="mobile-menu-link">Layihələr</a>
+                <a @click.prevent="setPage('sea-breeze')" href="#" class="mobile-menu-link">Sea Breeze Haqqında</a>
+                <a @click.prevent="setPage('announcements')" href="#" class="mobile-menu-link">Elanlar</a>
+                <a @click.prevent="setPage('gallery')" href="#" class="mobile-menu-link">Qalereya</a>
+                <a @click.prevent="setPage('mortgage')" href="#" class="mobile-menu-link">İpoteka</a>
+                <a @click.prevent="setPage('about')" href="#" class="mobile-menu-link">Haqqımızda</a>
+                <a @click.prevent="setPage('vacancy')" href="#" class="mobile-menu-link">Vakansiya</a>
+            </nav>
+            <div class="sm:hidden grid grid-cols-[1fr_auto] gap-2 border-t border-stone-200/70 pt-3 mt-3 dark:border-white/10">
+                <div class="flex items-center rounded-full border border-stone-200 bg-stone-50 p-1">
                     <template x-for="option in ['az','ru','en']" :key="option">
-                        <button @click="changeLang(option); mobileMenuOpen = false" class="flex-1 rounded-full py-2 text-xs font-bold uppercase transition" :class="page === 'home' && !isHeaderScrolled ? (lang === option ? 'bg-white/20 text-white shadow-sm drop-shadow' : 'text-white/75 hover:text-wood-200') : (lang === option ? 'bg-white text-forest-800 shadow-sm' : 'text-stone-500 hover:text-wood-700')" x-text="option.toUpperCase()"></button>
+                        <button @click="changeLang(option); closeMobileMenu()" class="flex-1 rounded-full py-2 text-xs font-bold uppercase transition" :class="lang === option ? 'bg-white text-forest-800 shadow-sm' : 'text-stone-500 hover:text-wood-700'" x-text="option.toUpperCase()"></button>
                     </template>
                 </div>
-                <button @click="setPage(adminLoggedIn ? 'admin' : 'login'); mobileMenuOpen = false" class="flex items-center gap-1.5 rounded-full border px-4 py-2 text-xs font-bold transition" :class="page === 'home' && !isHeaderScrolled ? 'border-white/25 bg-white/15 text-white hover:bg-white/25 drop-shadow' : 'border-stone-200 bg-white text-forest-900 hover:border-wood-300 hover:text-wood-700'">
+                <button @click="setPage(adminLoggedIn ? 'admin' : 'login')" class="flex items-center gap-1.5 rounded-full border border-stone-200 bg-white px-4 py-2 text-xs font-bold text-forest-900 transition hover:border-wood-300 hover:text-wood-700">
                     <i class="fa-solid text-[11px]" :class="adminLoggedIn ? 'fa-user-shield' : 'fa-lock'"></i>
                     <span x-text="adminLoggedIn ? (lang === 'ru' ? 'Панель' : 'Panel') : (lang === 'az' ? 'Giriş' : (lang === 'ru' ? 'Вход' : 'Login'))">Giriş</span>
                 </button>
@@ -2240,25 +2315,39 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                 <div class="bg-white rounded-3xl border border-stone-200 p-4 shadow-sm flex flex-col md:flex-row gap-4 items-center"><div class="w-full md:w-1/2 h-56 rounded-2xl overflow-hidden"><iframe class="w-full h-full" loading="lazy" :src="`https://www.google.com/maps?q=${encodedAddress}&output=embed`"></iframe></div><div class="flex-1"><h3 class="text-xl font-black text-forest-950">Mini location card</h3><p class="text-stone-500 mt-2">Baksol küçəsi, Bakı, Azərbaycan</p><button @click="openMapChoice()" class="mt-4 px-5 py-3 bg-wood-600 text-white rounded-xl font-bold">Xəritədə aç</button></div></div>
             </div>
 
+
+            <div x-show="['sea-breeze','announcements','mortgage','vacancy'].includes(page)" x-cloak class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12 ad-safe-content">
+                <div class="bg-white rounded-[2rem] border border-stone-200/80 shadow-sm p-8 sm:p-10 space-y-4">
+                    <span class="text-wood-600 font-bold uppercase tracking-widest text-sm" x-text="page === 'sea-breeze' ? 'Sea Breeze' : (page === 'announcements' ? 'Elanlar' : (page === 'mortgage' ? 'İpoteka' : 'Vakansiya'))"></span>
+                    <h1 class="text-3xl sm:text-5xl font-black text-forest-950" x-text="page === 'sea-breeze' ? 'Sea Breeze Haqqında' : (page === 'announcements' ? 'Elanlar' : (page === 'mortgage' ? 'İpoteka' : 'Vakansiya'))"></h1>
+                    <p class="text-stone-600 leading-relaxed">Bu bölmə haqqında məlumat tezliklə yenilənəcək. Ətraflı məlumat üçün bizimlə əlaqə saxlayın.</p>
+                    <button @click="setPage('contact')" class="inline-flex items-center justify-center rounded-2xl bg-forest-700 px-5 py-3 font-bold text-white shadow hover:bg-forest-800">Əlaqə saxlayın</button>
+                </div>
+            </div>
+
             <!-- 6. ADMIN LOGIN PAGE -->
-            <div x-show="page === 'login'" x-cloak class="max-w-md mx-auto px-4 py-20">
-                <div class="bg-white p-8 sm:p-10 rounded-[2.5rem] border border-stone-200/80 shadow-2xl space-y-6">
+            <div x-show="page === 'login'" x-cloak class="login-page-wrap">
+                <div class="login-card-premium space-y-6">
                     <div class="text-center space-y-2">
                         <h2 class="text-2xl font-black text-forest-950" x-text="lang === 'az' ? 'Admin Paneli' : (lang === 'ru' ? 'Админка' : 'Admin Area')">Baltic Caspian Admin</h2>
                         <p class="text-xs text-stone-500">Giriş məlumatları: admin / admin</p>
                     </div>
 
                     <form @submit.prevent="handleAdminLogin()" class="space-y-4">
-                        <input type="text" x-model="adminUsername" required class="w-full px-4 py-3 bg-stone-50 rounded-xl border border-stone-200 focus:outline-none focus:border-forest-500 text-sm" placeholder="Username">
-                        <input type="password" x-model="adminPassword" required class="w-full px-4 py-3 bg-stone-50 rounded-xl border border-stone-200 focus:outline-none focus:border-forest-500 text-sm" placeholder="Password">
+                        <input type="text" x-model="adminUsername" required class="login-input" placeholder="Username">
+                        <input type="password" x-model="adminPassword" required class="login-input" placeholder="Password">
                         
                         <template x-if="adminLoginError">
                             <div class="p-3 bg-red-50 text-red-600 text-xs rounded-xl" x-text="adminLoginError"></div>
                         </template>
 
-                        <button type="submit" class="w-full py-4 bg-forest-700 hover:bg-forest-800 text-white font-bold rounded-xl transition shadow-md flex items-center justify-center gap-2">
+                        <button type="submit" class="w-full py-4 bg-forest-700 hover:bg-forest-800 text-white font-bold rounded-2xl transition shadow-md flex items-center justify-center gap-2">
                             <i class="fa-solid fa-unlock-keyhole"></i>
                             <span x-text="lang === 'az' ? 'Daxil Ol' : (lang === 'ru' ? 'Войти' : 'Sign In')">Daxil Ol</span>
+                        </button>
+                        <button type="button" class="google-login-button w-full min-h-[52px] rounded-2xl border border-stone-200 bg-white px-4 py-3 font-bold text-stone-700 shadow-sm transition hover:border-forest-200 hover:bg-forest-50 flex items-center justify-center gap-3">
+                            <i class="fa-brands fa-google text-red-500"></i>
+                            <span>Google ilə daxil ol</span>
                         </button>
                     </form>
                 </div>
