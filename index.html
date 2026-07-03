@@ -2825,44 +2825,44 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
             </div>
 
             <!-- FOOTER -->
-            </main><footer class="relative left-1/2 w-screen max-w-[100vw] -translate-x-1/2 bg-stone-950 text-stone-200 pt-10 pb-7 border-t border-forest-900 mt-auto">
-                <div class="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-10">
-                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-10 mb-4">
+            </main><footer class="relative left-1/2 w-screen max-w-[100vw] -translate-x-1/2 text-stone-100 pt-14 pb-9 border-t border-white/[.08] mt-auto" style="background: radial-gradient(circle at top right, rgba(184,138,96,.12), transparent 45%), linear-gradient(180deg, #17372F 0%, #10271F 45%, #0B1915 100%);">
+                <div class="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10 lg:gap-14 mb-4">
                         <div class="space-y-6">
                             <a href="#" class="flex items-center gap-3">
                                 <div class="w-10 h-10 bg-forest-700 rounded-lg flex items-center justify-center text-white"><i class="fa-solid fa-tree-city text-xl"></i></div>
-                                <span class="text-lg font-black tracking-tight text-white">BALTIC CASPIAN</span>
+                                <span class="text-lg font-black tracking-tight text-stone-100">BALTIC CASPIAN</span>
                             </a>
                             <p class="text-stone-400 text-sm leading-relaxed" x-text="t('footerAbout')">Baltic Caspian – Azərbaycanda keyfiyyətli taxta evlərin lider istehsalçısıdır.</p>
                         </div>
 
                         <div class="space-y-6">
-                            <h4 class="text-white font-bold tracking-wider text-sm uppercase" x-text="t('footerMenu')">Faydalı Keçidlər</h4>
+                            <h4 class="text-stone-100 font-semibold tracking-wider text-sm uppercase" x-text="t('footerMenu')">Faydalı Keçidlər</h4>
                             <ul class="space-y-3 text-stone-400 text-sm">
-                                <li><a @click.prevent="navigateTo('home')" href="#" class="hover:text-wood-400 transition" x-text="t('navHome')">Ana Səhifə</a></li>
-                                <li><a @click.prevent="navigateTo('projects')" href="#" class="hover:text-wood-400 transition" x-text="t('navProjects')">Layihələr</a></li>
-                                <li><a @click.prevent="navigateTo('gallery')" href="#" class="hover:text-wood-400 transition" x-text="t('navGallery')">Qalereya</a></li>
-                                <li><a @click.prevent="navigateTo('about')" href="#" class="hover:text-wood-400 transition" x-text="t('navAbout')">Haqqımızda</a></li>
-                                <li><a @click.prevent="navigateTo('contact')" href="#" class="hover:text-wood-400 transition" x-text="t('navContact')">Əlaqə</a></li>
+                                <li><a @click.prevent="navigateTo('home')" href="#" class="transition-all duration-[250ms] ease-in-out hover:text-[#D59A72]" x-text="t('navHome')">Ana Səhifə</a></li>
+                                <li><a @click.prevent="navigateTo('projects')" href="#" class="transition-all duration-[250ms] ease-in-out hover:text-[#D59A72]" x-text="t('navProjects')">Layihələr</a></li>
+                                <li><a @click.prevent="navigateTo('gallery')" href="#" class="transition-all duration-[250ms] ease-in-out hover:text-[#D59A72]" x-text="t('navGallery')">Qalereya</a></li>
+                                <li><a @click.prevent="navigateTo('about')" href="#" class="transition-all duration-[250ms] ease-in-out hover:text-[#D59A72]" x-text="t('navAbout')">Haqqımızda</a></li>
+                                <li><a @click.prevent="navigateTo('contact')" href="#" class="transition-all duration-[250ms] ease-in-out hover:text-[#D59A72]" x-text="t('navContact')">Əlaqə</a></li>
                             </ul>
                         </div>
 
                         <div class="space-y-6">
-                            <h4 class="text-white font-bold tracking-wider text-sm uppercase" x-text="t('footerContact')">Əlaqə</h4>
+                            <h4 class="text-stone-100 font-semibold tracking-wider text-sm uppercase" x-text="t('footerContact')">Əlaqə</h4>
                             <ul class="space-y-3 text-stone-400 text-sm">
-                                <li class="flex items-center gap-2"><i class="fa-solid fa-phone text-wood-500"></i><a href="tel:+994553221109" class="hover:text-white transition">(994 55) 322 11 09</a></li>
+                                <li class="flex items-center gap-2"><i class="fa-solid fa-phone text-wood-500"></i><a href="tel:+994553221109" class="transition-all duration-[250ms] ease-in-out hover:text-[#D59A72]">(994 55) 322 11 09</a></li>
                             </ul>
                         </div>
 
                         <div class="space-y-6">
-                            <h4 class="text-white font-bold tracking-wider text-sm uppercase" x-text="t('ecoCert')">Ekoloji Zəmanət</h4>
+                            <h4 class="text-stone-100 font-semibold tracking-wider text-sm uppercase" x-text="t('ecoCert')">Ekoloji Zəmanət</h4>
                             <p class="text-stone-400 text-xs sm:text-sm leading-relaxed" x-text="t('certDesc')">Materiallarımız ekoloji təmiz meşələrdən əldə olunur.</p>
                         </div>
                     </div>
 
-                    <div class="border-t border-white/10 pt-8 flex flex-col md:flex-row justify-between items-center gap-4 text-xs sm:text-sm text-stone-500">
-                        <p>© 2026 Baltic Caspian. <span x-text="t('rightsReserved')">Bütün hüquqlar qorunur.</span></p>
-                        <a href="https://wa.me/994708468585?text=Salam%20%C6%8Fs%C9%99d%2C%20sayt%20haz%C4%B1rlanmas%C4%B1%20il%C9%99%20ba%C4%9Fl%C4%B1%20%C9%99laq%C9%99%20saxlamaq%20ist%C9%99yir%C9%99m." target="_blank" rel="noopener" class="font-semibold text-stone-500 transition hover:text-wood-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-wood-500">Hazırladı: Əsəd Əsədov</a>
+                    <div class="border-t border-white/10 pt-8 flex flex-col md:flex-row justify-between items-center gap-5 text-xs sm:text-sm text-stone-400">
+                        <p class="opacity-70">© 2026 Baltic Caspian. <span x-text="t('rightsReserved')">Bütün hüquqlar qorunur.</span></p>
+                        <a href="https://wa.me/994708468585?text=Salam%20%C6%8Fs%C9%99d%2C%20sayt%20haz%C4%B1rlanmas%C4%B1%20il%C9%99%20ba%C4%9Fl%C4%B1%20%C9%99laq%C9%99%20saxlamaq%20ist%C9%99yir%C9%99m." target="_blank" rel="noopener" class="inline-flex items-center justify-center gap-2.5 whitespace-nowrap rounded-full border border-white/[.08] bg-white/[.06] px-[18px] py-2.5 font-semibold text-white no-underline transition-all duration-[250ms] ease-in-out hover:-translate-y-0.5 hover:border-[#25D366]/35 hover:bg-[#25D366]/[.14] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#25D366]" aria-label="WhatsApp ilə Əsəd Əsədovla əlaqə saxla"><i class="fa-brands fa-whatsapp text-lg text-[#25D366]" aria-hidden="true"></i><span>Hazırladı: Əsəd Əsədov</span></a>
                     </div>
                 </div>
             </footer>
