@@ -237,7 +237,7 @@
                 dict: {
                     'address': { az: 'Baksol küçəsi, Bakı, Azərbaycan', ru: 'Улица Баксол, Баку, Азербайджан', en: 'Baksol street, Baku, Azerbaijan' },
                     'workHours': { az: 'Bş - Şb: 09:00 - 18:00', ru: 'Пн - Сб: 09:00 - 18:00', en: 'Mon - Sat: 09:00 - 18:00' },
-                    'logoSub': { az: 'Taxta Evlər Müəssisəsi', ru: 'Предприятие Деревянных Домов', en: 'Wooden House Enterprise' },
+                    'logoSub': { az: 'Taxta evlərin tikintisi', ru: 'Строительство деревянных домов', en: 'Wooden house construction' },
                     'callUs': { az: 'Zəng edin', ru: 'Позвоните нам', en: 'Call us' },
                     'calcBtn': { az: 'Qiymət Hesabla', ru: 'Калькулятор Цен', en: 'Price Calculator' },
                     'viewDetails': { az: 'Layihəyə Bax', ru: 'Смотреть Проект', en: 'View Project' },
@@ -406,9 +406,9 @@
                     'repairA7': { az: 'Parket və laminat döşəmə işləri', ru: 'Укладка паркета и ламината', en: 'Parquet and laminate flooring' },
                     'repairA8': { az: 'Mətbəx və otaq mebellərinin hazırlanması', ru: 'Изготовление кухонной и комнатной мебели', en: 'Kitchen and room furniture production' },
                     'woodenHouseRepair': { az: 'Taxta evlərin təmiri', ru: 'Ремонт деревянных домов', en: 'Wooden home repair' },
-                    'repairW1': { az: 'Taxta evlərin rənglənib laklanması', ru: 'Покраска и лакировка деревянных домов', en: 'Painting and lacquering wooden homes' },
+                    'repairW1': { az: 'Taxta evlərin rənglənib yağlanması', ru: 'Покраска и промасливание деревянных домов', en: 'Painting and oiling wooden homes' },
                     'repairW2': { az: 'Taxta pilləkənlərin hazırlanması və vurulması', ru: 'Изготовление и установка деревянных лестниц', en: 'Wooden stair production and installation' },
-                    'repairW3': { az: 'Ev örtüyü, dam vurulması', ru: 'Кровельные работы и монтаж крыши', en: 'Roof covering and installation' },
+                    'repairW3': { az: 'Ev örtüyü, dam quraşdırılması', ru: 'Кровельное покрытие и установка крыши', en: 'Roof covering and roof installation' },
                     'repairW4': { az: 'Mala və hörgü işləri', ru: 'Штукатурные и кладочные работы', en: 'Plastering and masonry work' },
                     'repairW5': { az: 'Manqalların qurulması', ru: 'Строительство мангалов', en: 'Barbecue construction' },
                     'repairW6': { az: 'Köşklərin, besedkaların hazırlanması', ru: 'Изготовление киосков и беседок', en: 'Kiosk and gazebo production' },
@@ -435,6 +435,15 @@
                     this.closeMobileMenu();
                     window.scrollTo({ top: 0, behavior: 'smooth' });
                     this.$nextTick(() => this.updateHeaderScrollState());
+                },
+
+                navigateTo(pageName) {
+                    this.setPage(pageName);
+                    this.mobileMenuOpen = false;
+                    this.$nextTick(() => {
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                        this.updateHeaderScrollState();
+                    });
                 },
 
                 toggleMobileMenu() {
@@ -743,8 +752,13 @@
                 },
 
                 getRepairWhatsAppUrl() {
-                    const message = 'Salam, Baltic Caspian. Təmir xidmətləri ilə maraqlanıram. Ətraflı məlumat göndərə bilərsiniz?';
-                    return `https://wa.me/994502114455?text=${encodeURIComponent(message)}`;
+                    const messages = {
+                        az: 'Salam, təmir xidmətləri ilə bağlı müraciət etmək istəyirəm.',
+                        ru: 'Здравствуйте, хочу обратиться по ремонтным услугам.',
+                        en: 'Hello, I would like to request repair services.'
+                    };
+                    const message = messages[this.lang] || messages.az;
+                    return `https://wa.me/994553221109?text=${encodeURIComponent(message)}`;
                 },
 
                 initRevealAnimations() {
@@ -1858,7 +1872,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                     </div>
                     <div>
                         <span class="block text-base lg:text-xl font-extrabold tracking-tight group-hover:text-wood-600 transition leading-none" :class="page === 'home' && !isHeaderScrolled ? 'text-white drop-shadow' : 'text-forest-900'">BALTIC CASPIAN</span>
-                        <span class="block text-[9px] lg:text-xxs tracking-widest uppercase font-bold mt-1" :class="page === 'home' && !isHeaderScrolled ? 'text-wood-200 drop-shadow' : 'text-wood-600'" x-text="t('logoSub')">Taxta Evlər Müəssisəsi</span>
+                        <span class="block text-[9px] lg:text-xxs tracking-widest uppercase font-bold mt-1" :class="page === 'home' && !isHeaderScrolled ? 'text-wood-200 drop-shadow' : 'text-wood-600'" x-text="t('logoSub')">Taxta evlərin tikintisi</span>
                     </div>
                 </a>
 
@@ -1926,13 +1940,11 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
         <!-- Mobile Nav Menu -->
         <div id="mobileMenuPanel" :class="mobileMenuOpen ? 'mobile-menu-open' : 'hidden'" class="md:hidden hidden">
             <nav class="flex flex-col gap-1" aria-label="Mobile navigation">
-                <a @click.prevent="setPage('projects')" href="#" class="mobile-menu-link">Layihələr</a>
-                <a @click.prevent="setPage('sea-breeze')" href="#" class="mobile-menu-link">Sea Breeze Haqqında</a>
-                <a @click.prevent="setPage('announcements')" href="#" class="mobile-menu-link">Elanlar</a>
-                <a @click.prevent="setPage('gallery')" href="#" class="mobile-menu-link">Qalereya</a>
-                <a @click.prevent="setPage('mortgage')" href="#" class="mobile-menu-link">İpoteka</a>
-                <a @click.prevent="setPage('about')" href="#" class="mobile-menu-link">Haqqımızda</a>
-                <a @click.prevent="setPage('vacancy')" href="#" class="mobile-menu-link">Vakansiya</a>
+                <a @click.prevent="navigateTo('home')" href="#" class="mobile-menu-link" x-text="t('navHome')">Ana Səhifə</a>
+                <a @click.prevent="navigateTo('projects')" href="#" class="mobile-menu-link" x-text="t('navProjects')">Layihələr</a>
+                <a @click.prevent="navigateTo('gallery')" href="#" class="mobile-menu-link" x-text="t('navGallery')">Qalereya</a>
+                <a @click.prevent="navigateTo('about')" href="#" class="mobile-menu-link" x-text="t('navAbout')">Haqqımızda</a>
+                <a @click.prevent="navigateTo('contact')" href="#" class="mobile-menu-link" x-text="t('navContact')">Əlaqə</a>
             </nav>
             <div class="sm:hidden grid grid-cols-[1fr_auto] gap-2 border-t border-stone-200/70 pt-3 mt-3 dark:border-white/10">
                 <div class="flex items-center rounded-full border border-stone-200 bg-stone-50 p-1">
@@ -2827,9 +2839,11 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                         <div class="space-y-6">
                             <h4 class="text-white font-bold tracking-wider text-sm uppercase" x-text="t('footerMenu')">Faydalı Keçidlər</h4>
                             <ul class="space-y-3 text-stone-400 text-sm">
-                                <li><a @click.prevent="setPage('home')" href="#" class="hover:text-wood-400 transition" x-text="t('navHome')">Ana Səhifə</a></li>
-                                <li><a @click.prevent="setPage('projects')" href="#" class="hover:text-wood-400 transition" x-text="t('navProjects')">Layihələr</a></li>
-                                <li><a @click.prevent="setPage('gallery')" href="#" class="hover:text-wood-400 transition" x-text="t('navGallery')">Qalereya</a></li>
+                                <li><a @click.prevent="navigateTo('home')" href="#" class="hover:text-wood-400 transition" x-text="t('navHome')">Ana Səhifə</a></li>
+                                <li><a @click.prevent="navigateTo('projects')" href="#" class="hover:text-wood-400 transition" x-text="t('navProjects')">Layihələr</a></li>
+                                <li><a @click.prevent="navigateTo('gallery')" href="#" class="hover:text-wood-400 transition" x-text="t('navGallery')">Qalereya</a></li>
+                                <li><a @click.prevent="navigateTo('about')" href="#" class="hover:text-wood-400 transition" x-text="t('navAbout')">Haqqımızda</a></li>
+                                <li><a @click.prevent="navigateTo('contact')" href="#" class="hover:text-wood-400 transition" x-text="t('navContact')">Əlaqə</a></li>
                             </ul>
                         </div>
 
@@ -2848,6 +2862,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
 
                     <div class="border-t border-white/10 pt-8 flex flex-col md:flex-row justify-between items-center gap-4 text-xs sm:text-sm text-stone-500">
                         <p>© 2026 Baltic Caspian. <span x-text="t('rightsReserved')">Bütün hüquqlar qorunur.</span></p>
+                        <a href="https://wa.me/994708468585?text=Salam%20%C6%8Fs%C9%99d%2C%20sayt%20haz%C4%B1rlanmas%C4%B1%20il%C9%99%20ba%C4%9Fl%C4%B1%20%C9%99laq%C9%99%20saxlamaq%20ist%C9%99yir%C9%99m." target="_blank" rel="noopener" class="font-semibold text-stone-500 transition hover:text-wood-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-wood-500">Hazırladı: Əsəd Əsədov</a>
                     </div>
                 </div>
             </footer>
