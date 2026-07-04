@@ -231,6 +231,9 @@
                 viewedAdsThisSession: {},
                 showSideAds: false,
                 footerInView: false,
+                statsAnimated: false,
+                displayStats: { completed: 0, customers: 0, experience: 0, contract: 0 },
+                openFaqIndex: 0,
                 selectedProject: {},
                 contactForm: { name: '', phone: '', email: '', message: '' },
 
@@ -248,13 +251,13 @@
                     'navAbout': { az: 'Haqqımızda', ru: 'О компании', en: 'About Us' },
                     'navContact': { az: 'Əlaqə', ru: 'Контакты', en: 'Contact' },
                     'ecoTitle': { az: 'Ekoloji Təmiz', ru: 'Экологичность', en: 'Eco Friendly' },
-                    'ecoDesc': { az: '100% təbii, antiseptik qorumalı Sibir şamı materialları', ru: '100% натуральная сосна с антисептической защитой', en: '100% natural Siberian pine' },
+                    'ecoDesc': { az: '100% təbii, antiseptik qorumalı Sibir şamı materialları.', ru: '100% натуральные материалы из сибирской сосны с антисептической защитой.', en: '100% natural, antiseptic-protected Siberian pine materials.' },
                     'durableTitle': { az: 'Yüksək Davamlı', ru: 'Высокая прочность', en: 'High Durability' },
-                    'durableDesc': { az: '9+ bal zəlzələyə davamlı, qurd və çatlara qarşı zəmanətli', ru: 'Сейсмостойкость 9+ баллов, гарантия против трещин', en: '9+ seismic rating, warranty' },
+                    'durableDesc': { az: '9+ bal zəlzələyə davamlı, qurd və çatlara qarşı qorunur.', ru: 'Устойчивость к землетрясениям 9+ баллов, защита от вредителей и трещин.', en: '9+ seismic resistance, protected against pests and cracks.' },
                     'fastTitle': { az: 'Sürətli Tikinti', ru: 'Быстрое строительство', en: 'Fast Construction' },
-                    'fastDesc': { az: 'İstənilən ölçüdə və dizaynda evin 2-5 aya tam təhvili', ru: 'Строительство под ключ за 2-5 месяцев', en: 'Turnkey delivery in 2-5 months' },
+                    'fastDesc': { az: 'İstənilən ölçüdə layihənin 2–5 aya tam təhvili.', ru: 'Полная сдача проекта любого размера за 2–5 месяцев.', en: 'Full delivery of projects of any size in 2–5 months.' },
                     'lifetimeTitle': { az: 'Uzun Ömürlü', ru: 'Долговечность', en: 'Long Lifetime' },
-                    'lifetimeDesc': { az: 'Müasir texnologiyalar ilə inşa olunan 150-300 il ömürlü evlər', ru: 'Дома со сроком службы 150-300 лет', en: 'Homes engineered to last 150-300 years' },
+                    'lifetimeDesc': { az: '150–300 il istifadə müddəti üçün hazırlanmış konstruksiya.', ru: 'Конструкция, рассчитанная на срок эксплуатации 150–300 лет.', en: 'Structure engineered for a 150–300 year service life.' },
                     'catSubtitle': { az: 'İxtisaslaşdığımız Sahələr', ru: 'Наши Специализации', en: 'Fields of Expertise' },
                     'catTitle': { az: 'Nələr İstehsal Edirik?', ru: 'Что Мы Производим?', en: 'What We Build?' },
                     'catDesc': { az: 'Fərdi istəkləriniz və landşaftınıza uyğun olaraq müasir üslubda premium tikililərin inşasını həyata keçiririk.', ru: 'Строим современные деревянные объекты под ключ с учетом ваших пожеланий.', en: 'We manufacture premium wooden structures tailored to your site landscape.' },
@@ -414,6 +417,27 @@
                     'repairW6': { az: 'Köşklərin, besedkaların hazırlanması', ru: 'Изготовление киосков и беседок', en: 'Kiosk and gazebo production' },
                     'repairW7': { az: 'Landşaft dizaynı', ru: 'Ландшафтный дизайн', en: 'Landscape design' },
                     'repairContract': { az: 'Bütün işlər müqavilə əsasında görülür.', ru: 'Все работы выполняются на основании договора.', en: 'All work is performed under contract.' },
+                    'featureSectionLabel': { az: 'Premium üstünlüklər', ru: 'Премиальные преимущества', en: 'Premium advantages' },
+                    'statsSectionLabel': { az: 'Rəqəmlərlə Baltic Caspian', ru: 'Baltic Caspian в цифрах', en: 'Baltic Caspian in numbers' },
+                    'statsSectionTitle': { az: 'Etibar, təcrübə və keyfiyyət göstəricilərimiz', ru: 'Наши показатели доверия, опыта и качества', en: 'Our trust, experience and quality metrics' },
+                    'statCompletedNew': { az: 'Tamamlanmış layihə', ru: 'Завершенных проектов', en: 'Completed projects' },
+                    'statCustomers': { az: 'Məmnun müştəri', ru: 'Довольных клиентов', en: 'Happy customers' },
+                    'statExperienceNew': { az: 'İl təcrübə', ru: 'Лет опыта', en: 'Years of experience' },
+                    'statContract': { az: 'Müqavilə əsasında iş', ru: 'Работа по договору', en: 'Contract-based work' },
+                    'faqLabel': { az: 'Tez-tez verilən suallar', ru: 'Часто задаваемые вопросы', en: 'Frequently asked questions' },
+                    'faqTitle': { az: 'Sizə lazım olan cavablar', ru: 'Ответы, которые вам нужны', en: 'Answers you need' },
+                    'faqQ1': { az: 'Tikinti neçə gün çəkir?', ru: 'Сколько длится строительство?', en: 'How long does construction take?' },
+                    'faqA1': { az: 'Layihənin ölçüsündən və komplektasiyasından asılı olaraq tam təhvil müddəti adətən 2–5 ay aralığında olur.', ru: 'В зависимости от размера и комплектации проекта сдача обычно занимает 2–5 месяцев.', en: 'Depending on the size and specification, turnkey delivery usually takes 2–5 months.' },
+                    'faqQ2': { az: 'Zəmanət varmı?', ru: 'Есть ли гарантия?', en: 'Is there a warranty?' },
+                    'faqA2': { az: 'Bəli, bütün işlər müqavilə əsasında görülür və istifadə olunan materiallarla konstruksiyaya zəmanət verilir.', ru: 'Да, все работы выполняются по договору, с гарантией на материалы и конструкцию.', en: 'Yes, all work is contract-based and includes warranty coverage for materials and structure.' },
+                    'faqQ3': { az: 'Hansı ağacdan istifadə olunur?', ru: 'Какая древесина используется?', en: 'Which wood do you use?' },
+                    'faqA3': { az: 'Əsasən antiseptik emaldan keçmiş Sibir şamı və küknar materiallarından istifadə edirik.', ru: 'Мы используем преимущественно обработанную антисептиком сибирскую сосну и ель.', en: 'We primarily use antiseptic-treated Siberian pine and spruce materials.' },
+                    'faqQ4': { az: 'Fərdi layihə hazırlamaq mümkündür?', ru: 'Можно подготовить индивидуальный проект?', en: 'Can you prepare a custom project?' },
+                    'faqA4': { az: 'Bəli, memarlıq komandamız torpaq sahənizə, büdcənizə və zövqünüzə uyğun fərdi layihə hazırlaya bilər.', ru: 'Да, наша архитектурная команда подготовит проект под участок, бюджет и стиль.', en: 'Yes, our architecture team can design a custom project for your land, budget and style.' },
+                    'faqQ5': { az: 'Qiymət necə hesablanır?', ru: 'Как рассчитывается цена?', en: 'How is the price calculated?' },
+                    'faqA5': { az: 'Qiymət sahə, mərtəbə sayı, material seçimi, təhvil səviyyəsi və əlavə işlər əsasında hesablanır.', ru: 'Цена зависит от площади, этажности, материалов, уровня сдачи и дополнительных работ.', en: 'Price is calculated based on area, stories, material choice, delivery scope and additional works.' },
+                    'faqQ6': { az: 'Kredit və hissəli ödəniş mümkündür?', ru: 'Возможны кредит и рассрочка?', en: 'Are credit and installment payments possible?' },
+                    'faqA6': { az: 'Ödəniş şərtləri layihəyə görə fərdi razılaşdırılır; uyğun variantları görüş zamanı müzakirə edirik.', ru: 'Условия оплаты согласуются индивидуально; подходящие варианты обсуждаются на встрече.', en: 'Payment terms are agreed individually by project; suitable options are discussed during consultation.' },
                     'repairApply': { az: 'Təmir üçün müraciət et', ru: 'Подать заявку на ремонт', en: 'Apply for repair' }
 
                 },
@@ -611,6 +635,7 @@
                     this.homeAdvantagesImages = this.visibleAdvantagesImages();
                     this.startHomeGalleryRotation();
                     this.initRevealAnimations();
+                    this.initStatsCounter();
                     this.loadAdminTabVisibility().catch(error => console.warn('Admin tab visibility loaded from local fallback.', error));
                     this.loadData().catch(error => console.warn('Initial API data loaded from fallback/cache.', error));
                     this.loadHomeSectionImages().catch(error => console.warn('Home section images loaded from fallback.', error));
@@ -759,6 +784,59 @@
                     };
                     const message = messages[this.lang] || messages.az;
                     return `https://wa.me/994553221109?text=${encodeURIComponent(message)}`;
+                },
+
+                featureCards() {
+                    return [
+                        { icon: 'fa-house-chimney', title: this.t('ecoTitle'), desc: this.t('ecoDesc') },
+                        { icon: 'fa-shield-halved', title: this.t('durableTitle'), desc: this.t('durableDesc') },
+                        { icon: 'fa-bolt', title: this.t('fastTitle'), desc: this.t('fastDesc') },
+                        { icon: 'fa-infinity', title: this.t('lifetimeTitle'), desc: this.t('lifetimeDesc') }
+                    ];
+                },
+
+                statCards() {
+                    return [
+                        { key: 'completed', icon: 'fa-house-chimney', suffix: '+', label: this.t('statCompletedNew') },
+                        { key: 'customers', icon: 'fa-face-smile', suffix: '+', label: this.t('statCustomers') },
+                        { key: 'experience', icon: 'fa-location-dot', suffix: '+', label: this.t('statExperienceNew') },
+                        { key: 'contract', icon: 'fa-star', suffix: '%', label: this.t('statContract') }
+                    ];
+                },
+
+                faqItems() {
+                    return [1, 2, 3, 4, 5, 6].map(i => ({ question: this.t(`faqQ${i}`), answer: this.t(`faqA${i}`) }));
+                },
+
+                initStatsCounter() {
+                    this.$nextTick(() => {
+                        const section = document.querySelector('[data-stats-section]');
+                        if (!section || this.statsAnimated) return;
+                        const start = () => this.animateStatsOnce();
+                        if (window.matchMedia('(prefers-reduced-motion: reduce)').matches || !('IntersectionObserver' in window)) { start(); return; }
+                        const observer = new IntersectionObserver(entries => {
+                            if (entries.some(entry => entry.isIntersecting)) {
+                                start();
+                                observer.disconnect();
+                            }
+                        }, { threshold: 0.25 });
+                        observer.observe(section);
+                    });
+                },
+
+                animateStatsOnce() {
+                    if (this.statsAnimated) return;
+                    this.statsAnimated = true;
+                    const targets = { completed: 300, customers: 500, experience: 16, contract: 100 };
+                    const duration = 1500;
+                    const startTime = performance.now();
+                    const tick = now => {
+                        const progress = Math.min((now - startTime) / duration, 1);
+                        const eased = 1 - Math.pow(1 - progress, 3);
+                        Object.entries(targets).forEach(([key, value]) => { this.displayStats[key] = Math.round(value * eased); });
+                        if (progress < 1) requestAnimationFrame(tick);
+                    };
+                    requestAnimationFrame(tick);
                 },
 
                 initRevealAnimations() {
@@ -1832,6 +1910,14 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
         .login-input { width: 100%; min-height: 52px; border-radius: 16px; border: 1px solid #e7e5e4; background: #fafaf9; padding: 0 1rem; font-size: .95rem; outline: none; }
         .login-input:focus { border-color: #33734f; box-shadow: 0 0 0 4px rgba(51, 115, 79, .12); background: #fff; }
         @media (min-width: 640px) { .login-card-premium { padding: 2.5rem; } }
+
+        @media (hover: hover) and (pointer: fine) {
+            .project-card:hover .project-card__image { transform: scale(1.08); }
+            .project-card:hover .project-card__overlay { opacity: 1; }
+            .project-card:hover .project-card__title { transform: translateY(-6px); color: #275d40; }
+            .project-card:hover .project-card__cta { opacity: 1; transform: translateY(0); }
+            .project-card__fallback { display: none; }
+        }
         @media (prefers-color-scheme: dark) {
             .login-card-premium { background: rgba(28, 25, 23, .96); border-color: rgba(255,255,255,.12); box-shadow: 0 24px 70px rgba(0,0,0,.42); }
             .login-card-premium h2 { color: #f5f5f4; }
@@ -2037,36 +2123,40 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
 
                     <div class="min-w-0 space-y-16">
 
-                <!-- ADVANTAGES GRID CARD -->
-                <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-24 relative z-20 ad-safe-content">
-                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 bg-white p-6 sm:p-8 rounded-3xl shadow-xl shadow-stone-200 border border-stone-100">
-                        <div class="flex items-start gap-4 p-4 rounded-2xl hover:bg-stone-50 transition duration-300">
-                            <div class="w-12 h-12 bg-forest-50 text-forest-700 rounded-xl flex items-center justify-center flex-shrink-0 text-xl font-bold"><i class="fa-solid fa-leaf"></i></div>
-                            <div>
-                                <h4 class="font-bold text-stone-900" x-text="t('ecoTitle')">Ekoloji Təmiz</h4>
-                                <p class="text-xs text-stone-500 mt-1" x-text="t('ecoDesc')">100% təbii, antiseptik qorumalı Sibir şamı materialları</p>
+                <!-- PREMIUM FEATURE SECTION -->
+                <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-16 sm:pt-20 ad-safe-content" data-reveal>
+                    <div class="text-center max-w-3xl mx-auto mb-8 sm:mb-10">
+                        <span class="text-wood-600 font-bold uppercase tracking-widest text-xs" x-text="t('featureSectionLabel')">Premium üstünlüklər</span>
+                    </div>
+                    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+                        <template x-for="(card, index) in featureCards()" :key="card.title">
+                            <div class="group rounded-[1.75rem] border border-white/80 bg-white/80 backdrop-blur-xl p-5 sm:p-6 shadow-lg shadow-stone-200/70 transition-all duration-500 ease-out hover:-translate-y-2 hover:scale-[1.02] hover:border-wood-200 hover:shadow-2xl hover:shadow-forest-950/10" data-reveal :style="`transition-delay: ${index * 80}ms`">
+                                <div class="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br from-forest-50 to-wood-50 text-forest-700 flex items-center justify-center text-2xl sm:text-3xl shadow-sm transition duration-500 group-hover:scale-110 group-hover:text-wood-700">
+                                    <i :class="`fa-solid ${card.icon}`"></i>
+                                </div>
+                                <h3 class="mt-5 text-base sm:text-lg font-black text-forest-950" x-text="card.title"></h3>
+                                <p class="mt-2 text-xs sm:text-sm leading-relaxed text-stone-600" x-text="card.desc"></p>
                             </div>
+                        </template>
+                    </div>
+                </section>
+
+                <!-- ANIMATED STATISTICS -->
+                <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 ad-safe-content" data-stats-section data-reveal>
+                    <div class="relative overflow-hidden rounded-[2rem] bg-white border border-stone-200/80 shadow-sm p-6 sm:p-10">
+                        <div class="absolute -top-24 left-1/2 w-80 h-80 -translate-x-1/2 rounded-full bg-wood-100/50 blur-3xl"></div>
+                        <div class="relative text-center max-w-3xl mx-auto mb-8">
+                            <span class="text-wood-600 font-bold uppercase tracking-widest text-xs" x-text="t('statsSectionLabel')">Rəqəmlərlə Baltic Caspian</span>
+                            <h2 class="mt-3 text-3xl sm:text-4xl font-black text-forest-950" x-text="t('statsSectionTitle')">Etibar, təcrübə və keyfiyyət göstəricilərimiz</h2>
                         </div>
-                        <div class="flex items-start gap-4 p-4 rounded-2xl hover:bg-stone-50 transition duration-300">
-                            <div class="w-12 h-12 bg-forest-50 text-forest-700 rounded-xl flex items-center justify-center flex-shrink-0 text-xl font-bold"><i class="fa-solid fa-shield-halved"></i></div>
-                            <div>
-                                <h4 class="font-bold text-stone-900" x-text="t('durableTitle')">Yüksək Davamlı</h4>
-                                <p class="text-xs text-stone-500 mt-1" x-text="t('durableDesc')">9+ bal zəlzələyə davamlı, qurd və çatlara qarşı zəmanətli</p>
-                            </div>
-                        </div>
-                        <div class="flex items-start gap-4 p-4 rounded-2xl hover:bg-stone-50 transition duration-300">
-                            <div class="w-12 h-12 bg-forest-50 text-forest-700 rounded-xl flex items-center justify-center flex-shrink-0 text-xl font-bold"><i class="fa-solid fa-bolt"></i></div>
-                            <div>
-                                <h4 class="font-bold text-stone-900" x-text="t('fastTitle')">Sürətli Tikinti</h4>
-                                <p class="text-xs text-stone-500 mt-1" x-text="t('fastDesc')">İstənilən ölçüdə və dizaynda evin 2-5 aya tam təhvili</p>
-                            </div>
-                        </div>
-                        <div class="flex items-start gap-4 p-4 rounded-2xl hover:bg-stone-50 transition duration-300">
-                            <div class="w-12 h-12 bg-forest-50 text-forest-700 rounded-xl flex items-center justify-center flex-shrink-0 text-xl font-bold"><i class="fa-solid fa-clock-rotate-left"></i></div>
-                            <div>
-                                <h4 class="font-bold text-stone-900" x-text="t('lifetimeTitle')">Uzun Ömürlü</h4>
-                                <p class="text-xs text-stone-500 mt-1" x-text="t('lifetimeDesc')">Müasir texnologiyalar ilə inşa olunan 150-300 il ömürlü evlər</p>
-                            </div>
+                        <div class="relative grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+                            <template x-for="stat in statCards()" :key="stat.key">
+                                <div class="rounded-3xl bg-stone-50/80 border border-stone-200/70 p-5 sm:p-6 text-center shadow-sm">
+                                    <div class="mx-auto w-12 h-12 rounded-2xl bg-forest-100 text-forest-700 flex items-center justify-center text-xl"><i :class="`fa-solid ${stat.icon}`"></i></div>
+                                    <div class="mt-4 text-3xl sm:text-5xl font-black text-forest-950"><span x-text="displayStats[stat.key]"></span><span x-text="stat.suffix"></span></div>
+                                    <p class="mt-2 text-xs sm:text-sm font-bold text-stone-500" x-text="stat.label"></p>
+                                </div>
+                            </template>
                         </div>
                     </div>
                 </section>
@@ -2184,6 +2274,29 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                         <a :href="getRepairWhatsAppUrl()" target="_blank" rel="noopener" class="inline-flex items-center gap-2 bg-forest-600 hover:bg-forest-700 text-white px-7 py-4 rounded-xl font-bold shadow-lg transition hover:-translate-y-0.5"><i class="fa-brands fa-whatsapp text-xl"></i><span x-text="t('repairApply')">Təmir üçün müraciət et</span></a>
                     </div>
                 </section>
+
+                <!-- FAQ -->
+                <section class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 ad-safe-content" data-reveal>
+                    <div class="text-center mb-8">
+                        <span class="text-wood-600 font-bold uppercase tracking-widest text-xs" x-text="t('faqLabel')">Tez-tez verilən suallar</span>
+                        <h2 class="mt-3 text-3xl sm:text-4xl font-black text-forest-950" x-text="t('faqTitle')">Sizə lazım olan cavablar</h2>
+                    </div>
+                    <div class="space-y-4">
+                        <template x-for="(item, index) in faqItems()" :key="item.question">
+                            <div class="rounded-3xl bg-white border border-stone-200/80 shadow-sm overflow-hidden transition-all duration-300 hover:shadow-md">
+                                <button @click="openFaqIndex = openFaqIndex === index ? -1 : index" class="w-full flex items-center justify-between gap-4 px-5 sm:px-6 py-5 text-left">
+                                    <span class="font-extrabold text-forest-950" x-text="item.question"></span>
+                                    <i class="fa-solid fa-chevron-down text-wood-600 transition-transform duration-300" :class="openFaqIndex === index && 'rotate-180'"></i>
+                                </button>
+                                <div class="grid transition-all duration-300 ease-out" :class="openFaqIndex === index ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'">
+                                    <div class="overflow-hidden">
+                                        <p class="px-5 sm:px-6 pb-5 text-sm sm:text-base leading-relaxed text-stone-600" x-text="item.answer"></p>
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </section>
                     </div>
                 <aside x-show="hasRenderableBanner('right')" x-cloak class="ad-rail" data-ad-side="right">
                     <div class="ad-box flex flex-col items-center py-2">
@@ -2233,18 +2346,22 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
 
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                     <template x-for="proj in (Array.isArray(filteredProjects) ? filteredProjects : []).filter(p => !p.archived)" :key="proj.id">
-                        <div class="group bg-white rounded-3xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 border border-stone-200/60 flex flex-col justify-between">
+                        <div class="project-card group bg-white rounded-3xl overflow-hidden shadow-sm transition-all duration-[450ms] border border-stone-200/60 flex flex-col justify-between hover:shadow-2xl hover:shadow-forest-950/12 hover:border-wood-200">
                             <div>
                                 <div class="relative h-64 overflow-hidden">
-                                    <img :src="(proj.images && proj.images[0]) || proj.image" class="w-full h-full object-cover group-hover:scale-105 transition duration-500" :alt="proj.title">
+                                    <img :src="(proj.images && proj.images[0]) || proj.image" class="project-card__image w-full h-full object-cover transition-transform duration-[500ms] ease-out" :alt="proj.title">
+                                    <div class="project-card__overlay absolute inset-0 bg-gradient-to-t from-forest-950/85 via-forest-950/20 to-transparent opacity-0 transition-opacity duration-[450ms]"></div>
                                     <span class="absolute top-4 left-4 bg-forest-950/85 text-white backdrop-blur text-xs font-bold px-3 py-1 rounded-full uppercase" x-text="lang === 'en' ? proj.catNameEn : (lang === 'ru' ? proj.catNameRu : proj.catName)">Taxta Ev</span>
+                                    <button @click="openProjectModal(proj)" class="project-card__cta absolute left-5 right-5 bottom-5 translate-y-4 opacity-0 rounded-xl bg-white/92 py-3 text-sm font-black text-forest-800 shadow-lg backdrop-blur transition-all duration-[450ms]">
+                                        <span x-text="t('viewDetails')">Layihəyə Bax</span>
+                                    </button>
                                 </div>
                                 <div class="p-6 space-y-4">
-                                    <h3 class="text-xl font-bold text-stone-900 group-hover:text-forest-700 transition" x-text="lang === 'en' ? proj.titleEn : (lang === 'ru' ? proj.titleRu : proj.title)">Taxta Ev</h3>
+                                    <h3 class="project-card__title text-xl font-bold text-stone-900 transition-all duration-[450ms]" x-text="lang === 'en' ? proj.titleEn : (lang === 'ru' ? proj.titleRu : proj.title)">Taxta Ev</h3>
                                     <p class="text-stone-500 text-sm leading-relaxed" x-text="lang === 'en' ? proj.descEn : (lang === 'ru' ? proj.descRu : proj.desc)">Açıqlama</p>
                                 </div>
                             </div>
-                            <div class="p-6 pt-0">
+                            <div class="project-card__fallback p-6 pt-0">
                                 <button @click="openProjectModal(proj)" class="w-full py-3 bg-forest-50 hover:bg-forest-600 text-forest-700 hover:text-white font-bold rounded-xl text-sm transition-all duration-300">
                                     <span x-text="t('viewDetails')">Layihəyə Bax</span>
                                 </button>
@@ -2825,10 +2942,10 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
             </div>
 
             <!-- FOOTER -->
-            </main><footer class="relative left-1/2 w-screen max-w-[100vw] -translate-x-1/2 text-stone-100 pt-14 pb-9 border-t border-white/[.08] mt-auto" style="background: radial-gradient(circle at top right, rgba(184,138,96,.12), transparent 45%), linear-gradient(180deg, #17372F 0%, #10271F 45%, #0B1915 100%);">
-                <div class="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
-                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10 lg:gap-14 mb-4">
-                        <div class="space-y-6">
+            </main><footer class="relative left-1/2 w-screen max-w-[100vw] -translate-x-1/2 text-stone-100 pt-9 pb-6 border-t border-white/[.08] mt-auto" style="background: radial-gradient(circle at top right, rgba(184,138,96,.12), transparent 45%), linear-gradient(180deg, #17372F 0%, #10271F 45%, #0B1915 100%);">
+                <div class="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-7">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-7 lg:gap-10">
+                        <div class="space-y-4">
                             <a href="#" class="flex items-center gap-3">
                                 <div class="w-10 h-10 bg-forest-700 rounded-lg flex items-center justify-center text-white"><i class="fa-solid fa-tree-city text-xl"></i></div>
                                 <span class="text-lg font-black tracking-tight text-stone-100">BALTIC CASPIAN</span>
@@ -2836,9 +2953,9 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                             <p class="text-stone-400 text-sm leading-relaxed" x-text="t('footerAbout')">Baltic Caspian – Azərbaycanda keyfiyyətli taxta evlərin lider istehsalçısıdır.</p>
                         </div>
 
-                        <div class="space-y-6">
+                        <div class="space-y-4">
                             <h4 class="text-stone-100 font-semibold tracking-wider text-sm uppercase" x-text="t('footerMenu')">Faydalı Keçidlər</h4>
-                            <ul class="space-y-3 text-stone-400 text-sm">
+                            <ul class="space-y-2 text-stone-400 text-sm">
                                 <li><a @click.prevent="navigateTo('home')" href="#" class="transition-all duration-[250ms] ease-in-out hover:text-[#D59A72]" x-text="t('navHome')">Ana Səhifə</a></li>
                                 <li><a @click.prevent="navigateTo('projects')" href="#" class="transition-all duration-[250ms] ease-in-out hover:text-[#D59A72]" x-text="t('navProjects')">Layihələr</a></li>
                                 <li><a @click.prevent="navigateTo('gallery')" href="#" class="transition-all duration-[250ms] ease-in-out hover:text-[#D59A72]" x-text="t('navGallery')">Qalereya</a></li>
@@ -2847,22 +2964,22 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                             </ul>
                         </div>
 
-                        <div class="space-y-6">
+                        <div class="space-y-4">
                             <h4 class="text-stone-100 font-semibold tracking-wider text-sm uppercase" x-text="t('footerContact')">Əlaqə</h4>
-                            <ul class="space-y-3 text-stone-400 text-sm">
+                            <ul class="space-y-2 text-stone-400 text-sm">
                                 <li class="flex items-center gap-2"><i class="fa-solid fa-phone text-wood-500"></i><a href="tel:+994553221109" class="transition-all duration-[250ms] ease-in-out hover:text-[#D59A72]">(994 55) 322 11 09</a></li>
                             </ul>
                         </div>
 
-                        <div class="space-y-6">
+                        <div class="space-y-4">
                             <h4 class="text-stone-100 font-semibold tracking-wider text-sm uppercase" x-text="t('ecoCert')">Ekoloji Zəmanət</h4>
                             <p class="text-stone-400 text-xs sm:text-sm leading-relaxed" x-text="t('certDesc')">Materiallarımız ekoloji təmiz meşələrdən əldə olunur.</p>
                         </div>
                     </div>
 
-                    <div class="border-t border-white/10 pt-8 flex flex-col md:flex-row justify-between items-center gap-5 text-xs sm:text-sm text-stone-400">
+                    <div class="border-t border-white/10 pt-5 flex flex-col md:flex-row justify-between items-center gap-4 text-xs sm:text-sm text-stone-400">
                         <p class="opacity-70">© 2026 Baltic Caspian. <span x-text="t('rightsReserved')">Bütün hüquqlar qorunur.</span></p>
-                        <a href="https://wa.me/994708468585?text=Salam%20%C6%8Fs%C9%99d%2C%20sayt%20haz%C4%B1rlanmas%C4%B1%20il%C9%99%20ba%C4%9Fl%C4%B1%20%C9%99laq%C9%99%20saxlamaq%20ist%C9%99yir%C9%99m." target="_blank" rel="noopener" class="inline-flex items-center justify-center gap-2.5 whitespace-nowrap rounded-full border border-white/[.08] bg-white/[.06] px-[18px] py-2.5 font-semibold text-white no-underline transition-all duration-[250ms] ease-in-out hover:-translate-y-0.5 hover:border-[#25D366]/35 hover:bg-[#25D366]/[.14] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#25D366]" aria-label="WhatsApp ilə Əsəd Əsədovla əlaqə saxla"><i class="fa-brands fa-whatsapp text-lg text-[#25D366]" aria-hidden="true"></i><span>Hazırladı: Əsəd Əsədov</span></a>
+                        <a href="https://wa.me/994708468585?text=Salam%20%C6%8Fs%C9%99d%2C%20sayt%20haz%C4%B1rlanmas%C4%B1%20il%C9%99%20ba%C4%9Fl%C4%B1%20%C9%99laq%C9%99%20saxlamaq%20ist%C9%99yir%C9%99m." target="_blank" rel="noopener" class="inline-flex items-center justify-center gap-2.5 whitespace-nowrap rounded-full border border-[#25D366]/20 bg-white/[.07] px-4 py-2 font-bold text-white no-underline shadow-[0_0_22px_rgba(37,211,102,.08)] transition-all duration-[250ms] ease-in-out hover:-translate-y-0.5 hover:border-[#25D366]/50 hover:bg-[#25D366]/[.16] hover:shadow-[0_0_28px_rgba(37,211,102,.18)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#25D366]" aria-label="WhatsApp ilə Əsəd Əsədovla əlaqə saxla"><i class="fa-brands fa-whatsapp text-lg text-[#25D366]" aria-hidden="true"></i><span>Hazırladı: Əsəd Əsədov</span></a>
                     </div>
                 </div>
             </footer>
