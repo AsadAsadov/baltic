@@ -153,6 +153,8 @@
                 showHeroTranslations: false,
                 translationTimers: {},
                 activeSlide: 0,
+                heroMuted: true,
+                heroVolume: 0.6,
                 filterCategory: 'all',
                 activeGalleryIndex: 0,
                 activeGalleryImageIndex: 0,
@@ -514,12 +516,14 @@
                     const slides = this.activeHeroSlides();
                     if (!slides.length) return;
                     this.activeSlide = (this.activeSlide + 1) % slides.length;
+                    this.$nextTick(() => this.syncHeroVideoAudio());
                 },
 
                 prevSlide() {
                     const slides = this.activeHeroSlides();
                     if (!slides.length) return;
                     this.activeSlide = (this.activeSlide - 1 + slides.length) % slides.length;
+                    this.$nextTick(() => this.syncHeroVideoAudio());
                 },
 
 
@@ -650,6 +654,50 @@
                     if (['cover', 'contain'].includes(explicit)) return explicit;
                     return this.getHeroMediaKind(slide) === 'video' ? 'contain' : 'cover';
                 },
+                isCurrentHeroVideo() {
+                    const slide = this.activeHeroSlides()[this.activeSlide] || {};
+                    return this.getHeroMediaKind(slide) === 'video' && !this.isYouTubeUrl(this.getHeroMediaUrl(slide));
+                },
+                toggleHeroSound() {
+                    this.heroMuted = !this.heroMuted;
+                    if (!this.heroMuted && Number(this.heroVolume) <= 0) this.heroVolume = 0.6;
+                    this.$nextTick(() => this.syncHeroVideoAudio());
+                },
+                setHeroVolume(value) {
+                    const volume = Math.min(1, Math.max(0, Number(value) || 0));
+                    this.heroVolume = volume;
+                    this.heroMuted = volume === 0;
+                    this.$nextTick(() => this.syncHeroVideoAudio());
+                },
+                syncHeroVideoAudio() {
+                    const root = document.querySelector('[data-home-hero]');
+                    if (!root) return;
+                    root.querySelectorAll('.hero-slide-video-bg').forEach(video => {
+                        const isActive = Number(video.dataset.heroIndex) === Number(this.activeSlide);
+                        video.muted = true;
+                        video.volume = 0;
+                        if (!isActive) {
+                            video.pause();
+                            return;
+                        }
+                        video.play().catch(() => {});
+                    });
+                    root.querySelectorAll('.hero-slide-video-main').forEach(video => {
+                        const isActive = Number(video.dataset.heroIndex) === Number(this.activeSlide);
+                        if (!isActive) {
+                            video.muted = true;
+                            video.pause();
+                            return;
+                        }
+                        video.volume = Math.min(1, Math.max(0, Number(this.heroVolume) || 0));
+                        video.muted = this.heroMuted || video.volume === 0;
+                        video.play().catch(() => {
+                            video.muted = true;
+                            this.heroMuted = true;
+                            video.play().catch(() => {});
+                        });
+                    });
+                },
                 syncHeroMediaUrl() {
                     const url = this.heroPreviewImg || this.newHero.mediaUrl || this.newHero.image || '';
                     const previousType = this.newHero.mediaType;
@@ -700,6 +748,8 @@
                     this.homeGalleryImages = this.visibleHomeGalleryImages();
                     this.homeAdvantagesImages = this.visibleAdvantagesImages();
                     this.startHomeGalleryRotation();
+                    this.$watch('activeSlide', () => this.$nextTick(() => this.syncHeroVideoAudio()));
+                    this.$nextTick(() => this.syncHeroVideoAudio());
                     this.initRevealAnimations();
                     this.initStatsCounter();
                     this.loadAdminTabVisibility().catch(error => console.warn('Admin tab visibility loaded from local fallback.', error));
@@ -736,6 +786,7 @@
                     console.table(this.slides.slice(0, 3));
                     console.table(this.galleryItems.slice(0, 3));
                     this.cacheSave();
+                    this.$nextTick(() => this.syncHeroVideoAudio());
                     this.restartAdRotation();
                 },
 
@@ -1308,6 +1359,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                     if (ad.id) this.api(`/api/banners/${ad.id}/toggle`, { method: 'PATCH', body: JSON.stringify({ active: ad.active }) }).catch(() => this.showToast('API xəta', 'Banner statusu DB-yə yazılmadı.'));
                     this.mainBanner = this.firstActiveBanner() || this.normalizeBanner(ad, ad?.placement || 'both');
                     this.cacheSave();
+                    this.$nextTick(() => this.syncHeroVideoAudio());
                     this.restartAdRotation();
                 },
 
@@ -1993,17 +2045,48 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
             object-fit: cover;
             object-position: center center;
         }
-        .hero-slide-media--blur {
+        .hero-slide-media--blur,
+        .hero-video-bg,
+        .hero-slide-video-bg {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
             object-fit: cover;
             filter: blur(18px);
             transform: scale(1.08);
+            opacity: .55;
         }
-        .hero-slide-video {
+        .hero-slide-video,
+        .hero-video-main,
+        .hero-slide-video-main {
+            position: absolute;
+            inset: 0;
             width: 100%;
             height: 100%;
             object-fit: contain;
             object-position: center center;
-            background: #06110e;
+            z-index: 2;
+        }
+        .hero-sound-control {
+            position: absolute;
+            right: clamp(24px, 6vw, 90px);
+            bottom: clamp(88px, 12vh, 130px);
+            z-index: 20;
+        }
+        .hero-sound-button {
+            width: 48px;
+            height: 48px;
+            border-radius: 9999px;
+            border: 1px solid rgba(255,255,255,.28);
+            background: rgba(5,15,12,.38);
+            color: #fff;
+            backdrop-filter: blur(16px);
+            box-shadow: 0 18px 42px rgba(0,0,0,.25);
+        }
+        .hero-volume-slider {
+            width: min(32vw, 118px);
+            accent-color: #d79a63;
         }
         .hero-overlay {
             background:
@@ -2281,8 +2364,8 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                             <div x-show="activeSlide === index" x-transition:enter="transition ease-out duration-1000" class="absolute inset-0">
                                 <template x-if="getHeroMediaKind(slide) === 'video' && !isYouTubeUrl(getHeroMediaUrl(slide))">
                                     <div class="absolute inset-0 bg-[#06110e] overflow-hidden">
-                                        <video :src="getHeroMediaUrl(slide)" autoplay muted loop playsinline aria-hidden="true" class="hero-slide-media hero-slide-media--blur"></video>
-                                        <video :src="getHeroMediaUrl(slide)" autoplay muted loop playsinline class="hero-slide-media hero-slide-video"></video>
+                                        <video :src="getHeroMediaUrl(slide)" :data-hero-index="index" autoplay muted loop playsinline preload="metadata" aria-hidden="true" class="hero-slide-video-bg"></video>
+                                        <video :src="getHeroMediaUrl(slide)" :data-hero-index="index" autoplay muted loop playsinline preload="metadata" class="hero-slide-video-main"></video>
                                     </div>
                                 </template>
                                 <template x-if="getHeroMediaKind(slide) !== 'video' || isYouTubeUrl(getHeroMediaUrl(slide))">
@@ -2315,12 +2398,19 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                         </div>
                     </div>
 
+                    <div x-show="isCurrentHeroVideo()" x-cloak class="hero-sound-control flex items-center gap-3 rounded-full border border-white/15 bg-black/10 p-1.5 pr-3 text-white shadow-2xl backdrop-blur-xl">
+                        <button type="button" @click="toggleHeroSound()" class="hero-sound-button flex items-center justify-center transition hover:bg-white/15" :aria-label="heroMuted ? 'Videonun səsini aç' : 'Videonu səssizə al'">
+                            <i class="fa-solid" :class="heroMuted || heroVolume <= 0 ? 'fa-volume-xmark' : 'fa-volume-high'"></i>
+                        </button>
+                        <input type="range" min="0" max="1" step="0.05" :value="heroVolume" @input="setHeroVolume($event.target.value)" class="hero-volume-slider hidden sm:block" aria-label="Hero video səsi">
+                    </div>
+
                     <!-- Slide bullet buttons and directional controls -->
                     <div class="absolute bottom-6 sm:bottom-8 left-0 right-0 z-20">
                         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-between items-center">
                             <div class="flex gap-2">
                                 <template x-for="(slide, idx) in activeHeroSlides()" :key="idx">
-                                    <button @click="activeSlide = idx" class="h-2.5 rounded-full transition-all duration-300" :class="activeSlide === idx ? 'w-8 bg-wood-500' : 'w-2.5 bg-white/45'"></button>
+                                    <button @click="activeSlide = idx; $nextTick(() => syncHeroVideoAudio())" class="h-2.5 rounded-full transition-all duration-300" :class="activeSlide === idx ? 'w-8 bg-wood-500' : 'w-2.5 bg-white/45'"></button>
                                 </template>
                             </div>
                             <div class="flex gap-2">
