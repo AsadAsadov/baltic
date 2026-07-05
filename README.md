@@ -10,7 +10,6 @@ Use these Render settings:
 - Build command: `npm install`
 - Start command: `npm start`
 - Required environment variable: `DATABASE_URL=...`
-- Optional storage variables: `SUPABASE_URL=...`, `SUPABASE_SERVICE_ROLE_KEY=...`
 
 After deploy, verify `GET /api/health` returns:
 
@@ -21,14 +20,15 @@ After deploy, verify `GET /api/health` returns:
 }
 ```
 
-## Supabase Storage buckets
+## Local upload folders
 
-Create these Supabase Storage buckets manually before wiring real signed uploads:
+Uploads are stored locally under these VPS folders, which the API creates automatically if they are missing:
 
-- `projects`
-- `gallery`
-- `hero`
-- `banners`
+- `uploads/home`
+- `uploads/banners`
+- `uploads/hero`
+- `uploads/gallery`
+- `uploads/projects`
 
 ## Admin panel settings table
 
@@ -65,8 +65,8 @@ on conflict (key) do nothing;
 
 ## VPS upload size note
 
-The Express API and multer are configured for uploads up to 100MB. If this app is deployed behind Nginx on a VPS, set the same request-size limit in the relevant `server` or `location` block:
+The Express API and multer are configured for uploads up to 150MB. If this app is deployed behind Nginx on a VPS, set the same request-size limit in the relevant `server` or `location` block:
 
 ```nginx
-client_max_body_size 100M;
+client_max_body_size 150M;
 ```
