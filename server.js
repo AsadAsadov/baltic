@@ -18,6 +18,15 @@ const supabase = process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_K
   ? createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
   : null;
 const safeUploadFilename = (name = 'upload') => path.basename(name).replace(/[^a-zA-Z0-9._-]/g, '-').replace(/-+/g, '-');
+const allowedImageExt = new Set(['.jpg', '.jpeg', '.png', '.webp', '.avif']);
+const allowedVideoExt = new Set(['.mp4', '.webm', '.mov']);
+const isAllowedUploadFile = (file, bucket) => {
+  const ext = path.extname(file?.originalname || '').toLowerCase();
+  const type = file?.mimetype || '';
+  const isImage = allowedImageExt.has(ext) && type.startsWith('image/');
+  const isVideo = allowedVideoExt.has(ext) && (type.startsWith('video/') || type === 'application/octet-stream' || type === 'video/quicktime');
+  return isImage || isVideo;
+};
 
 const isDbError = (err) => ['PrismaClientInitializationError', 'PrismaClientUnknownRequestError', 'PrismaClientRustPanicError'].includes(err?.name) || ['P1000', 'P1001', 'P1002', 'P1003', 'P1010', 'P1011', 'P1012', 'P1013', 'P1014', 'P1015', 'P1017', 'P2024'].includes(err?.code);
 const dbUnavailable = (res, err) => res.status(503).json({ ok: false, error: 'DATABASE_UNAVAILABLE', message: err?.message || 'Database connection failed', code: err?.code, field: err?.meta?.field_name || err?.meta?.column || err?.meta?.target });
@@ -210,8 +219,13 @@ app.post('/api/uploads', upload.single('file'), wrap(async (req, res) => {
     return res.status(400).json({ ok: false, error: 'INVALID_BUCKET', buckets: allowedUploadBuckets });
   }
   if (!req.file) return res.status(400).json({ ok: false, error: 'FILE_REQUIRED' });
+  if (!isAllowedUploadFile(req.file, bucket)) return res.status(400).json({ ok: false, error: 'UNSUPPORTED_FILE_TYPE', message: 'Uploads support jpg, jpeg, png, webp, avif, mp4, webm, and mov.' });
+  if (bucket === 'hero') {
+    const { error: bucketError } = await supabase.storage.createBucket('hero', { public: true }).catch(error => ({ error }));
+    if (bucketError && !/already exists|Duplicate/i.test(bucketError.message || '')) console.warn('[uploads:bucket:create:skip]', bucketError.message);
+  }
 
-  const objectPath = `${Date.now()}-${safeUploadFilename(req.file.originalname)}`;
+  const objectPath = `${bucket === 'hero' ? 'hero/' : ''}${Date.now()}-${safeUploadFilename(req.file.originalname)}`;
   const { error } = await supabase.storage.from(bucket).upload(objectPath, req.file.buffer, {
     contentType: req.file.mimetype,
     upsert: false

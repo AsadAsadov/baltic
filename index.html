@@ -1978,11 +1978,27 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
             object-position: center center;
         }
         .hero-overlay {
-            background: linear-gradient(90deg, rgba(5,15,12,.68) 0%, rgba(5,15,12,.38) 45%, rgba(5,15,12,.12) 100%);
+            background:
+                linear-gradient(90deg, rgba(5,15,12,.72) 0%, rgba(5,15,12,.38) 42%, rgba(5,15,12,.08) 100%),
+                linear-gradient(180deg, rgba(5,15,12,.08) 0%, rgba(5,15,12,.42) 100%);
         }
         .hero-content {
-            max-width: min(520px, 40vw);
-            padding-top: clamp(48px, 10vh, 108px);
+            position: absolute;
+            left: clamp(24px, 10vw, 160px);
+            bottom: clamp(90px, 16vh, 160px);
+            z-index: 10;
+            max-width: 480px;
+            color: #fff;
+        }
+        .hero-copy-panel {
+            width: fit-content;
+            max-width: 100%;
+            padding: 22px 24px;
+            border-radius: 24px;
+            background: rgba(5, 15, 12, 0.22);
+            border: 1px solid rgba(255,255,255,0.10);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
         }
         .hero-kicker {
             width: max-content;
@@ -1994,15 +2010,15 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
             animation: heroFadeUp .7s ease both;
         }
         .hero-title {
-            font-size: clamp(30px, 3.1vw, 48px);
+            font-size: clamp(28px, 3vw, 46px);
             line-height: 1.02;
             font-weight: 900;
             letter-spacing: -.035em;
             animation: heroFadeUp .8s ease .08s both;
         }
         .hero-desc {
-            max-width: 470px;
-            font-size: clamp(14px, 1vw, 17px);
+            max-width: 430px;
+            font-size: clamp(13px, 1vw, 16px);
             line-height: 1.55;
             color: rgba(255,255,255,.84);
             animation: heroFadeUp .8s ease .16s both;
@@ -2013,10 +2029,11 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
             to { opacity: 1; transform: translateY(0); }
         }
         @media (max-width: 767px) {
-            .hero-viewport { min-height: 100svh; height: auto; }
-            .hero-content { max-width: 100%; padding-top: clamp(24px, 9vh, 70px); }
-            .hero-title { font-size: clamp(30px, 9vw, 42px); }
-            .hero-desc { font-size: 15px; }
+            .hero-viewport { min-height: 100svh; height: 100svh; }
+            .hero-content { left: 24px; right: 24px; bottom: 110px; max-width: none; }
+            .hero-copy-panel { width: 100%; padding: 18px 18px; border-radius: 22px; }
+            .hero-title { font-size: clamp(28px, 8vw, 38px); }
+            .hero-desc { font-size: 14px; }
         }
         @media (prefers-reduced-motion: reduce) {
             .hero-kicker, .hero-title, .hero-desc, .hero-actions { animation: none; }
@@ -2245,22 +2262,22 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                         </template>
                     </div>
 
-                    <div class="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-white w-full">
-                        <div class="hero-content space-y-4 sm:space-y-5">
+                    <div class="hero-content">
+                        <div class="hero-copy-panel space-y-4 sm:space-y-5">
                             <span x-show="(activeHeroSlides()[activeSlide] || {}).tag || (lang === 'en' && (activeHeroSlides()[activeSlide] || {}).tagEn) || (lang === 'ru' && (activeHeroSlides()[activeSlide] || {}).tagRu)" class="hero-kicker inline-flex items-center gap-2 bg-wood-600/90 text-stone-50 rounded-full font-bold uppercase tracking-wider shadow-md">
                                 <i class="fa-solid fa-tree"></i>
                                 <span x-text="lang === 'en' ? (activeHeroSlides()[activeSlide] || {}).tagEn || (activeHeroSlides()[activeSlide] || {}).tag : (lang === 'ru' ? (activeHeroSlides()[activeSlide] || {}).tagRu || (activeHeroSlides()[activeSlide] || {}).tag : (activeHeroSlides()[activeSlide] || {}).tag)"></span>
                             </span>
                             
-                            <h1 x-show="(activeHeroSlides()[activeSlide] || {}).title1 || (activeHeroSlides()[activeSlide] || {}).title2" class="hero-title drop-shadow-sm">
-                                <span class="block" x-text="lang === 'en' ? (activeHeroSlides()[activeSlide] || {}).title1En || (activeHeroSlides()[activeSlide] || {}).title1 : (lang === 'ru' ? (activeHeroSlides()[activeSlide] || {}).title1Ru || (activeHeroSlides()[activeSlide] || {}).title1 : (activeHeroSlides()[activeSlide] || {}).title1)"></span>
-                                <span class="block text-wood-400 mt-2" x-text="lang === 'en' ? (activeHeroSlides()[activeSlide] || {}).title2En || (activeHeroSlides()[activeSlide] || {}).title2 : (lang === 'ru' ? (activeHeroSlides()[activeSlide] || {}).title2Ru || (activeHeroSlides()[activeSlide] || {}).title2 : (activeHeroSlides()[activeSlide] || {}).title2)"></span>
+                            <h1 x-show="(activeHeroSlides()[activeSlide] || {}).title1 || (activeHeroSlides()[activeSlide] || {}).title2 || (lang === 'en' && ((activeHeroSlides()[activeSlide] || {}).title1En || (activeHeroSlides()[activeSlide] || {}).title2En)) || (lang === 'ru' && ((activeHeroSlides()[activeSlide] || {}).title1Ru || (activeHeroSlides()[activeSlide] || {}).title2Ru))" class="hero-title drop-shadow-sm">
+                                <span x-show="(activeHeroSlides()[activeSlide] || {}).title1 || (lang === 'en' && (activeHeroSlides()[activeSlide] || {}).title1En) || (lang === 'ru' && (activeHeroSlides()[activeSlide] || {}).title1Ru)" class="block" x-text="lang === 'en' ? (activeHeroSlides()[activeSlide] || {}).title1En || (activeHeroSlides()[activeSlide] || {}).title1 : (lang === 'ru' ? (activeHeroSlides()[activeSlide] || {}).title1Ru || (activeHeroSlides()[activeSlide] || {}).title1 : (activeHeroSlides()[activeSlide] || {}).title1)"></span>
+                                <span x-show="(activeHeroSlides()[activeSlide] || {}).title2 || (lang === 'en' && (activeHeroSlides()[activeSlide] || {}).title2En) || (lang === 'ru' && (activeHeroSlides()[activeSlide] || {}).title2Ru)" class="block text-wood-400 mt-2" x-text="lang === 'en' ? (activeHeroSlides()[activeSlide] || {}).title2En || (activeHeroSlides()[activeSlide] || {}).title2 : (lang === 'ru' ? (activeHeroSlides()[activeSlide] || {}).title2Ru || (activeHeroSlides()[activeSlide] || {}).title2 : (activeHeroSlides()[activeSlide] || {}).title2)"></span>
                             </h1>
                             
                             <p x-show="(activeHeroSlides()[activeSlide] || {}).desc || (lang === 'en' && (activeHeroSlides()[activeSlide] || {}).descEn) || (lang === 'ru' && (activeHeroSlides()[activeSlide] || {}).descRu)" class="hero-desc font-light" x-text="lang === 'en' ? (activeHeroSlides()[activeSlide] || {}).descEn || (activeHeroSlides()[activeSlide] || {}).desc : (lang === 'ru' ? (activeHeroSlides()[activeSlide] || {}).descRu || (activeHeroSlides()[activeSlide] || {}).desc : (activeHeroSlides()[activeSlide] || {}).desc)"></p>
 
                             <div class="hero-actions flex pt-1">
-                                <a @click.prevent="openCalculator()" href="#" class="inline-flex h-12 items-center justify-center gap-2 rounded-[14px] border border-white/30 bg-white/10 px-5 py-3 text-[15px] font-black text-white shadow-lg backdrop-blur-md transition hover:bg-white/20">
+                                <a @click.prevent="openCalculator()" href="#" class="inline-flex h-[46px] items-center justify-center gap-2 rounded-[14px] border border-white/30 bg-white/10 px-[18px] py-[11px] text-[14px] font-black text-white shadow-lg backdrop-blur-md transition hover:bg-white/20">
                                     <span x-text="t('calcBtn')">Qiymət Hesabla</span>
                                 </a>
                             </div>
@@ -2954,14 +2971,14 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                                 <label class="cursor-pointer block">
                                     <input type="file" accept="image/*,video/*" @change="handleFileSelect($event, 'heroPreviewImg')" class="sr-only">
                                     <span class="mx-auto w-12 h-12 rounded-2xl bg-wood-50 text-wood-700 flex items-center justify-center text-xl"><i class="fa-solid fa-cloud-arrow-up"></i></span>
-                                    <span class="block mt-3 text-stone-900 text-sm font-black normal-case">Fon şəkli seç</span>
-                                    <span class="block mt-1 text-[10px] text-stone-400 normal-case">Premium hero background üçün şəkil yükləyin</span>
+                                    <span class="block mt-3 text-stone-900 text-sm font-black normal-case">Şəkil və ya video seç</span>
+                                    <span class="block mt-1 text-[10px] text-stone-400 normal-case">jpg, png, webp, avif, mp4, webm və mov dəstəklənir</span>
                                 </label>
                                 <template x-if="heroPreviewImg"><div class="relative mt-4 w-full h-44 rounded-2xl overflow-hidden shadow bg-stone-900"><template x-if="getHeroMediaKind({ mediaUrl: heroPreviewImg, mediaType: newHero.mediaType }) !== 'video' || isYouTubeUrl(heroPreviewImg)"><img :src="getHeroVisualUrl({ mediaUrl: heroPreviewImg, image: heroPreviewImg, mediaType: newHero.mediaType })" class="w-full h-full object-cover"></template><template x-if="getHeroMediaKind({ mediaUrl: heroPreviewImg, mediaType: newHero.mediaType }) === 'video' && !isYouTubeUrl(heroPreviewImg)"><video :src="heroPreviewImg" class="w-full h-full object-cover" controls muted></video></template><button @click="removeSelectedFile('heroPreviewImg')" class="absolute top-2 right-2 w-8 h-8 bg-black/60 hover:bg-black/85 text-white rounded-full flex items-center justify-center text-xs"><i class="fa-solid fa-x"></i></button></div></template>
                             </div>
                             <div>
                                 <label>Media URL (optional)</label>
-                                <input type="url" x-model="heroPreviewImg" @input="syncHeroMediaUrl()" class="w-full px-3 py-2 bg-white border border-stone-200 rounded-lg text-stone-800 tracking-normal mt-1 font-medium normal-case" placeholder="https://.../hero.jpg və ya .mp4">
+                                <input type="url" x-model="heroPreviewImg" @input="syncHeroMediaUrl()" class="w-full px-3 py-2 bg-white border border-stone-200 rounded-lg text-stone-800 tracking-normal mt-1 font-medium normal-case" placeholder="https://.../hero.jpg, .mp4 və ya YouTube URL">
                             </div>
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                                 <div><label>Tagline</label><input type="text" x-model="newHero.tag" @input="autocompleteHeroField('tag')" class="w-full px-3 py-2 bg-white border border-stone-200 rounded-lg text-stone-800 tracking-normal mt-1 font-medium"><p class="text-[10px] text-wood-600 mt-1 normal-case" x-text="translationStatusText('heroTag')"></p></div>
@@ -2977,6 +2994,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                                 <div x-show="showHeroTranslations" x-transition><label>Açıqlama RU</label><textarea x-model="newHero.descRu" @input="markManualTranslation('newHero.descRu')" rows="3" class="w-full px-3 py-2 bg-white border border-stone-200 rounded-lg text-stone-800 tracking-normal mt-1 font-medium"></textarea></div>
                                 <div x-show="showHeroTranslations" x-transition><label>Açıqlama EN</label><textarea x-model="newHero.descEn" @input="markManualTranslation('newHero.descEn')" rows="3" class="w-full px-3 py-2 bg-white border border-stone-200 rounded-lg text-stone-800 tracking-normal mt-1 font-medium"></textarea></div>
                             </div>
+                            <label class="inline-flex items-center gap-2 normal-case text-stone-700"><input type="checkbox" x-model="newHero.active" class="rounded border-stone-300 text-forest-700 focus:ring-forest-700"> Aktiv slayd</label>
                             <p class="text-[10px] text-wood-600 normal-case">RU/EN avtomatik hazırlanacaq</p>
                             <button type="button" @click="showHeroTranslations = !showHeroTranslations" class="text-[11px] text-forest-700 font-black normal-case underline" x-text="showHeroTranslations ? 'Tərcümələri gizlət' : 'Tərcümələri göstər'"></button>
                             <button @click="saveHero()" :disabled="actionLoading.heroSave" class="w-full py-3 bg-forest-700 text-white font-bold rounded-xl shadow hover:bg-forest-800 normal-case disabled:opacity-70"><span x-show="!actionLoading.heroSave" x-text="newHero.id ? 'Slaydı Güncəllə' : 'Yeni slayd yarat'"></span><span x-show="actionLoading.heroSave" class="inline-flex items-center gap-2"><i class="fa-solid fa-circle-notch fa-spin"></i>Yadda saxlanılır...</span></button>
@@ -2985,7 +3003,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                             <template x-for="(sld, sIdx) in (Array.isArray(slides) ? slides : [])" :key="sld.id || sIdx">
                                 <div class="p-3 bg-white rounded-2xl border border-stone-200 hover:bg-stone-50 space-y-3" :class="newHero.activeIndex === sIdx ? '!border-wood-600 ring-2 ring-wood-200 shadow-md' : ''" draggable="true" @dragstart="onHeroDragStart($event, sIdx)" @dragover.prevent @drop="onHeroDrop($event, sIdx)">
                                     <div class="flex justify-between items-center gap-2"><span class="cursor-grab text-stone-400"><i class="fa-solid fa-grip-vertical"></i></span><span class="font-black text-forest-900 flex-1" x-text="`${sIdx + 1}-ci Slayd`"></span><span class="text-[9px] px-1.5 py-0.5 rounded uppercase" :class="sld.active === false ? 'bg-stone-100 text-stone-500' : 'bg-green-100 text-green-700'" x-text="sld.active === false ? 'Deaktiv' : 'Aktiv'"></span></div>
-                                    <template x-if="getHeroMediaKind(sld) === 'video' && !isYouTubeUrl(getHeroMediaUrl(sld))"><video :src="getHeroMediaUrl(sld)" muted class="w-full h-32 lg:h-28 object-cover rounded-xl shadow"></video></template><template x-if="getHeroMediaKind(sld) !== 'video' || isYouTubeUrl(getHeroMediaUrl(sld))"><img :src="getHeroVisualUrl(sld)" class="w-full h-32 lg:h-28 object-cover rounded-xl shadow"></template>
+                                    <template x-if="getHeroMediaUrl(sld) && getHeroMediaKind(sld) === 'video' && !isYouTubeUrl(getHeroMediaUrl(sld))"><video :src="getHeroMediaUrl(sld)" muted playsinline class="w-full h-32 lg:h-28 object-cover rounded-xl shadow"></video></template><template x-if="getHeroMediaUrl(sld) && (getHeroMediaKind(sld) !== 'video' || isYouTubeUrl(getHeroMediaUrl(sld)))"><img :src="getHeroVisualUrl(sld)" class="w-full h-32 lg:h-28 object-cover rounded-xl shadow"></template><template x-if="!getHeroMediaUrl(sld)"><div class="w-full h-32 lg:h-28 rounded-xl bg-stone-100 border border-dashed border-stone-300 text-stone-400 flex items-center justify-center normal-case">Media yoxdur</div></template>
                                     <p class="text-[10px] text-stone-500 normal-case truncate" x-text="sld.tag || sld.title1 || 'Adsız hero slayd'"></p>
                                     <div class="grid grid-cols-2 gap-2">
                                         <button @click="setupEditHero(sIdx)" class="py-1.5 bg-forest-700 text-white rounded text-[10px] font-bold">Redaktə et</button>
