@@ -217,7 +217,8 @@
                 homeImageForms: { why_wood: { title: '', imageUrl: '' }, advantages: { title: '', imageUrl: '' } },
                 homeImageFiles: { why_wood: null, advantages: null },
                 homeImagePreviews: { why_wood: '', advantages: '' },
-                newHero: { activeIndex: 0, tag: '', tagRu: '', tagEn: '', title1: '', title1Ru: '', title1En: '', title2: '', title2Ru: '', title2En: '', desc: '', descRu: '', descEn: '', image: '' },
+                selectedHeroId: null,
+                newHero: { id: null, activeIndex: null, active: true, mediaUrl: '', mediaType: 'image', mediaFit: 'cover', tag: '', tagRu: '', tagEn: '', title1: '', title1Ru: '', title1En: '', title2: '', title2Ru: '', title2En: '', desc: '', descRu: '', descEn: '', image: '' },
                 
                 // Single advertising form inputs
                 newAd: { id: null, placement: 'both', active: true, type: 'image', src: '', link: '', title: '', width: 260, height: 600, duration: 15 },
@@ -607,7 +608,8 @@
                 normalizeSlide(slide = {}) {
                     const image = slide.image || slide.mediaUrl || slide.media_url || slide.src || slide.url || '';
                     const mediaType = this.getHeroMediaKind({ ...slide, mediaUrl: slide.mediaUrl || slide.media_url || image });
-                    return { id: slide.id ?? '', image, mediaUrl: slide.mediaUrl || slide.media_url || image, src: slide.src || image, url: slide.url || image, mediaType, media_type: mediaType, tag: slide.tag || slide.tagAz || '', tagAz: slide.tagAz || slide.tag || '', tagRu: slide.tagRu || slide.tag || '', tagEn: slide.tagEn || slide.tag || '', title1: slide.title1 || slide.title1Az || '', title1Az: slide.title1Az || slide.title1 || '', title1Ru: slide.title1Ru || slide.title1 || '', title1En: slide.title1En || slide.title1 || '', title2: slide.title2 || slide.title2Az || '', title2Az: slide.title2Az || slide.title2 || '', title2Ru: slide.title2Ru || slide.title2 || '', title2En: slide.title2En || slide.title2 || '', desc: slide.desc || slide.descAz || '', descAz: slide.descAz || slide.desc || '', descRu: slide.descRu || slide.desc || '', descEn: slide.descEn || slide.desc || '', active: slide.active ?? true, archived: Boolean(slide.archived), sortOrder: Number(slide.sortOrder) || 0 };
+                    const mediaFit = ['cover', 'contain'].includes(slide.mediaFit || slide.media_fit) ? (slide.mediaFit || slide.media_fit) : (mediaType === 'video' ? 'contain' : 'cover');
+                    return { id: slide.id ?? '', image, mediaUrl: slide.mediaUrl || slide.media_url || image, src: slide.src || image, url: slide.url || image, mediaType, media_type: mediaType, mediaFit, media_fit: mediaFit, tag: slide.tag || slide.tagAz || '', tagAz: slide.tagAz || slide.tag || '', tagRu: slide.tagRu || slide.tag || '', tagEn: slide.tagEn || slide.tag || '', title1: slide.title1 || slide.title1Az || '', title1Az: slide.title1Az || slide.title1 || '', title1Ru: slide.title1Ru || slide.title1 || '', title1En: slide.title1En || slide.title1 || '', title2: slide.title2 || slide.title2Az || '', title2Az: slide.title2Az || slide.title2 || '', title2Ru: slide.title2Ru || slide.title2 || '', title2En: slide.title2En || slide.title2 || '', desc: slide.desc || slide.descAz || '', descAz: slide.descAz || slide.desc || '', descRu: slide.descRu || slide.desc || '', descEn: slide.descEn || slide.desc || '', active: slide.active ?? true, archived: Boolean(slide.archived), sortOrder: Number(slide.sortOrder) || 0 };
                 },
                 normalizeSlides(payload, fallback = []) {
                     const items = this.asArray(payload).map(item => this.normalizeSlide(item));
@@ -643,11 +645,18 @@
                     const url = this.getHeroMediaUrl(slide);
                     return this.getYouTubeThumbnail(url) || url;
                 },
+                getHeroMediaFit(slide = {}) {
+                    const explicit = slide.mediaFit || slide.media_fit;
+                    if (['cover', 'contain'].includes(explicit)) return explicit;
+                    return this.getHeroMediaKind(slide) === 'video' ? 'contain' : 'cover';
+                },
                 syncHeroMediaUrl() {
                     const url = this.heroPreviewImg || this.newHero.mediaUrl || this.newHero.image || '';
+                    const previousType = this.newHero.mediaType;
                     this.newHero.mediaUrl = url;
                     this.newHero.image = url;
                     this.newHero.mediaType = this.getHeroMediaKind({ mediaUrl: url, mediaType: this.newHero.mediaType });
+                    if (!['cover', 'contain'].includes(this.newHero.mediaFit) || previousType !== this.newHero.mediaType) this.newHero.mediaFit = this.newHero.mediaType === 'video' ? 'contain' : 'cover';
                 },
                 ensureAutoTranslations(pairs = []) {
                     pairs.forEach(([sourcePath, ruPath, enPath]) => {
@@ -1167,8 +1176,8 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                         if (file.type.startsWith('image/')) this.newAd.type = this.newAd.mediaType = 'image';
                     }
                     if (previewProperty === 'heroPreviewImg') {
-                        if (file.type.startsWith('video/')) this.newHero.mediaType = 'video';
-                        if (file.type.startsWith('image/')) this.newHero.mediaType = 'image';
+                        if (file.type.startsWith('video/')) { this.newHero.mediaType = 'video'; this.newHero.mediaFit = 'contain'; }
+                        if (file.type.startsWith('image/')) { this.newHero.mediaType = 'image'; this.newHero.mediaFit = 'cover'; }
                     }
                     if (targetProperty) this[targetProperty] = previewUrl;
                 },
@@ -1579,8 +1588,11 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                 },
 
                 setupEditHero(index) {
-                    this.newHero = { activeIndex: index, ...this.slides[index] };
-                    this.heroPreviewImg = this.slides[index].image;
+                    const slide = this.normalizeSlide(this.slides[index] || {});
+                    this.selectedHeroId = this.isPersistedHero(slide) ? slide.id : null;
+                    this.newHero = { ...slide, activeIndex: index, id: slide.id, active: slide.active ?? true, mediaFit: this.getHeroMediaFit(slide) };
+                    this.heroPreviewImg = this.getHeroMediaUrl(slide);
+                    this.heroPreviewImgFile = null;
                 },
 
                 saveHero() {
@@ -1606,6 +1618,8 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                         }
                         const isExisting = this.isPersistedHero(this.newHero);
                         const payload = { ...this.newHero, active: this.newHero.active ?? true };
+                        delete payload.mediaFit;
+                        delete payload.media_fit;
                         if (finalImage) Object.assign(payload, { image: finalImage, mediaUrl: finalImage, media_url: finalImage, src: finalImage, url: finalImage, mediaType, media_type: mediaType, type: mediaType });
                         if (!isExisting) delete payload.id;
                         console.info('[saveHero:payload]', { selectedHeroId: isExisting ? this.newHero.id : null, hasSelectedFile: Boolean(selectedFile), selectedFile: selectedFile ? { name: selectedFile.name, type: selectedFile.type, size: selectedFile.size } : null, uploadedHeroUrl: finalImage, payload });
@@ -1615,8 +1629,9 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                             this.slides = (this.slides || []).map(slide => slide.id === saved.id ? saved : slide);
                         } else {
                             saved = await this.api('/api/hero-slides', { method: 'POST', body: JSON.stringify(payload) });
-                            this.slides = typeof this.newHero.activeIndex === 'number' ? (this.slides || []).map((slide, index) => index === this.newHero.activeIndex ? saved : slide) : [...(this.slides || []), saved];
+                            this.slides = [...(this.slides || []), saved];
                         }
+                        this.slides = this.normalizeSlides(await this.api('/api/hero-slides?admin=true'), this.slides);
                         this.cacheSave();
                         this.resetHeroForm();
                         this.showToast('Uğurlu', payload.id ? 'Ana səhifə herosu yeniləndi!' : 'Yeni hero slayd əlavə edildi!');
@@ -1792,7 +1807,8 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                 },
 
                 resetHeroForm() {
-                    this.newHero = { id: null, activeIndex: null, active: true, mediaUrl: '', mediaType: 'image', tag: '', tagRu: '', tagEn: '', title1: '', title1Ru: '', title1En: '', title2: '', title2Ru: '', title2En: '', desc: '', descRu: '', descEn: '', image: '' };
+                    this.selectedHeroId = null;
+                    this.newHero = { id: null, activeIndex: null, active: true, mediaUrl: '', mediaType: 'image', mediaFit: 'cover', tag: '', tagRu: '', tagEn: '', title1: '', title1Ru: '', title1En: '', title2: '', title2Ru: '', title2En: '', desc: '', descRu: '', descEn: '', image: '' };
                     this.showHeroTranslations = false;
                     this.heroPreviewImg = '';
                     this.heroPreviewImgFile = null;
@@ -1976,6 +1992,18 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
             height: 100%;
             object-fit: cover;
             object-position: center center;
+        }
+        .hero-slide-media--blur {
+            object-fit: cover;
+            filter: blur(18px);
+            transform: scale(1.08);
+        }
+        .hero-slide-video {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            object-position: center center;
+            background: #06110e;
         }
         .hero-overlay {
             background:
@@ -2252,10 +2280,13 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                         <template x-for="(slide, index) in activeHeroSlides()" :key="index">
                             <div x-show="activeSlide === index" x-transition:enter="transition ease-out duration-1000" class="absolute inset-0">
                                 <template x-if="getHeroMediaKind(slide) === 'video' && !isYouTubeUrl(getHeroMediaUrl(slide))">
-                                    <video :src="getHeroMediaUrl(slide)" autoplay muted loop playsinline class="hero-slide-media"></video>
+                                    <div class="absolute inset-0 bg-[#06110e] overflow-hidden">
+                                        <video :src="getHeroMediaUrl(slide)" autoplay muted loop playsinline aria-hidden="true" class="hero-slide-media hero-slide-media--blur"></video>
+                                        <video :src="getHeroMediaUrl(slide)" autoplay muted loop playsinline class="hero-slide-media hero-slide-video"></video>
+                                    </div>
                                 </template>
                                 <template x-if="getHeroMediaKind(slide) !== 'video' || isYouTubeUrl(getHeroMediaUrl(slide))">
-                                    <img :src="getHeroVisualUrl(slide)" class="hero-slide-media" alt="Hero background">
+                                    <img :src="getHeroVisualUrl(slide)" class="hero-slide-media" :class="getHeroMediaFit(slide) === 'contain' ? 'object-contain bg-[#06110e]' : 'object-cover'" alt="Hero background">
                                 </template>
                                 <div class="hero-overlay absolute inset-0"></div>
                             </div>
@@ -2689,7 +2720,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                 <!-- Admin Tab Navigation (All Translated Instantly) -->
                 <div class="flex flex-wrap gap-2 border-b border-stone-200 pb-4 text-xs sm:text-sm font-bold">
                     <template x-for="tab in visibleAdminTabs()" :key="tab.key">
-                        <button @click="adminTab = tab.key" class="px-4 py-2.5 rounded-xl transition" :class="adminTab === tab.key ? 'bg-forest-700 text-white shadow-sm' : 'bg-white text-stone-600 border border-stone-200'" x-text="t(tab.labelKey)"></button>
+                        <button @click="adminTab = tab.key; if (tab.key === 'hero') resetHeroForm()" class="px-4 py-2.5 rounded-xl transition" :class="adminTab === tab.key ? 'bg-forest-700 text-white shadow-sm' : 'bg-white text-stone-600 border border-stone-200'" x-text="t(tab.labelKey)"></button>
                     </template>
                 </div>
 
@@ -2974,7 +3005,14 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                                     <span class="block mt-3 text-stone-900 text-sm font-black normal-case">Şəkil və ya video seç</span>
                                     <span class="block mt-1 text-[10px] text-stone-400 normal-case">jpg, png, webp, avif, mp4, webm və mov dəstəklənir</span>
                                 </label>
-                                <template x-if="heroPreviewImg"><div class="relative mt-4 w-full h-44 rounded-2xl overflow-hidden shadow bg-stone-900"><template x-if="getHeroMediaKind({ mediaUrl: heroPreviewImg, mediaType: newHero.mediaType }) !== 'video' || isYouTubeUrl(heroPreviewImg)"><img :src="getHeroVisualUrl({ mediaUrl: heroPreviewImg, image: heroPreviewImg, mediaType: newHero.mediaType })" class="w-full h-full object-cover"></template><template x-if="getHeroMediaKind({ mediaUrl: heroPreviewImg, mediaType: newHero.mediaType }) === 'video' && !isYouTubeUrl(heroPreviewImg)"><video :src="heroPreviewImg" class="w-full h-full object-cover" controls muted></video></template><button @click="removeSelectedFile('heroPreviewImg')" class="absolute top-2 right-2 w-8 h-8 bg-black/60 hover:bg-black/85 text-white rounded-full flex items-center justify-center text-xs"><i class="fa-solid fa-x"></i></button></div></template>
+                                <template x-if="heroPreviewImg"><div class="relative mt-4 w-full h-44 rounded-2xl overflow-hidden shadow bg-stone-900"><template x-if="getHeroMediaKind({ mediaUrl: heroPreviewImg, mediaType: newHero.mediaType }) !== 'video' || isYouTubeUrl(heroPreviewImg)"><img :src="getHeroVisualUrl({ mediaUrl: heroPreviewImg, image: heroPreviewImg, mediaType: newHero.mediaType })" class="w-full h-full object-cover"></template><template x-if="getHeroMediaKind({ mediaUrl: heroPreviewImg, mediaType: newHero.mediaType }) === 'video' && !isYouTubeUrl(heroPreviewImg)"><video :src="heroPreviewImg" class="w-full h-full object-contain bg-stone-950" controls muted></video></template><button @click="removeSelectedFile('heroPreviewImg')" class="absolute top-2 right-2 w-8 h-8 bg-black/60 hover:bg-black/85 text-white rounded-full flex items-center justify-center text-xs"><i class="fa-solid fa-x"></i></button></div></template>
+                            </div>
+                            <div>
+                                <label>Media görünüşü</label>
+                                <select x-model="newHero.mediaFit" class="w-full px-3 py-2 bg-white border border-stone-200 rounded-lg text-stone-800 tracking-normal mt-1 font-medium normal-case">
+                                    <option value="cover">Tam ekran doldur (cover)</option>
+                                    <option value="contain">Tam göstər (contain)</option>
+                                </select>
                             </div>
                             <div>
                                 <label>Media URL (optional)</label>
@@ -3001,7 +3039,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                         </div>
                         <div class="order-1 lg:order-2 grid grid-cols-1 gap-3 bg-stone-50 border border-stone-200 rounded-3xl p-4">
                             <template x-for="(sld, sIdx) in (Array.isArray(slides) ? slides : [])" :key="sld.id || sIdx">
-                                <div class="p-3 bg-white rounded-2xl border border-stone-200 hover:bg-stone-50 space-y-3" :class="newHero.activeIndex === sIdx ? '!border-wood-600 ring-2 ring-wood-200 shadow-md' : ''" draggable="true" @dragstart="onHeroDragStart($event, sIdx)" @dragover.prevent @drop="onHeroDrop($event, sIdx)">
+                                <div class="p-3 bg-white rounded-2xl border border-stone-200 hover:bg-stone-50 space-y-3" :class="newHero.activeIndex === sIdx && (selectedHeroId === sld.id || !isPersistedHero(sld)) ? '!border-wood-600 ring-2 ring-wood-200 shadow-md' : ''" draggable="true" @dragstart="onHeroDragStart($event, sIdx)" @dragover.prevent @drop="onHeroDrop($event, sIdx)">
                                     <div class="flex justify-between items-center gap-2"><span class="cursor-grab text-stone-400"><i class="fa-solid fa-grip-vertical"></i></span><span class="font-black text-forest-900 flex-1" x-text="`${sIdx + 1}-ci Slayd`"></span><span class="text-[9px] px-1.5 py-0.5 rounded uppercase" :class="sld.active === false ? 'bg-stone-100 text-stone-500' : 'bg-green-100 text-green-700'" x-text="sld.active === false ? 'Deaktiv' : 'Aktiv'"></span></div>
                                     <template x-if="getHeroMediaUrl(sld) && getHeroMediaKind(sld) === 'video' && !isYouTubeUrl(getHeroMediaUrl(sld))"><video :src="getHeroMediaUrl(sld)" muted playsinline class="w-full h-32 lg:h-28 object-cover rounded-xl shadow"></video></template><template x-if="getHeroMediaUrl(sld) && (getHeroMediaKind(sld) !== 'video' || isYouTubeUrl(getHeroMediaUrl(sld)))"><img :src="getHeroVisualUrl(sld)" class="w-full h-32 lg:h-28 object-cover rounded-xl shadow"></template><template x-if="!getHeroMediaUrl(sld)"><div class="w-full h-32 lg:h-28 rounded-xl bg-stone-100 border border-dashed border-stone-300 text-stone-400 flex items-center justify-center normal-case">Media yoxdur</div></template>
                                     <p class="text-[10px] text-stone-500 normal-case truncate" x-text="sld.tag || sld.title1 || 'Adsız hero slayd'"></p>
