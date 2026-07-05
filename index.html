@@ -2565,7 +2565,10 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
             :root { --mobile-header-height: 76px; --header-height: 76px; }
             html, body { overflow-x: hidden; }
             body { padding-bottom: 0 !important; background: #0B1915; }
-            main, .page-shell { padding-bottom: calc(92px + env(safe-area-inset-bottom)); }
+            main {
+                flex: 0 0 auto !important;
+                padding-bottom: calc(88px + env(safe-area-inset-bottom));
+            }
             .header-main {
                 height: 76px;
                 background: rgba(255,255,255,.96) !important;
@@ -2690,7 +2693,36 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
             [data-hero-controls] button { pointer-events: auto; }
             [data-hero-controls] .hero-arrow-button { width: 44px !important; height: 44px !important; background: rgba(0,0,0,.36) !important; border-color: rgba(255,255,255,.18) !important; }
             .bottom-mobile-nav { left: 14px !important; right: 14px !important; bottom: calc(10px + env(safe-area-inset-bottom)) !important; height: 66px !important; }
-            footer { padding-bottom: calc(120px + env(safe-area-inset-bottom)) !important; margin-bottom: 0 !important; }
+
+            .site-viewport,
+            .page-shell,
+            .page-content,
+            .projects-page,
+            .gallery-page,
+            .about-page,
+            .contact-page {
+                min-height: auto !important;
+                padding-bottom: 24px !important;
+                margin-bottom: 0 !important;
+            }
+            .projects-page,
+            .gallery-page,
+            .about-page,
+            .contact-page {
+                padding-top: 32px !important;
+            }
+            .empty-state,
+            .gallery-empty,
+            .projects-empty {
+                min-height: auto !important;
+                padding: 32px 20px !important;
+                margin-bottom: 24px !important;
+            }
+            section { margin-bottom: 32px; }
+            footer {
+                margin-top: 0 !important;
+                padding-bottom: calc(110px + env(safe-area-inset-bottom)) !important;
+            }
         }
         @media (min-width: 1280px) {
             .ad-safe-content { padding-left: 0; padding-right: 0; }
@@ -2789,10 +2821,10 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
     <div class="flex max-w-full flex-1 items-stretch">
         
         <!-- MAIN SITE VIEWPORT -->
-        <div class="flex-1 min-w-0 bg-stone-50 flex flex-col min-h-[calc(100vh-5rem)]">
+        <div class="site-viewport flex-1 min-w-0 bg-stone-50 flex flex-col min-h-[calc(100vh-5rem)]">
 
             <!-- 1. HOME VIEW -->
-            <main class="flex-1"><div x-show="page === 'home'" x-cloak class="pb-16">
+            <main class="flex-1"><div x-show="page === 'home'" x-cloak class="page-content home-page pb-16">
                 
                 <!-- HERO SLIDER SECTION -->
                 <section data-home-hero class="hero-viewport relative left-1/2 w-screen max-w-[100vw] -translate-x-1/2 bg-stone-900 overflow-hidden flex items-center">
@@ -3081,7 +3113,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
             </div>
 
             <!-- 2. PROJECTS CATALOGUE PAGE -->
-            <div x-show="page !== 'home'" x-cloak class="page-shell ad-content-grid mx-auto w-full max-w-[calc(100vw-2rem)]" :class="{ 'has-ads': hasAnyRenderableBanner(), 'has-left-ad': hasRenderableBanner('left'), 'has-right-ad': hasRenderableBanner('right'), 'max-w-7xl': !hasAnyRenderableBanner() }">
+            <div x-show="page !== 'home'" x-cloak class="page-shell page-content ad-content-grid mx-auto w-full max-w-[calc(100vw-2rem)]" :class="{ 'has-ads': hasAnyRenderableBanner(), 'has-left-ad': hasRenderableBanner('left'), 'has-right-ad': hasRenderableBanner('right'), 'max-w-7xl': !hasAnyRenderableBanner() }">
                 <aside x-show="hasRenderableBanner('left')" x-cloak class="ad-rail" data-ad-side="left">
                     <div class="ad-box flex flex-col items-center py-2">
                         <div class="ad-frame relative" :style="`--ad-width: ${Math.min(bannerForSide($el.closest('[data-ad-side]')?.dataset.adSide || 'left').width || 260, 260)}px; --ad-height: ${bannerForSide($el.closest('[data-ad-side]')?.dataset.adSide || 'left').height || 600}px;`">
@@ -3095,7 +3127,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                 </aside>
 
                 <div class="min-w-0">
-            <div x-show="page === 'projects'" x-cloak class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-12 ad-safe-content">
+            <div x-show="page === 'projects'" x-cloak class="projects-page max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-12 ad-safe-content">
                 <div class="text-center max-w-3xl mx-auto space-y-4">
                     <span class="text-wood-600 font-bold uppercase tracking-widest text-sm block" x-text="t('allProjects')">Layihələrimiz</span>
                     <h1 class="text-3xl sm:text-5xl font-black text-forest-950" x-text="t('exploreCat')">Usta Əllərindən Çıxan Memarlıq</h1>
@@ -3119,7 +3151,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                         </div>
                     </template>
                 </div>
-                <div x-show="projectsLoaded && !(Array.isArray(filteredProjects) && filteredProjects.filter(p => !p.archived).length)" class="rounded-3xl border border-stone-200 bg-white p-10 text-center text-stone-500 font-bold" x-text="lang === 'az' ? 'Layihə tapılmadı.' : (lang === 'ru' ? 'Проекты не найдены.' : 'No projects found.')"></div>
+                <div x-show="projectsLoaded && !(Array.isArray(filteredProjects) && filteredProjects.filter(p => !p.archived).length)" class="empty-state projects-empty rounded-3xl border border-stone-200 bg-white p-10 text-center text-stone-500 font-bold" x-text="lang === 'az' ? 'Layihə tapılmadı.' : (lang === 'ru' ? 'Проекты не найдены.' : 'No projects found.')"></div>
                 <div x-show="projectsLoaded" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                     <template x-for="(proj, index) in (Array.isArray(filteredProjects) ? filteredProjects : []).filter(p => !p.archived)" :key="proj.id">
                         <div @click="openProjectModal(proj, index)" class="project-card group cursor-pointer bg-white rounded-3xl overflow-hidden shadow-sm transition-all duration-[450ms] border border-stone-200/60 flex flex-col justify-between hover:shadow-2xl hover:shadow-forest-950/12 hover:border-wood-200">
@@ -3148,7 +3180,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
             </div>
 
             <!-- 3. GALLERY & MEDIA PAGE -->
-            <div x-show="page === 'gallery'" x-cloak class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-12 ad-safe-content">
+            <div x-show="page === 'gallery'" x-cloak class="gallery-page max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-12 ad-safe-content">
                 <div class="text-center max-w-3xl mx-auto space-y-4">
                     <span class="text-wood-600 font-bold uppercase tracking-widest text-sm block" x-text="t('navGallery')">Qalereya</span>
                     <h1 class="text-3xl sm:text-5xl font-black text-forest-950" x-text="t('visualShowcase')">İnşaat Qalereyası</h1>
@@ -3158,7 +3190,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                 <div x-show="!galleryLoaded" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                     <template x-for="idx in 4" :key="`gallery-skeleton-${idx}`"><div class="aspect-square rounded-2xl skeleton-shimmer"></div></template>
                 </div>
-                <div x-show="galleryLoaded && !(Array.isArray(galleryItems) && galleryItems.filter(g => !g.archived).length)" class="rounded-3xl border border-stone-200 bg-white p-10 text-center text-stone-500 font-bold" x-text="lang === 'az' ? 'Qalereya boşdur.' : (lang === 'ru' ? 'Галерея пуста.' : 'Gallery is empty.')"></div>
+                <div x-show="galleryLoaded && !(Array.isArray(galleryItems) && galleryItems.filter(g => !g.archived).length)" class="empty-state gallery-empty rounded-3xl border border-stone-200 bg-white p-10 text-center text-stone-500 font-bold" x-text="lang === 'az' ? 'Qalereya boşdur.' : (lang === 'ru' ? 'Галерея пуста.' : 'Gallery is empty.')"></div>
                 <div x-show="galleryLoaded" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                     <template x-for="(img, idx) in (Array.isArray(galleryItems) ? galleryItems : []).filter(g => !g.archived)" :key="img.id">
                         <div class="group relative aspect-square overflow-hidden rounded-2xl bg-stone-200 cursor-pointer shadow-sm hover:shadow-lg transition duration-300" @click="openGalleryModal(idx)">
@@ -3182,7 +3214,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
             </div>
 
             <!-- 4. ABOUT COMPANY PAGE -->
-            <div x-show="page === 'about'" x-cloak class="py-12 space-y-20">
+            <div x-show="page === 'about'" x-cloak class="about-page py-12 space-y-20">
                 <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 ad-safe-content">
                     <div class="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
                         <div class="lg:col-span-6 space-y-6">
@@ -3213,7 +3245,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
             </div>
 
             <!-- 5. CONTACT & LEAD CAPTURE PAGE -->
-            <div x-show="page === 'contact'" x-cloak class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16 space-y-10 ad-safe-content">
+            <div x-show="page === 'contact'" x-cloak class="contact-page max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16 space-y-10 ad-safe-content">
                 <div class="text-center max-w-3xl mx-auto space-y-4"><span class="text-wood-600 font-bold uppercase tracking-widest text-sm block" x-text="t('navContact')">Əlaqə</span><h1 class="text-3xl sm:text-5xl font-black text-forest-950" x-text="t('contactHeader')">Bizimlə Əlaqə Saxlayın</h1><p class="text-stone-500 sm:text-lg" x-text="t('contactIntro')"></p></div>
                 <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
                     <div class="lg:col-span-5 space-y-4">
