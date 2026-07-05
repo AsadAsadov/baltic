@@ -2,28 +2,45 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const fs = require('fs');
+const crypto = require('crypto');
 const multer = require('multer');
-const { createClient } = require('@supabase/supabase-js');
 const { PrismaClient } = require('@prisma/client');
 
 const prisma = new PrismaClient({ log: [{ level: 'error', emit: 'event' }, { level: 'warn', emit: 'stdout' }] });
 prisma.$on('error', (event) => console.error('[prisma:error]', event.message));
 const app = express();
 app.use(cors());
-app.use(express.json({ limit: '100mb' }));
-app.use(express.urlencoded({ extended: true, limit: '100mb' }));
+app.use(express.json({ limit: '150mb' }));
+app.use(express.urlencoded({ extended: true, limit: '150mb' }));
 
 const allowedUploadBuckets = ['projects', 'gallery', 'hero', 'banners', 'home'];
+const UPLOAD_SIZE_LIMIT_BYTES = 150 * 1024 * 1024;
+const uploadRoot = path.join(__dirname, 'uploads');
+const uploadBucketFolders = Object.fromEntries(allowedUploadBuckets.map(bucket => [bucket, path.join(uploadRoot, bucket)]));
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: {
-    fileSize: 100 * 1024 * 1024
+    fileSize: UPLOAD_SIZE_LIMIT_BYTES
   }
 });
-const supabase = process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY
-  ? createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
-  : null;
-const safeUploadFilename = (name = 'upload') => path.basename(name).replace(/[^a-zA-Z0-9._-]/g, '-').replace(/-+/g, '-');
+const ensureUploadBucketFolder = async (bucket) => {
+  const folder = uploadBucketFolders[bucket];
+  if (!folder) return null;
+  await fs.promises.mkdir(folder, { recursive: true });
+  return folder;
+};
+const safeUploadFilename = (name = 'upload') => {
+  const parsed = path.parse(path.basename(name));
+  const base = (parsed.name || 'upload')
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-zA-Z0-9._-]/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^[.-]+|[.-]+$/g, '') || 'upload';
+  const ext = parsed.ext.toLowerCase().replace(/[^a-z0-9.]/g, '');
+  return `${base}${ext}`;
+};
 const allowedImageExt = new Set(['.jpg', '.jpeg', '.png', '.webp', '.avif']);
 const allowedVideoExt = new Set(['.mp4', '.webm', '.mov']);
 const isAllowedUploadFile = (file, bucket) => {
@@ -213,42 +230,31 @@ app.delete('/api/messages/:id', wrap(async (req,res)=>{await prisma.contactMessa
 app.get('/api/stats', wrap(async (req,res)=>{ const rows=await prisma.siteStat.findMany(); res.json(Object.fromEntries(rows.map(r=>[r.key,r.value]))); }));
 app.put('/api/stats/:key', wrap(async (req,res)=>res.json(await prisma.siteStat.upsert({where:{key:req.params.key},create:{key:req.params.key,value:Number(req.body.value)||0},update:{value:Number(req.body.value)||0}}))));
 app.post('/api/stats/event', wrap(async (req,res)=>res.status(201).json(await prisma.statEvent.create({data:{type:req.body.type,targetId:req.body.targetId,metadata:req.body.metadata||{}}}))));
-app.get('/api/health/storage', (req, res) => res.json({ ok: true, supabaseUrl: Boolean(process.env.SUPABASE_URL), serviceRole: Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY), allowedBuckets: allowedUploadBuckets }));
+app.get('/api/health/storage', (req, res) => res.json({ ok: true, localStorage: true, uploadRoot: '/uploads', allowedBuckets: allowedUploadBuckets }));
 
 app.post('/api/uploads', upload.single('file'), wrap(async (req, res) => {
-  console.info('[uploads:start]', { bucket: req.body.bucket, fileExists: Boolean(req.file), mimetype: req.file?.mimetype, supabaseUrl: Boolean(process.env.SUPABASE_URL), serviceRole: Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY) });
-  if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY || !supabase) {
-    return res.status(500).json({ ok: false, error: 'SUPABASE_ENV_MISSING' });
-  }
   const bucket = req.body.bucket;
+  console.info('[uploads:start]', { bucket, fileExists: Boolean(req.file), mimetype: req.file?.mimetype });
   if (!allowedUploadBuckets.includes(bucket)) {
     return res.status(400).json({ ok: false, error: 'INVALID_BUCKET', buckets: allowedUploadBuckets });
   }
   if (!req.file) return res.status(400).json({ ok: false, error: 'FILE_REQUIRED' });
   if (!isAllowedUploadFile(req.file, bucket)) return res.status(400).json({ ok: false, error: 'UNSUPPORTED_FILE_TYPE', message: 'Uploads support jpg, jpeg, png, webp, avif, mp4, webm, and mov.' });
-  if (bucket === 'hero') {
-    const { error: bucketError } = await supabase.storage.createBucket('hero', { public: true }).catch(error => ({ error }));
-    if (bucketError && !/already exists|Duplicate/i.test(bucketError.message || '')) console.warn('[uploads:bucket:create:skip]', bucketError.message);
-  }
 
-  const objectPath = `${bucket === 'hero' ? 'hero/' : ''}${Date.now()}-${safeUploadFilename(req.file.originalname)}`;
-  const { error } = await supabase.storage.from(bucket).upload(objectPath, req.file.buffer, {
-    contentType: req.file.mimetype,
-    upsert: false
-  });
-  if (error) {
-    console.error('[uploads:error]', { bucket, message: error.message });
-    return res.status(500).json({ ok: false, error: 'UPLOAD_FAILED', message: error.message });
-  }
-  const { data } = supabase.storage.from(bucket).getPublicUrl(objectPath);
-  res.status(201).json({ ok: true, bucket, path: objectPath, publicUrl: data.publicUrl });
+  const bucketFolder = await ensureUploadBucketFolder(bucket);
+  const filename = `${Date.now()}-${crypto.randomUUID()}-${safeUploadFilename(req.file.originalname)}`;
+  const objectPath = path.join(bucket, filename);
+  await fs.promises.writeFile(path.join(bucketFolder, filename), req.file.buffer, { flag: 'wx' });
+  const publicUrl = `/uploads/${bucket}/${filename}`;
+  res.status(201).json({ ok: true, bucket, path: objectPath, publicUrl });
 }));
 
 app.post('/api/uploads/sign', (req,res)=>{
   const bucket = req.body.bucket;
   if (!allowedUploadBuckets.includes(bucket)) return res.status(400).json({ error: 'Invalid bucket', buckets: allowedUploadBuckets });
-  const objectPath = `${Date.now()}-${safeUploadFilename(req.body.filename || 'upload')}`;
-  const publicUrl = process.env.SUPABASE_URL ? `${process.env.SUPABASE_URL}/storage/v1/object/public/${bucket}/${objectPath}` : '';
+  const filename = `${Date.now()}-${crypto.randomUUID()}-${safeUploadFilename(req.body.filename || 'upload')}`;
+  const objectPath = path.join(bucket, filename);
+  const publicUrl = `/uploads/${bucket}/${filename}`;
   res.json({ bucket, path: objectPath, publicUrl, uploadUrl: null, todo: 'Use POST /api/uploads for multipart uploads' });
 });
 
@@ -259,7 +265,7 @@ app.use((err, req, res, next) => {
     return res.status(413).json({
       ok: false,
       error: 'FILE_TOO_LARGE',
-      message: 'Fayl çox böyükdür. Maksimum 100MB yükləyə bilərsiniz.'
+      message: 'Fayl çox böyükdür. Maksimum 150MB yükləyə bilərsiniz.'
     });
   }
   if (isDbError(err)) return dbUnavailable(res, err);
@@ -271,8 +277,6 @@ app.get('*', (req,res)=>res.sendFile(path.join(__dirname,'index.html')));
 
 const PORT = process.env.PORT || 3000;
 console.log(`DATABASE_URL exists: ${process.env.DATABASE_URL ? 'yes' : 'no'}`);
-console.log(`SUPABASE_URL exists: ${process.env.SUPABASE_URL ? 'yes' : 'no'}`);
-console.log(`SUPABASE_SERVICE_ROLE_KEY exists: ${process.env.SUPABASE_SERVICE_ROLE_KEY ? 'yes' : 'no'}`);
 console.log(`NODE_ENV: ${process.env.NODE_ENV || 'development'}`);
 console.log(`Server port: ${PORT}`);
 app.listen(PORT, () => console.log(`Baltic Caspian API running on ${PORT}`));
