@@ -1940,12 +1940,61 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
         .page-shell { padding-top: var(--header-height); }
 
         .hero-viewport {
-            min-height: calc(100svh - var(--header-height, 88px));
+            min-height: 100svh;
+            height: 100svh;
+            padding-top: var(--header-height, 72px);
+            padding-bottom: clamp(72px, 9vh, 104px);
         }
-        @media (min-width: 768px) {
-            .hero-viewport {
-                height: calc(100svh - var(--header-height, 88px));
-            }
+        .hero-slide-media {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            object-position: center center;
+        }
+        .hero-overlay {
+            background:
+                linear-gradient(90deg, rgba(5,15,12,.72) 0%, rgba(5,15,12,.45) 42%, rgba(5,15,12,.15) 100%),
+                linear-gradient(180deg, rgba(5,15,12,.15) 0%, rgba(5,15,12,.55) 100%);
+        }
+        .hero-content {
+            max-width: 760px;
+            padding-top: clamp(40px, 8vh, 90px);
+        }
+        .hero-kicker {
+            width: max-content;
+            max-width: 100%;
+            padding: 9px 16px;
+            font-size: 13px;
+            animation: heroFadeUp .7s ease both;
+        }
+        .hero-title {
+            font-size: clamp(42px, 5.4vw, 82px);
+            line-height: .95;
+            font-weight: 900;
+            letter-spacing: -.045em;
+            animation: heroFadeUp .8s ease .08s both;
+        }
+        .hero-desc {
+            max-width: 650px;
+            font-size: clamp(18px, 1.5vw, 24px);
+            line-height: 1.55;
+            color: rgba(255,255,255,.88);
+            animation: heroFadeUp .8s ease .16s both;
+        }
+        .hero-actions { animation: heroFadeUp .8s ease .24s both; }
+        @keyframes heroFadeUp {
+            from { opacity: 0; transform: translateY(18px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @media (max-width: 767px) {
+            .hero-viewport { min-height: 100svh; height: auto; }
+            .hero-title { font-size: clamp(38px, 12vw, 58px); }
+            .hero-content { padding-top: clamp(24px, 9vh, 70px); }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .hero-kicker, .hero-title, .hero-desc, .hero-actions { animation: none; }
         }
         .ad-content-grid { display: grid; grid-template-columns: minmax(0, 1fr); }
         .ad-rail { display: none; }
@@ -2150,44 +2199,44 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
         <div class="flex-1 min-w-0 bg-stone-50 flex flex-col min-h-[calc(100vh-5rem)]">
 
             <!-- 1. HOME VIEW -->
-            <main class="flex-1"><div x-show="page === 'home'" x-cloak class="space-y-12 sm:space-y-16 pb-16">
+            <main class="flex-1"><div x-show="page === 'home'" x-cloak class="pb-16">
                 
                 <!-- HERO SLIDER SECTION -->
-                <section data-home-hero class="hero-viewport relative left-1/2 w-screen max-w-[100vw] -translate-x-1/2 bg-stone-900 overflow-hidden flex items-center py-20 sm:py-24 lg:py-28">
+                <section data-home-hero class="hero-viewport relative left-1/2 w-screen max-w-[100vw] -translate-x-1/2 bg-stone-900 overflow-hidden flex items-center">
                     <div class="absolute inset-0 z-0">
                         <template x-for="(slide, index) in activeHeroSlides()" :key="index">
                             <div x-show="activeSlide === index" x-transition:enter="transition ease-out duration-1000" class="absolute inset-0">
                                 <template x-if="getHeroMediaKind(slide) === 'video' && !isYouTubeUrl(getHeroMediaUrl(slide))">
-                                    <video :src="getHeroMediaUrl(slide)" autoplay muted loop playsinline class="w-full h-full object-cover"></video>
+                                    <video :src="getHeroMediaUrl(slide)" autoplay muted loop playsinline class="hero-slide-media"></video>
                                 </template>
                                 <template x-if="getHeroMediaKind(slide) !== 'video' || isYouTubeUrl(getHeroMediaUrl(slide))">
-                                    <img :src="getHeroVisualUrl(slide)" class="w-full h-full object-cover" alt="Hero background">
+                                    <img :src="getHeroVisualUrl(slide)" class="hero-slide-media" alt="Hero background">
                                 </template>
-                                <div class="absolute inset-0 bg-gradient-to-r from-stone-950/80 via-stone-900/60 to-transparent"></div>
+                                <div class="hero-overlay absolute inset-0"></div>
                             </div>
                         </template>
                     </div>
 
                     <div class="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-white w-full">
-                        <div class="max-w-3xl space-y-6">
-                            <span class="inline-flex items-center gap-2 bg-wood-600/90 text-stone-50 px-3.5 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider shadow-md">
+                        <div class="hero-content space-y-5 sm:space-y-6">
+                            <span class="hero-kicker inline-flex items-center gap-2 bg-wood-600/90 text-stone-50 rounded-full font-bold uppercase tracking-wider shadow-md">
                                 <i class="fa-solid fa-tree"></i>
                                 <span x-text="lang === 'en' ? (activeHeroSlides()[activeSlide] || {}).tagEn || (activeHeroSlides()[activeSlide] || {}).tag : (lang === 'ru' ? (activeHeroSlides()[activeSlide] || {}).tagRu || (activeHeroSlides()[activeSlide] || {}).tag : (activeHeroSlides()[activeSlide] || {}).tag)"></span>
                             </span>
                             
-                            <h1 class="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-extrabold tracking-tight leading-none drop-shadow-sm">
+                            <h1 class="hero-title drop-shadow-sm">
                                 <span class="block" x-text="lang === 'en' ? (activeHeroSlides()[activeSlide] || {}).title1En || (activeHeroSlides()[activeSlide] || {}).title1 : (lang === 'ru' ? (activeHeroSlides()[activeSlide] || {}).title1Ru || (activeHeroSlides()[activeSlide] || {}).title1 : (activeHeroSlides()[activeSlide] || {}).title1)"></span>
                                 <span class="block text-wood-400 mt-2" x-text="lang === 'en' ? (activeHeroSlides()[activeSlide] || {}).title2En || (activeHeroSlides()[activeSlide] || {}).title2 : (lang === 'ru' ? (activeHeroSlides()[activeSlide] || {}).title2Ru || (activeHeroSlides()[activeSlide] || {}).title2 : (activeHeroSlides()[activeSlide] || {}).title2)"></span>
                             </h1>
                             
-                            <p class="text-lg sm:text-xl text-stone-200 font-light max-w-xl" x-text="lang === 'en' ? (activeHeroSlides()[activeSlide] || {}).descEn || (activeHeroSlides()[activeSlide] || {}).desc : (lang === 'ru' ? (activeHeroSlides()[activeSlide] || {}).descRu || (activeHeroSlides()[activeSlide] || {}).desc : (activeHeroSlides()[activeSlide] || {}).desc)"></p>
+                            <p class="hero-desc font-light" x-text="lang === 'en' ? (activeHeroSlides()[activeSlide] || {}).descEn || (activeHeroSlides()[activeSlide] || {}).desc : (lang === 'ru' ? (activeHeroSlides()[activeSlide] || {}).descRu || (activeHeroSlides()[activeSlide] || {}).desc : (activeHeroSlides()[activeSlide] || {}).desc)"></p>
 
-                            <div class="flex flex-col sm:flex-row gap-4 pt-4">
-                                <a @click.prevent="setPage('projects')" href="#" class="bg-forest-600 hover:bg-forest-700 text-white px-8 py-4 rounded-xl text-base font-bold shadow-lg transition duration-300 transform hover:-translate-y-0.5 text-center flex items-center justify-center gap-2">
+                            <div class="hero-actions flex flex-col sm:flex-row gap-4 sm:gap-4 pt-2">
+                                <a @click.prevent="setPage('projects')" href="#" class="bg-forest-600 hover:bg-forest-700 text-white px-6 py-3.5 rounded-xl text-sm sm:text-base font-bold shadow-lg transition duration-300 transform hover:-translate-y-0.5 text-center flex items-center justify-center gap-2">
                                     <span x-text="t('heroProjects')">Layihələrimiz</span>
                                     <i class="fa-solid fa-arrow-right"></i>
                                 </a>
-                                <a @click.prevent="openCalculator()" href="#" class="bg-white/10 hover:bg-white/20 text-white backdrop-blur border border-white/30 px-8 py-4 rounded-xl text-base font-bold transition duration-300 transform hover:-translate-y-0.5 text-center block">
+                                <a @click.prevent="openCalculator()" href="#" class="bg-white/10 hover:bg-white/20 text-white backdrop-blur border border-white/30 px-6 py-3.5 rounded-xl text-sm sm:text-base font-bold transition duration-300 transform hover:-translate-y-0.5 text-center block">
                                     <span x-text="t('calcBtn')">Qiymət Hesabla</span>
                                 </a>
                             </div>
@@ -2195,8 +2244,8 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                     </div>
 
                     <!-- Slide bullet buttons and directional controls -->
-                    <div class="absolute bottom-8 left-0 right-0 z-20">
-                        <div class="max-w-7xl mx-auto px-4 flex justify-between items-center">
+                    <div class="absolute bottom-6 sm:bottom-8 left-0 right-0 z-20">
+                        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-between items-center">
                             <div class="flex gap-2">
                                 <template x-for="(slide, idx) in activeHeroSlides()" :key="idx">
                                     <button @click="activeSlide = idx" class="h-2.5 rounded-full transition-all duration-300" :class="activeSlide === idx ? 'w-8 bg-wood-500' : 'w-2.5 bg-white/45'"></button>
