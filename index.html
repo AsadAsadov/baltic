@@ -2353,6 +2353,136 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
             .bottom-mobile-nav__item span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
             .bottom-mobile-nav__item.is-active { color: #fff; background: linear-gradient(135deg, rgba(51,115,79,.72), rgba(184,138,96,.34)); box-shadow: inset 0 0 0 1px rgba(255,255,255,.10), 0 10px 26px rgba(51,115,79,.24); }
         }
+
+        /* Mobile-only polish: compact header, BestHome-style hero card, and bottom-nav-safe footer. */
+        @media (max-width: 767px) {
+            :root { --mobile-header-height: 76px; --header-height: 76px; }
+            html, body { overflow-x: hidden; }
+            body { padding-bottom: 0 !important; background: #0B1915; }
+            main, .page-shell { padding-bottom: calc(92px + env(safe-area-inset-bottom)); }
+            .header-main {
+                height: 76px;
+                background: rgba(255,255,255,.96) !important;
+                -webkit-backdrop-filter: blur(18px);
+                backdrop-filter: blur(18px);
+                border-bottom: 1px solid rgba(15,23,42,.08) !important;
+                box-shadow: 0 8px 24px rgba(0,0,0,.06) !important;
+                color: #0f2f24 !important;
+            }
+            .header-main .max-w-7xl { padding-left: 18px; padding-right: 18px; }
+            .header-main .h-16 { height: 76px !important; }
+            .header-main a.group { min-width: 0; flex: 1 1 auto; gap: 9px; }
+            .header-main a.group > div:last-child { min-width: 0; flex: 0 1 auto; }
+            .header-main a.group .w-10 { width: 40px !important; height: 40px !important; border-radius: 14px; flex-shrink: 0; }
+            .header-main .logo-title {
+                max-width: none !important;
+                overflow: visible !important;
+                text-overflow: clip !important;
+                display: block !important;
+                color: #0f2f24 !important;
+                font-size: 17px !important;
+                line-height: 1 !important;
+                white-space: nowrap !important;
+                letter-spacing: -0.02em;
+            }
+            .header-main .logo-subtitle {
+                display: block !important;
+                color: #b88a60 !important;
+                font-size: 10px !important;
+                line-height: 1.1 !important;
+                letter-spacing: .08em !important;
+                white-space: nowrap !important;
+                overflow: visible !important;
+                text-overflow: clip !important;
+            }
+            .header-main .flex.items-center.gap-2 { flex: 0 0 auto; gap: 6px; }
+            .mobile-header-language { display: block !important; }
+            .mobile-header-language > button {
+                width: 48px !important;
+                min-width: 48px !important;
+                max-width: 48px !important;
+                height: 42px !important;
+                padding: 0 !important;
+                border-radius: 16px !important;
+                background: #fff !important;
+                color: #0f2f24 !important;
+                border-color: rgba(15,23,42,.10) !important;
+                box-shadow: 0 8px 18px rgba(15,23,42,.06) !important;
+            }
+            .mobile-header-login {
+                display: inline-flex !important;
+                width: 42px !important;
+                height: 42px !important;
+                min-width: 42px !important;
+                padding: 0 !important;
+                justify-content: center;
+                border-radius: 16px !important;
+                background: #fff !important;
+                color: #0f2f24 !important;
+                border-color: rgba(15,23,42,.10) !important;
+                box-shadow: 0 8px 18px rgba(15,23,42,.06) !important;
+            }
+            .mobile-header-login span { display: none !important; }
+            [data-mobile-menu-button], #mobileMenuPanel { display: none !important; }
+
+            .hero-viewport {
+                position: relative !important;
+                left: auto !important;
+                width: auto !important;
+                max-width: none !important;
+                transform: none !important;
+                height: auto !important;
+                min-height: 0 !important;
+                margin: 0 !important;
+                padding: 90px 14px 0 !important;
+                overflow: visible !important;
+                align-items: stretch !important;
+                background: #f8faf8 !important;
+            }
+            .hero-viewport > .absolute.inset-0.z-0 {
+                position: relative !important;
+                inset: auto !important;
+                z-index: 0 !important;
+                display: block;
+                width: 100%;
+                height: clamp(420px, 64svh, 560px) !important;
+                min-height: 420px !important;
+                border-radius: 28px;
+                overflow: hidden;
+                background: #06110e;
+                box-shadow: 0 24px 70px rgba(0,0,0,.16);
+            }
+            .hero-viewport > .absolute.inset-0.z-0 > template,
+            .hero-viewport > .absolute.inset-0.z-0 > div { border-radius: 28px; overflow: hidden; }
+            .hero-slide-media-main, .hero-slide-video-main {
+                width: 100% !important;
+                height: 100% !important;
+                object-fit: cover !important;
+                object-position: center !important;
+            }
+            .hero-slide-media-bg, .hero-slide-video-bg { display: none !important; }
+            .hero-overlay { background: linear-gradient(180deg, rgba(0,0,0,.08) 0%, rgba(0,0,0,.20) 35%, rgba(0,0,0,.72) 100%) !important; }
+            .hero-content {
+                left: 38px !important;
+                right: 38px !important;
+                bottom: 92px !important;
+                max-width: 310px !important;
+            }
+            .hero-copy-panel { width: 100%; max-width: 310px !important; }
+            .hero-kicker { font-size: 11px !important; padding: 7px 12px !important; border-radius: 999px !important; max-width: fit-content !important; margin-bottom: 12px !important; }
+            .hero-title { font-size: clamp(28px, 8vw, 38px) !important; line-height: 1.02 !important; font-weight: 900 !important; letter-spacing: -.04em !important; max-width: 310px !important; overflow-wrap: anywhere; }
+            .hero-desc { font-size: 14px !important; line-height: 1.45 !important; max-width: 300px !important; margin-top: 12px !important; opacity: .92; }
+            .hero-actions { padding-top: 0 !important; }
+            .hero-actions a { height: 46px !important; min-height: 46px !important; padding: 0 18px !important; border-radius: 16px !important; font-size: 14px !important; margin-top: 18px !important; }
+            .hero-sound-control { right: 38px !important; bottom: 142px !important; }
+            .hero-sound-button { width: 44px !important; height: 44px !important; }
+            [data-hero-controls] { left: 14px !important; right: 14px !important; bottom: 0 !important; height: clamp(420px, 64svh, 560px); pointer-events: none; }
+            [data-hero-controls] > div { height: 100%; padding: 0 24px 18px !important; align-items: flex-end !important; pointer-events: none; }
+            [data-hero-controls] button { pointer-events: auto; }
+            [data-hero-controls] .hero-arrow-button { width: 44px !important; height: 44px !important; background: rgba(0,0,0,.36) !important; border-color: rgba(255,255,255,.18) !important; }
+            .bottom-mobile-nav { left: 14px !important; right: 14px !important; bottom: calc(10px + env(safe-area-inset-bottom)) !important; height: 66px !important; }
+            footer { padding-bottom: calc(120px + env(safe-area-inset-bottom)) !important; margin-bottom: 0 !important; }
+        }
         @media (min-width: 1280px) {
             .ad-safe-content { padding-left: 0; padding-right: 0; }
             .ad-content-grid.has-ads { grid-template-columns: 280px minmax(0, 1fr) 280px; gap: 20px; align-items: start; }
@@ -2382,8 +2512,8 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                         <i class="fa-solid fa-tree-city text-xl lg:text-2xl"></i>
                     </div>
                     <div>
-                        <span class="block text-base lg:text-xl font-extrabold tracking-tight group-hover:text-wood-600 transition leading-none" :class="page === 'home' && !isHeaderScrolled ? 'text-white drop-shadow' : 'text-forest-900'">BALTIC CASPIAN</span>
-                        <span class="block text-[9px] lg:text-xxs tracking-widest uppercase font-bold mt-1" :class="page === 'home' && !isHeaderScrolled ? 'text-wood-200 drop-shadow' : 'text-wood-600'" x-text="t('logoSub')">Taxta evlərin tikintisi</span>
+                        <span class="logo-title block text-base lg:text-xl font-extrabold tracking-tight group-hover:text-wood-600 transition leading-none" :class="page === 'home' && !isHeaderScrolled ? 'text-white drop-shadow' : 'text-forest-900'">BALTIC CASPIAN</span>
+                        <span class="logo-subtitle block text-[9px] lg:text-xxs tracking-widest uppercase font-bold mt-1" :class="page === 'home' && !isHeaderScrolled ? 'text-wood-200 drop-shadow' : 'text-wood-600'" x-text="t('logoSub')">Taxta evlərin tikintisi</span>
                     </div>
                 </a>
 
@@ -2440,20 +2570,10 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                         <span x-text="adminLoggedIn ? (lang === 'ru' ? 'Панель' : 'Panel') : (lang === 'az' ? 'Giriş' : (lang === 'ru' ? 'Вход' : 'Login'))">Giriş</span>
                     </button>
 
-                    <!-- Mobile menu toggle -->
-                    <button @click="toggleMobileMenu()" data-mobile-menu-button aria-expanded="false" x-bind:aria-expanded="mobileMenuOpen ? 'true' : 'false'" aria-controls="mobileMenuPanel" class="md:hidden p-2 focus:outline-none" :class="page === 'home' && !isHeaderScrolled ? 'text-white drop-shadow hover:text-wood-200' : 'text-stone-700 hover:text-forest-700'" aria-label="Menu">
-                        <i class="fa-solid" :class="mobileMenuOpen ? 'fa-xmark text-2xl' : 'fa-bars text-2xl'"></i>
-                    </button>
                 </div>
             </div>
         </div>
 
-        <!-- Mobile Nav Menu -->
-        <div id="mobileMenuPanel" :class="mobileMenuOpen ? 'mobile-menu-open' : 'hidden'" class="md:hidden hidden">
-            <div class="rounded-2xl border border-stone-200/70 bg-white/95 p-4 text-sm font-semibold text-stone-500 shadow-xl shadow-stone-900/10">
-                <p x-text="adminLoggedIn ? (lang === 'az' ? 'Admin panelinə keçid yuxarıdadır.' : (lang === 'ru' ? 'Доступ к панели администратора находится выше.' : 'Admin access is available above.')) : (lang === 'az' ? 'Səhifə naviqasiyası aşağı menyudadır.' : (lang === 'ru' ? 'Навигация по страницам находится в нижнем меню.' : 'Page navigation is in the bottom bar.'))"></p>
-            </div>
-        </div>
     </header>
 
     <!-- MASTER CONTENT WRAPPER -->
