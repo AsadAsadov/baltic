@@ -2054,7 +2054,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
             -ms-overflow-style: none;
             scrollbar-width: none;
         }
-        :root { --header-height: 72px; --mobile-header-height: 64px; }
+        :root { --header-height: 72px; --mobile-header-height: 72px; }
         .header-main { position: fixed; top: 0; left: 0; right: 0; z-index: 100; }
         .page-shell { padding-top: var(--header-height); }
 
@@ -2169,44 +2169,59 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
         }
         @media (max-width: 767px) {
             body { padding-bottom: calc(90px + env(safe-area-inset-bottom)); }
+            .page-shell { padding-top: var(--mobile-header-height); }
+            .header-main .h-16 { height: var(--mobile-header-height); }
+            .header-main .max-w-7xl { padding-left: 12px; padding-right: 12px; }
+            .header-main .h-16 > a { gap: 8px; min-width: 0; }
+            .header-main [class*="w-10"][class*="h-10"] { width: 34px; height: 34px; border-radius: 10px; }
+            .header-main [class*="text-xl"] { font-size: 1rem; }
+            .header-main [class*="text-base"] { font-size: .76rem; max-width: 84px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+            .header-main [class*="text-[9px]"] { display: none; }
+            .header-main .flex.items-center.gap-2 { gap: 3px; }
+            .mobile-header-language { display: block; }
+            .mobile-header-language > button { min-width: 50px; height: 34px; padding-left: 8px; padding-right: 8px; }
+            .mobile-header-login { display: inline-flex; height: 34px; padding-left: 9px; padding-right: 9px; gap: 4px; }
+            .mobile-header-login span { max-width: 38px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+            [data-mobile-menu-button] { padding: 6px; }
             .hero-viewport {
                 height: calc(100svh - var(--mobile-header-height));
-                min-height: 620px;
-                max-height: 760px;
+                min-height: 590px;
+                max-height: 820px;
                 padding-top: var(--mobile-header-height);
-                padding-bottom: calc(86px + env(safe-area-inset-bottom));
+                padding-bottom: calc(118px + env(safe-area-inset-bottom));
+                align-items: flex-end;
             }
-            .hero-slide-media-main {
-                object-fit: contain !important;
+            .hero-slide-media-main,
+            .hero-slide-video-main {
+                object-fit: cover !important;
                 object-position: center center;
                 z-index: 2;
             }
-            .hero-slide-media-bg {
-                display: block;
-                position: absolute;
-                inset: 0;
-                width: 100%;
-                height: 100%;
-                object-fit: cover;
-                filter: blur(18px);
-                transform: scale(1.08);
-                opacity: .55;
-                z-index: 1;
+            .hero-slide-media-bg,
+            .hero-slide-video-bg { display: none !important; }
+            .hero-overlay {
+                z-index: 3;
+                background: linear-gradient(180deg, rgba(0,0,0,.18) 0%, rgba(0,0,0,.28) 35%, rgba(0,0,0,.62) 100%);
             }
-            .hero-slide-video-main { z-index: 2; }
-            .hero-overlay { z-index: 3; }
-            .hero-content { left: 20px; right: 20px; bottom: calc(118px + env(safe-area-inset-bottom)); max-width: none; z-index: 10; }
-            .hero-copy-panel { width: 100%; }
-            .hero-kicker { font-size: 11px; padding: 7px 12px; margin-bottom: 10px; }
-            .hero-title { font-size: clamp(28px, 8vw, 38px); line-height: 1.05; }
-            .hero-title .text-wood-400 { margin-top: 4px; }
-            .hero-desc { font-size: 15px; line-height: 1.45; max-width: 92%; }
-            .hero-actions a { height: 46px; font-size: 14px; padding: 10px 18px; }
-            .hero-sound-control { right: 16px; bottom: calc(86px + env(safe-area-inset-bottom)); }
-            .hero-sound-button { width: 44px; height: 44px; }
-            [data-hero-controls] { bottom: calc(82px + env(safe-area-inset-bottom)) !important; }
+            .hero-content {
+                left: 24px;
+                right: 24px;
+                bottom: calc(88px + env(safe-area-inset-bottom));
+                max-width: 320px;
+                z-index: 10;
+            }
+            .hero-copy-panel { width: 100%; max-width: 320px; }
+            .hero-kicker { font-size: 11px; padding: 8px 14px; margin-bottom: 8px; border-radius: 999px; }
+            .hero-title { font-size: clamp(34px, 8vw, 42px); line-height: 1.02; font-weight: 800; letter-spacing: -.045em; overflow-wrap: normal; word-break: normal; hyphens: none; }
+            .hero-title .text-wood-400 { margin-top: 2px; }
+            .hero-desc { font-size: 15px; line-height: 1.5; max-width: 90%; color: rgba(255,255,255,.92); }
+            .hero-actions a { height: 50px; min-height: 50px; padding: 0 22px; font-size: 15px; border-radius: 18px; }
+            .hero-sound-control { right: 24px; bottom: calc(148px + env(safe-area-inset-bottom)); background: transparent; border: 0; padding: 0; box-shadow: none; backdrop-filter: none; }
+            .hero-sound-button { width: 48px; height: 48px; background: rgba(0,0,0,.36); border-color: rgba(255,255,255,.18); backdrop-filter: none; }
+            [data-hero-controls] { bottom: calc(26px + env(safe-area-inset-bottom)) !important; }
+            [data-hero-controls] > div { padding-left: 24px; padding-right: 24px; }
             [data-hero-controls] button[aria-label],
-            [data-hero-controls] .hero-arrow-button { width: 44px; height: 44px; }
+            [data-hero-controls] .hero-arrow-button { width: 48px; height: 48px; background: rgba(0,0,0,.36); border-color: rgba(255,255,255,.18); }
             footer { padding-bottom: calc(6rem + env(safe-area-inset-bottom)) !important; }
         }
         @media (prefers-reduced-motion: reduce) {
@@ -2408,7 +2423,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                         </div>
                     </a>
 
-                    <div class="relative hidden sm:block" x-data="{ open: false }" @click.outside="open = false">
+                    <div class="relative hidden sm:block mobile-header-language" x-data="{ open: false }" @click.outside="open = false">
                         <button @click="open = !open" class="h-9 min-w-[68px] px-3 rounded-full border text-xs font-bold uppercase tracking-wide flex items-center justify-center gap-1.5 transition shadow-sm" :class="page === 'home' && !isHeaderScrolled ? 'bg-white/15 border-white/25 text-white hover:bg-white/25 drop-shadow' : 'bg-white border-stone-200 text-forest-900 hover:border-wood-300 hover:text-wood-700'" aria-label="Language selector">
                             <span x-text="lang.toUpperCase()">AZ</span>
                             <i class="fa-solid fa-chevron-down text-[10px] transition" :class="open && 'rotate-180'"></i>
@@ -2420,7 +2435,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                         </div>
                     </div>
 
-                    <button @click="setPage(adminLoggedIn ? 'admin' : 'login')" class="hidden sm:flex h-9 items-center gap-1.5 px-3 rounded-full border text-xs font-bold transition shadow-sm" :class="page === 'home' && !isHeaderScrolled ? 'bg-white/15 border-white/25 text-white hover:bg-white/25 drop-shadow' : 'bg-white border-stone-200 text-forest-900 hover:border-wood-300 hover:text-wood-700'">
+                    <button @click="setPage(adminLoggedIn ? 'admin' : 'login')" class="hidden sm:flex mobile-header-login h-9 items-center gap-1.5 px-3 rounded-full border text-xs font-bold transition shadow-sm" :class="page === 'home' && !isHeaderScrolled ? 'bg-white/15 border-white/25 text-white hover:bg-white/25 drop-shadow' : 'bg-white border-stone-200 text-forest-900 hover:border-wood-300 hover:text-wood-700'">
                         <i class="fa-solid text-[11px]" :class="adminLoggedIn ? 'fa-user-shield' : 'fa-lock'"></i>
                         <span x-text="adminLoggedIn ? (lang === 'ru' ? 'Панель' : 'Panel') : (lang === 'az' ? 'Giriş' : (lang === 'ru' ? 'Вход' : 'Login'))">Giriş</span>
                     </button>
@@ -2435,23 +2450,8 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
 
         <!-- Mobile Nav Menu -->
         <div id="mobileMenuPanel" :class="mobileMenuOpen ? 'mobile-menu-open' : 'hidden'" class="md:hidden hidden">
-            <nav class="flex flex-col gap-1" aria-label="Mobile navigation">
-                <a @click.prevent="navigateTo('home')" href="#" class="mobile-menu-link" x-text="t('navHome')">Ana Səhifə</a>
-                <a @click.prevent="navigateTo('projects')" href="#" class="mobile-menu-link" x-text="t('navProjects')">Layihələr</a>
-                <a @click.prevent="navigateTo('gallery')" href="#" class="mobile-menu-link" x-text="t('navGallery')">Qalereya</a>
-                <a @click.prevent="navigateTo('about')" href="#" class="mobile-menu-link" x-text="t('navAbout')">Haqqımızda</a>
-                <a @click.prevent="navigateTo('contact')" href="#" class="mobile-menu-link" x-text="t('navContact')">Əlaqə</a>
-            </nav>
-            <div class="sm:hidden grid grid-cols-[1fr_auto] gap-2 border-t border-stone-200/70 pt-3 mt-3 dark:border-white/10">
-                <div class="flex items-center rounded-full border border-stone-200 bg-stone-50 p-1">
-                    <template x-for="option in ['az','ru','en']" :key="option">
-                        <button @click="changeLang(option); closeMobileMenu()" class="flex-1 rounded-full py-2 text-xs font-bold uppercase transition" :class="lang === option ? 'bg-white text-forest-800 shadow-sm' : 'text-stone-500 hover:text-wood-700'" x-text="option.toUpperCase()"></button>
-                    </template>
-                </div>
-                <button @click="setPage(adminLoggedIn ? 'admin' : 'login')" class="flex items-center gap-1.5 rounded-full border border-stone-200 bg-white px-4 py-2 text-xs font-bold text-forest-900 transition hover:border-wood-300 hover:text-wood-700">
-                    <i class="fa-solid text-[11px]" :class="adminLoggedIn ? 'fa-user-shield' : 'fa-lock'"></i>
-                    <span x-text="adminLoggedIn ? (lang === 'ru' ? 'Панель' : 'Panel') : (lang === 'az' ? 'Giriş' : (lang === 'ru' ? 'Вход' : 'Login'))">Giriş</span>
-                </button>
+            <div class="rounded-2xl border border-stone-200/70 bg-white/95 p-4 text-sm font-semibold text-stone-500 shadow-xl shadow-stone-900/10">
+                <p x-text="adminLoggedIn ? (lang === 'az' ? 'Admin panelinə keçid yuxarıdadır.' : (lang === 'ru' ? 'Доступ к панели администратора находится выше.' : 'Admin access is available above.')) : (lang === 'az' ? 'Səhifə naviqasiyası aşağı menyudadır.' : (lang === 'ru' ? 'Навигация по страницам находится в нижнем меню.' : 'Page navigation is in the bottom bar.'))"></p>
             </div>
         </div>
     </header>
