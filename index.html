@@ -2054,7 +2054,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
             -ms-overflow-style: none;
             scrollbar-width: none;
         }
-        :root { --header-height: 72px; }
+        :root { --header-height: 72px; --mobile-header-height: 64px; }
         .header-main { position: fixed; top: 0; left: 0; right: 0; z-index: 100; }
         .page-shell { padding-top: var(--header-height); }
 
@@ -2072,6 +2072,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
             object-fit: cover;
             object-position: center center;
         }
+        .hero-slide-media-bg { display: none; }
         .hero-slide-media--blur,
         .hero-video-bg,
         .hero-slide-video-bg {
@@ -2167,11 +2168,46 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
             to { opacity: 1; transform: translateY(0); }
         }
         @media (max-width: 767px) {
-            .hero-viewport { min-height: 100svh; height: 100svh; }
-            .hero-content { left: 24px; right: 24px; bottom: 110px; max-width: none; }
+            body { padding-bottom: calc(90px + env(safe-area-inset-bottom)); }
+            .hero-viewport {
+                height: calc(100svh - var(--mobile-header-height));
+                min-height: 620px;
+                max-height: 760px;
+                padding-top: var(--mobile-header-height);
+                padding-bottom: calc(86px + env(safe-area-inset-bottom));
+            }
+            .hero-slide-media-main {
+                object-fit: contain !important;
+                object-position: center center;
+                z-index: 2;
+            }
+            .hero-slide-media-bg {
+                display: block;
+                position: absolute;
+                inset: 0;
+                width: 100%;
+                height: 100%;
+                object-fit: cover;
+                filter: blur(18px);
+                transform: scale(1.08);
+                opacity: .55;
+                z-index: 1;
+            }
+            .hero-slide-video-main { z-index: 2; }
+            .hero-overlay { z-index: 3; }
+            .hero-content { left: 20px; right: 20px; bottom: calc(118px + env(safe-area-inset-bottom)); max-width: none; z-index: 10; }
             .hero-copy-panel { width: 100%; }
-            .hero-title { font-size: clamp(28px, 8vw, 38px); }
-            .hero-desc { font-size: 14px; }
+            .hero-kicker { font-size: 11px; padding: 7px 12px; margin-bottom: 10px; }
+            .hero-title { font-size: clamp(28px, 8vw, 38px); line-height: 1.05; }
+            .hero-title .text-wood-400 { margin-top: 4px; }
+            .hero-desc { font-size: 15px; line-height: 1.45; max-width: 92%; }
+            .hero-actions a { height: 46px; font-size: 14px; padding: 10px 18px; }
+            .hero-sound-control { right: 16px; bottom: calc(86px + env(safe-area-inset-bottom)); }
+            .hero-sound-button { width: 44px; height: 44px; }
+            [data-hero-controls] { bottom: calc(82px + env(safe-area-inset-bottom)) !important; }
+            [data-hero-controls] button[aria-label],
+            [data-hero-controls] .hero-arrow-button { width: 44px; height: 44px; }
+            footer { padding-bottom: calc(6rem + env(safe-area-inset-bottom)) !important; }
         }
         @media (prefers-reduced-motion: reduce) {
             .hero-kicker, .hero-title, .hero-desc, .hero-actions { animation: none; }
@@ -2231,11 +2267,16 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
             #mobileMenuPanel .mobile-menu-link:hover,
             #mobileMenuPanel .mobile-menu-link:focus-visible { background: rgba(255, 255, 255, 0.1); color: #f5dcd0; }
         }
-        .login-page-wrap { width: 100%; max-width: 520px; margin-left: auto; margin-right: auto; padding: 4rem 1rem; }
-        .login-card-premium { border-radius: 32px; border: 1px solid rgba(231, 229, 228, .9); background: rgba(255,255,255,.96); box-shadow: 0 24px 70px rgba(15,35,26,.14); padding: 2rem; }
-        .login-input { width: 100%; min-height: 52px; border-radius: 16px; border: 1px solid #e7e5e4; background: #fafaf9; padding: 0 1rem; font-size: .95rem; outline: none; }
-        .login-input:focus { border-color: #33734f; box-shadow: 0 0 0 4px rgba(51, 115, 79, .12); background: #fff; }
-        @media (min-width: 640px) { .login-card-premium { padding: 2.5rem; } }
+        .login-page-wrap { width: 100%; min-height: calc(100svh - var(--header-height)); display: flex; align-items: center; justify-content: center; padding: 2rem 1rem; }
+        .login-card-premium { width: calc(100vw - 32px); max-width: 440px; border-radius: 28px; border: 1px solid rgba(255,255,255,.12); background: linear-gradient(145deg, #0b1712, #1a251f); box-shadow: 0 28px 80px rgba(0,0,0,.22); padding: 1.5rem; color: #fff; overflow: hidden; }
+        .login-icon-badge { width: 58px; height: 58px; border-radius: 20px; display: inline-flex; align-items: center; justify-content: center; background: linear-gradient(135deg, rgba(51,115,79,.95), rgba(184,138,96,.9)); color: #fff; box-shadow: 0 18px 45px rgba(0,0,0,.24); }
+        .login-input { width: 100%; height: 56px; border-radius: 18px; border: 1px solid rgba(255,255,255,.14); background: rgba(255,255,255,.07); color: #fff; padding: 0 1rem; font-size: .95rem; outline: none; transition: border-color .2s ease, box-shadow .2s ease, background .2s ease; }
+        .login-input::placeholder { color: rgba(255,255,255,.55); }
+        .login-input:focus { border-color: rgba(184,138,96,.86); box-shadow: 0 0 0 4px rgba(51, 115, 79, .22); background: rgba(255,255,255,.1); }
+        .login-submit-button { height: 58px; border-radius: 18px; background: linear-gradient(135deg, #33734f, #1f5f3d 55%, #b88a60); box-shadow: 0 18px 42px rgba(0,0,0,.25); }
+        .login-home-link { color: rgba(255,255,255,.72); }
+        .login-home-link:hover { color: #f5d0b5; }
+        @media (min-width: 640px) { .login-card-premium { padding: 2rem; } }
 
         .project-card__cta { color: #fff !important; background: rgba(25, 95, 61, .88) !important; border: 1px solid rgba(255,255,255,.35); backdrop-filter: blur(12px); text-shadow: 0 1px 2px rgba(0,0,0,.25); }
         .project-card:hover .project-card__cta { background: rgba(31, 119, 75, .95) !important; color: #fff !important; }
@@ -2251,14 +2292,51 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
             .project-card__fallback { display: none; }
         }
         @media (prefers-color-scheme: dark) {
-            .login-card-premium { background: rgba(28, 25, 23, .96); border-color: rgba(255,255,255,.12); box-shadow: 0 24px 70px rgba(0,0,0,.42); }
             .login-card-premium h2 { color: #f5f5f4; }
-            .login-card-premium p { color: #d6d3d1; }
-            .login-input { background: rgba(255,255,255,.06); border-color: rgba(255,255,255,.14); color: #f5f5f4; }
-            .login-input::placeholder { color: #a8a29e; }
-            .login-input:focus { background: rgba(255,255,255,.09); border-color: #99caad; }
-            .google-login-button { background: rgba(255,255,255,.08); border-color: rgba(255,255,255,.16); color: #f5f5f4; }
-            .google-login-button:hover { background: rgba(255,255,255,.12); border-color: #99caad; }
+            .login-card-premium p { color: rgba(245,245,244,.72); }
+        }
+        .bottom-mobile-nav { display: none; }
+        @media (max-width: 767px) {
+            .header-main .max-w-7xl { padding-left: 12px; padding-right: 12px; }
+            .header-main a.group { min-width: 0; gap: .6rem; }
+            .header-main a.group > div:last-child { min-width: 0; }
+            .header-main a.group span:first-child { font-size: .92rem; white-space: nowrap; }
+            .header-main a.group span:last-child { font-size: 8px; letter-spacing: .12em; white-space: nowrap; }
+            .header-main a.group .w-10 { width: 2.35rem; height: 2.35rem; flex-shrink: 0; }
+            .bottom-mobile-nav {
+                position: fixed;
+                left: 12px;
+                right: 12px;
+                bottom: calc(10px + env(safe-area-inset-bottom));
+                z-index: 90;
+                height: 66px;
+                border-radius: 24px;
+                background: rgba(8, 24, 18, .92);
+                backdrop-filter: blur(18px);
+                -webkit-backdrop-filter: blur(18px);
+                border: 1px solid rgba(255,255,255,.12);
+                box-shadow: 0 18px 50px rgba(0,0,0,.24);
+                display: grid;
+                grid-template-columns: repeat(5, minmax(0, 1fr));
+                padding: 6px;
+            }
+            .bottom-mobile-nav__item {
+                min-width: 0;
+                border-radius: 18px;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                gap: 3px;
+                color: rgba(255,255,255,.65);
+                font-size: 10px;
+                line-height: 1.05;
+                font-weight: 800;
+                transition: color .2s ease, background .2s ease, box-shadow .2s ease;
+            }
+            .bottom-mobile-nav__item i { font-size: 18px; }
+            .bottom-mobile-nav__item span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+            .bottom-mobile-nav__item.is-active { color: #fff; background: linear-gradient(135deg, rgba(51,115,79,.72), rgba(184,138,96,.34)); box-shadow: inset 0 0 0 1px rgba(255,255,255,.10), 0 10px 26px rgba(51,115,79,.24); }
         }
         @media (min-width: 1280px) {
             .ad-safe-content { padding-left: 0; padding-right: 0; }
@@ -2403,7 +2481,10 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                                     </div>
                                 </template>
                                 <template x-if="getHeroMediaKind(slide) !== 'video' || isYouTubeUrl(getHeroMediaUrl(slide))">
-                                    <img :src="getHeroVisualUrl(slide)" class="hero-slide-media" :class="getHeroMediaFit(slide) === 'contain' ? 'object-contain bg-[#06110e]' : 'object-cover'" alt="Hero background">
+                                    <div class="absolute inset-0 bg-[#06110e] overflow-hidden">
+                                        <img :src="getHeroVisualUrl(slide)" class="hero-slide-media-bg" aria-hidden="true" alt="">
+                                        <img :src="getHeroVisualUrl(slide)" class="hero-slide-media hero-slide-media-main" :class="getHeroMediaFit(slide) === 'contain' ? 'object-contain bg-[#06110e]' : 'object-cover'" alt="Hero background">
+                                    </div>
                                 </template>
                                 <div class="hero-overlay absolute inset-0"></div>
                             </div>
@@ -2445,7 +2526,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                     </div>
 
                     <!-- Slide bullet buttons and directional controls -->
-                    <div x-show="slidesLoaded && activeHeroSlides().length" class="absolute bottom-6 sm:bottom-8 left-0 right-0 z-20">
+                    <div x-show="slidesLoaded && activeHeroSlides().length" data-hero-controls class="absolute bottom-6 sm:bottom-8 left-0 right-0 z-20">
                         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-between items-center">
                             <div class="flex gap-2">
                                 <template x-for="(slide, idx) in activeHeroSlides()" :key="idx">
@@ -2453,8 +2534,8 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                                 </template>
                             </div>
                             <div class="flex gap-2">
-                                <button @click="prevSlide()" class="w-10 h-10 rounded-full border border-white/20 bg-black/10 hover:bg-black/30 text-white flex items-center justify-center transition"><i class="fa-solid fa-chevron-left"></i></button>
-                                <button @click="nextSlide()" class="w-10 h-10 rounded-full border border-white/20 bg-black/10 hover:bg-black/30 text-white flex items-center justify-center transition"><i class="fa-solid fa-chevron-right"></i></button>
+                                <button @click="prevSlide()" aria-label="Previous slide" class="hero-arrow-button w-10 h-10 rounded-full border border-white/20 bg-black/10 hover:bg-black/30 text-white flex items-center justify-center transition"><i class="fa-solid fa-chevron-left"></i></button>
+                                <button @click="nextSlide()" aria-label="Next slide" class="hero-arrow-button w-10 h-10 rounded-full border border-white/20 bg-black/10 hover:bg-black/30 text-white flex items-center justify-center transition"><i class="fa-solid fa-chevron-right"></i></button>
                             </div>
                         </div>
                     </div>
@@ -2827,9 +2908,14 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
             <!-- 6. ADMIN LOGIN PAGE -->
             <div x-show="page === 'login'" x-cloak class="login-page-wrap">
                 <div class="login-card-premium space-y-6">
-                    <div class="text-center space-y-2">
-                        <h2 class="text-2xl font-black text-forest-950" x-text="lang === 'az' ? 'Admin Paneli' : (lang === 'ru' ? 'Админка' : 'Admin Area')">Baltic Caspian Admin</h2>
-                        <p class="text-xs text-stone-500">Giriş məlumatları: admin / admin</p>
+                    <div class="text-center space-y-3">
+                        <div class="login-icon-badge mx-auto">
+                            <i class="fa-solid fa-lock text-xl"></i>
+                        </div>
+                        <div class="space-y-1">
+                            <h2 class="text-2xl font-black text-white">Admin Panel</h2>
+                            <p class="text-sm text-white/70">İdarəetmə panelinə daxil olun</p>
+                        </div>
                     </div>
 
                     <form @submit.prevent="handleAdminLogin()" class="space-y-4">
@@ -2837,18 +2923,18 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                         <input type="password" x-model="adminPassword" required class="login-input" placeholder="Password">
                         
                         <template x-if="adminLoginError">
-                            <div class="p-3 bg-red-50 text-red-600 text-xs rounded-xl" x-text="adminLoginError"></div>
+                            <div class="p-3 bg-red-500/12 border border-red-300/20 text-red-100 text-xs rounded-xl" x-text="adminLoginError"></div>
                         </template>
 
-                        <button type="submit" class="w-full py-4 bg-forest-700 hover:bg-forest-800 text-white font-bold rounded-2xl transition shadow-md flex items-center justify-center gap-2">
-                            <i class="fa-solid fa-unlock-keyhole"></i>
-                            <span x-text="lang === 'az' ? 'Daxil Ol' : (lang === 'ru' ? 'Войти' : 'Sign In')">Daxil Ol</span>
-                        </button>
-                        <button type="button" class="google-login-button w-full min-h-[52px] rounded-2xl border border-stone-200 bg-white px-4 py-3 font-bold text-stone-700 shadow-sm transition hover:border-forest-200 hover:bg-forest-50 flex items-center justify-center gap-3">
-                            <i class="fa-brands fa-google text-red-500"></i>
-                            <span>Google ilə daxil ol</span>
+                        <button type="submit" class="login-submit-button w-full text-white font-bold transition flex items-center justify-center gap-2 hover:brightness-110">
+                            <i class="fa-solid fa-lock"></i>
+                            <span>Daxil ol</span>
                         </button>
                     </form>
+                    <button type="button" @click="navigateTo('home')" class="login-home-link mx-auto flex items-center justify-center gap-2 text-sm font-bold transition">
+                        <i class="fa-solid fa-arrow-left"></i>
+                        <span>Sayta qayıt</span>
+                    </button>
                 </div>
             </div>
 
@@ -3378,6 +3464,28 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
 
     </div>
 
+    <nav class="bottom-mobile-nav md:hidden" aria-label="Bottom mobile navigation">
+        <button type="button" @click="navigateTo('home')" class="bottom-mobile-nav__item" :class="{ 'is-active': page === 'home' }">
+            <i class="fa-solid fa-house"></i>
+            <span x-text="t('navHome')">Ana səhifə</span>
+        </button>
+        <button type="button" @click="navigateTo('projects')" class="bottom-mobile-nav__item" :class="{ 'is-active': page === 'projects' }">
+            <i class="fa-solid fa-tree-city"></i>
+            <span x-text="t('navProjects')">Layihələr</span>
+        </button>
+        <button type="button" @click="navigateTo('gallery')" class="bottom-mobile-nav__item" :class="{ 'is-active': page === 'gallery' }">
+            <i class="fa-solid fa-images"></i>
+            <span x-text="t('navGallery')">Qalereya</span>
+        </button>
+        <button type="button" @click="navigateTo('about')" class="bottom-mobile-nav__item" :class="{ 'is-active': page === 'about' }">
+            <i class="fa-solid fa-circle-info"></i>
+            <span x-text="t('navAbout')">Haqqımızda</span>
+        </button>
+        <button type="button" @click="navigateTo('contact')" class="bottom-mobile-nav__item" :class="{ 'is-active': page === 'contact' }">
+            <i class="fa-solid fa-phone"></i>
+            <span x-text="t('navContact')">Əlaqə</span>
+        </button>
+    </nav>
 
     <!-- MOBILE MAP APP CHOICE SHEET -->
     <div x-show="isMapSheetOpen" x-cloak class="fixed inset-0 z-50 flex items-end md:hidden" x-transition>
