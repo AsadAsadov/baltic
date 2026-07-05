@@ -129,6 +129,8 @@
                 { src: 'https://images.unsplash.com/photo-1613977257363-707ba9348227?auto=format&fit=crop&q=80&w=1400', title: 'Premium tamamlanma' }
             ];
 
+            const HERO_SLIDES_CACHE_KEY = 'bc_cached_hero_slides';
+
             const defaultMessages = [
                 { id: 1, name: 'Həsən Əliyev', phone: '+994 50 211 44 55', email: 'hasan@mail.ru', message: 'Şamaxıda 2 mərtəbəli evin inşası ile bağlı əlaqə saxlayın.', date: '21.06.2026', read: false }
             ];
@@ -757,7 +759,72 @@
                     return list;
                 },
 
+                getValidHeroSlides(payload, fallback = []) {
+                    return this.normalizeSlides(payload, fallback).filter(slide => this.getHeroMediaUrl(slide));
+                },
+
+                cacheHeroSlides(slides = this.slides) {
+                    const validSlides = this.getValidHeroSlides(slides, []);
+                    if (!validSlides.length) return;
+                    localStorage.setItem(HERO_SLIDES_CACHE_KEY, JSON.stringify(validSlides));
+                },
+
+                loadCachedHeroSlides() {
+                    let payload = null;
+                    try {
+                        payload = JSON.parse(localStorage.getItem(HERO_SLIDES_CACHE_KEY) || 'null');
+                    } catch (error) {
+                        console.warn('Cached hero slides were invalid and ignored.', error);
+                    }
+                    const cachedSlides = this.getValidHeroSlides(payload, []);
+                    if (!cachedSlides.length) return false;
+                    this.slides = cachedSlides;
+                    this.slidesLoaded = true;
+                    this.activeSlide = 0;
+                    this.preloadFirstHeroMedia();
+                    this.$nextTick(() => this.syncHeroVideoAudio());
+                    return true;
+                },
+
+                preloadFirstHeroMedia() {
+                    const firstSlide = this.activeHeroSlides()[0];
+                    if (!firstSlide) return;
+                    const url = this.getHeroVisualUrl(firstSlide);
+                    if (!url) return;
+                    if (this.getHeroMediaKind(firstSlide) === 'video' && !this.isYouTubeUrl(this.getHeroMediaUrl(firstSlide))) {
+                        const video = document.createElement('video');
+                        video.preload = 'auto';
+                        video.muted = true;
+                        video.playsInline = true;
+                        video.src = this.getHeroMediaUrl(firstSlide);
+                        video.load();
+                        return;
+                    }
+                    const image = new Image();
+                    image.src = url;
+                },
+
+                async loadHeroSlides() {
+                    try {
+                        const data = await this.api(this.adminLoggedIn ? '/api/hero-slides?admin=true' : '/api/hero-slides');
+                        const freshSlides = this.getValidHeroSlides(data, []);
+                        this.slides = freshSlides;
+                        this.slidesLoaded = true;
+                        if (this.activeSlide >= this.activeHeroSlides().length) this.activeSlide = 0;
+                        if (freshSlides.length) this.cacheHeroSlides(freshSlides);
+                        this.preloadFirstHeroMedia();
+                        this.$nextTick(() => this.syncHeroVideoAudio());
+                        return freshSlides;
+                    } catch (error) {
+                        console.warn('Failed /api/hero-slides; keeping cached hero slides if available.', error);
+                        this.slidesLoaded = true;
+                        return this.slides;
+                    }
+                },
+
                 initApp() {
+                    this.loadCachedHeroSlides();
+                    this.loadHeroSlides();
                     this.homeGalleryImages = this.visibleHomeGalleryImages();
                     this.homeAdvantagesImages = this.visibleAdvantagesImages();
                     this.startHomeGalleryRotation();
@@ -783,34 +850,27 @@
                     const settled = await Promise.all([
                         publicFetch('/api/projects'),
                         publicFetch('/api/gallery'),
-                        publicFetch(this.adminLoggedIn ? '/api/hero-slides?admin=true' : '/api/hero-slides'),
                         this.safeApi('/api/banners', cached('bc_banners_list', [])),
                         this.safeApi('/api/stats', cached('bc_stats', this.stats))
                     ]);
-                    const [projectsResult, galleryResult, slidesResult, bannersResult, statsResult] = settled;
+                    const [projectsResult, galleryResult, bannersResult, statsResult] = settled;
                     const projectItems = projectsResult.ok ? this.normalizeProjects(projectsResult.data, []) : this.normalizeProjects(cached('bc_projects', defaultProjects), defaultProjects);
                     const galleryItems = galleryResult.ok ? this.normalizeGallery(galleryResult.data, []) : this.normalizeGallery(cached('bc_gallery', defaultGallery), defaultGallery);
-                    const slideItems = slidesResult.ok ? this.normalizeSlides(slidesResult.data, []) : this.normalizeSlides(cached('bc_slides', defaultSlides), defaultSlides);
                     this.projects = projectItems;
                     this.galleryItems = galleryItems;
-                    this.slides = slideItems;
                     this.projectsLoaded = true;
                     this.galleryLoaded = true;
-                    this.slidesLoaded = true;
-                    if (this.activeSlide >= this.activeHeroSlides().length) this.activeSlide = 0;
                     const banners = this.normalizeBanners(bannersResult, null);
                     this.banners = banners;
                     this.mainBanner = this.firstActiveBanner() || banners[0] || this.normalizeBanner({}, 'both');
                     this.stats = { ...this.stats, ...(statsResult || {}) };
                     console.info('GET /api/projects'); console.info(`Loaded projects: ${this.projects.length}`);
                     console.info('GET /api/gallery'); console.info(`Loaded gallery: ${this.galleryItems.length}`);
-                    console.info('GET /api/hero-slides'); console.info(`Loaded slides: ${this.slides.length}`);
                     console.info('GET /api/banners'); console.info(`Loaded banners: ${banners.length}`);
                     if (this.adminLoggedIn) {
                         this.messages = this.asArray(await this.safeApi('/api/messages', cached('bc_messages', defaultMessages)));
                     }
                     console.table(this.projects.slice(0, 3));
-                    console.table(this.slides.slice(0, 3));
                     console.table(this.galleryItems.slice(0, 3));
                     this.cacheSave();
                     this.$nextTick(() => this.syncHeroVideoAudio());
@@ -1287,6 +1347,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                     localStorage.setItem('bc_projects', JSON.stringify(this.projects));
                     localStorage.setItem('bc_gallery', JSON.stringify(this.galleryItems));
                     localStorage.setItem('bc_slides', JSON.stringify(this.slides));
+                    this.cacheHeroSlides(this.slides);
                     localStorage.setItem('bc_messages', JSON.stringify(this.messages));
                     localStorage.setItem('bc_stats', JSON.stringify(this.stats));
                     localStorage.setItem('bc_banner', JSON.stringify(this.mainBanner));
