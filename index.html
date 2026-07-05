@@ -2203,19 +2203,20 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                 z-index: 3;
                 background: linear-gradient(180deg, rgba(0,0,0,.18) 0%, rgba(0,0,0,.28) 35%, rgba(0,0,0,.62) 100%);
             }
-            .hero-content {
-                left: 24px;
-                right: 24px;
-                bottom: calc(88px + env(safe-area-inset-bottom));
-                max-width: 320px;
+            .hero-content,
+            .mobile-hero-content {
+                left: 22px;
+                right: 22px;
+                bottom: 72px;
+                max-width: 295px;
                 z-index: 10;
             }
-            .hero-copy-panel { width: 100%; max-width: 320px; }
-            .hero-kicker { font-size: 11px; padding: 8px 14px; margin-bottom: 8px; border-radius: 999px; }
-            .hero-title { font-size: clamp(34px, 8vw, 42px); line-height: 1.02; font-weight: 800; letter-spacing: -.045em; overflow-wrap: normal; word-break: normal; hyphens: none; }
+            .hero-copy-panel { width: 100%; max-width: 295px; }
+            .hero-kicker { font-size: 10.5px; padding: 7px 12px; margin-bottom: 10px; border-radius: 999px; }
+            .hero-title { font-size: clamp(26px, 7.2vw, 34px); line-height: 1.02; font-weight: 800; letter-spacing: -.045em; max-width: 295px; overflow-wrap: normal; word-break: normal; hyphens: none; }
             .hero-title .text-wood-400 { margin-top: 2px; }
-            .hero-desc { font-size: 15px; line-height: 1.5; max-width: 90%; color: rgba(255,255,255,.92); }
-            .hero-actions a { height: 50px; min-height: 50px; padding: 0 22px; font-size: 15px; border-radius: 18px; }
+            .hero-desc { font-size: 13.5px; line-height: 1.42; max-width: 285px; margin-top: 10px; color: rgba(255,255,255,.92); }
+            .hero-actions a { height: 44px; min-height: 44px; padding: 0 17px; font-size: 14px; border-radius: 16px; margin-top: 16px; }
             .hero-sound-control { right: 24px; bottom: calc(148px + env(safe-area-inset-bottom)); background: transparent; border: 0; padding: 0; box-shadow: none; backdrop-filter: none; }
             .hero-sound-button { width: 48px; height: 48px; background: rgba(0,0,0,.36); border-color: rgba(255,255,255,.18); backdrop-filter: none; }
             [data-hero-controls] { bottom: calc(26px + env(safe-area-inset-bottom)) !important; }
@@ -2292,6 +2293,40 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
         .login-home-link { color: rgba(255,255,255,.72); }
         .login-home-link:hover { color: #f5d0b5; }
         @media (min-width: 640px) { .login-card-premium { padding: 2rem; } }
+
+        @media (max-width: 767px) {
+            .login-page-wrap,
+            .login-page,
+            .login-shell {
+                min-height: auto;
+                padding: 24px 16px 40px;
+                display: flex;
+                align-items: flex-start;
+                justify-content: center;
+            }
+            .login-card-premium {
+                width: calc(100vw - 40px);
+                max-width: 390px;
+                border-radius: 28px;
+                padding: 28px 22px;
+                margin-top: 24px;
+                margin-bottom: 24px;
+            }
+            .login-card-premium.space-y-6 > :not([hidden]) ~ :not([hidden]) { --tw-space-y-reverse: 0; margin-top: calc(1rem * calc(1 - var(--tw-space-y-reverse))); margin-bottom: calc(1rem * var(--tw-space-y-reverse)); }
+            .login-card-premium .text-center.space-y-3 > :not([hidden]) ~ :not([hidden]) { --tw-space-y-reverse: 0; margin-top: calc(.75rem * calc(1 - var(--tw-space-y-reverse))); margin-bottom: calc(.75rem * var(--tw-space-y-reverse)); }
+            .login-icon-badge { width: 58px; height: 58px; }
+            .login-card-premium h2 { font-size: 28px; line-height: 1.1; }
+            .login-card-premium p { font-size: 14px; }
+            .login-card-premium form { gap: 14px; }
+            .login-card-premium form.space-y-4 > :not([hidden]) ~ :not([hidden]) { --tw-space-y-reverse: 0; margin-top: 14px; margin-bottom: calc(14px * var(--tw-space-y-reverse)); }
+            .login-input { height: 52px; }
+            .login-submit-button { height: 54px; }
+            .login-home-link { margin-top: 18px !important; }
+            .bottom-mobile-nav:has(.bottom-mobile-nav__item.is-active) { display: grid; }
+            body:has(.login-page-wrap:not([style*="display: none"])) main,
+            body:has(.login-page-wrap:not([style*="display: none"])) .page-shell { padding-bottom: 0 !important; }
+            body:has(.login-page-wrap:not([style*="display: none"])) .bottom-mobile-nav { display: none !important; }
+        }
 
         .project-card__cta { color: #fff !important; background: rgba(25, 95, 61, .88) !important; border: 1px solid rgba(255,255,255,.35); backdrop-filter: blur(12px); text-shadow: 0 1px 2px rgba(0,0,0,.25); }
         .project-card:hover .project-card__cta { background: rgba(31, 119, 75, .95) !important; color: #fff !important; }
@@ -2445,8 +2480,8 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                 z-index: 0 !important;
                 display: block;
                 width: 100%;
-                height: clamp(420px, 64svh, 560px) !important;
-                min-height: 420px !important;
+                height: clamp(400px, 60svh, 530px) !important;
+                min-height: 400px !important;
                 border-radius: 28px;
                 overflow: hidden;
                 background: #06110e;
@@ -2462,21 +2497,22 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
             }
             .hero-slide-media-bg, .hero-slide-video-bg { display: none !important; }
             .hero-overlay { background: linear-gradient(180deg, rgba(0,0,0,.08) 0%, rgba(0,0,0,.20) 35%, rgba(0,0,0,.72) 100%) !important; }
-            .hero-content {
-                left: 38px !important;
-                right: 38px !important;
-                bottom: 92px !important;
-                max-width: 310px !important;
+            .hero-content,
+            .mobile-hero-content {
+                left: 22px !important;
+                right: 22px !important;
+                bottom: 72px !important;
+                max-width: 295px !important;
             }
-            .hero-copy-panel { width: 100%; max-width: 310px !important; }
-            .hero-kicker { font-size: 11px !important; padding: 7px 12px !important; border-radius: 999px !important; max-width: fit-content !important; margin-bottom: 12px !important; }
-            .hero-title { font-size: clamp(28px, 8vw, 38px) !important; line-height: 1.02 !important; font-weight: 900 !important; letter-spacing: -.04em !important; max-width: 310px !important; overflow-wrap: anywhere; }
-            .hero-desc { font-size: 14px !important; line-height: 1.45 !important; max-width: 300px !important; margin-top: 12px !important; opacity: .92; }
+            .hero-copy-panel { width: 100%; max-width: 295px !important; }
+            .hero-kicker { font-size: 10.5px !important; padding: 7px 12px !important; border-radius: 999px !important; max-width: fit-content !important; margin-bottom: 10px !important; }
+            .hero-title { font-size: clamp(26px, 7.2vw, 34px) !important; line-height: 1.02 !important; font-weight: 900 !important; letter-spacing: -.045em !important; max-width: 295px !important; overflow-wrap: anywhere; }
+            .hero-desc { font-size: 13.5px !important; line-height: 1.42 !important; max-width: 285px !important; margin-top: 10px !important; opacity: .92; }
             .hero-actions { padding-top: 0 !important; }
-            .hero-actions a { height: 46px !important; min-height: 46px !important; padding: 0 18px !important; border-radius: 16px !important; font-size: 14px !important; margin-top: 18px !important; }
+            .hero-actions a { height: 44px !important; min-height: 44px !important; padding: 0 17px !important; border-radius: 16px !important; font-size: 14px !important; margin-top: 16px !important; }
             .hero-sound-control { right: 38px !important; bottom: 142px !important; }
             .hero-sound-button { width: 44px !important; height: 44px !important; }
-            [data-hero-controls] { left: 14px !important; right: 14px !important; bottom: 0 !important; height: clamp(420px, 64svh, 560px); pointer-events: none; }
+            [data-hero-controls] { left: 14px !important; right: 14px !important; bottom: 0 !important; height: clamp(400px, 60svh, 530px); pointer-events: none; }
             [data-hero-controls] > div { height: 100%; padding: 0 24px 18px !important; align-items: flex-end !important; pointer-events: none; }
             [data-hero-controls] button { pointer-events: auto; }
             [data-hero-controls] .hero-arrow-button { width: 44px !important; height: 44px !important; background: rgba(0,0,0,.36) !important; border-color: rgba(255,255,255,.18) !important; }
