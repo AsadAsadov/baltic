@@ -241,7 +241,7 @@
                 contactForm: { name: '', phone: '', email: '', message: '' },
 
                 dict: {
-                    'address': { az: 'Baksol küçəsi, Bakı, Azərbaycan', ru: 'Улица Баксол, Баку, Азербайджан', en: 'Baksol street, Baku, Azerbaijan' },
+                    'address': { az: 'CVGG+35W, Baksol Küçəsi, Baku', ru: 'CVGG+35W, улица Баксол, Баку', en: 'CVGG+35W, Baksol Street, Baku' },
                     'workHours': { az: 'Bş - Şb: 09:00 - 18:00', ru: 'Пн - Сб: 09:00 - 18:00', en: 'Mon - Sat: 09:00 - 18:00' },
                     'logoSub': { az: 'Taxta evlərin tikintisi', ru: 'Строительство деревянных домов', en: 'Wooden house construction' },
                     'callUs': { az: 'Zəng edin', ru: 'Позвоните нам', en: 'Call us' },
@@ -322,11 +322,22 @@
                     'v3Title': { az: 'Fərdi Dizayn Azadlığı', ru: 'Свобода Индивидуального Дизайна', en: 'Custom Design Freedom' },
                     'v3Desc': { az: 'Standart layihələrlə məhdudlaşmırıq, müştərininin istədiyi istənilən xəyalındakı eskizi memarlıq komandamızla formalaşdırırıq.', ru: 'Мы воплотим любую вашу фантазию на чертеже.', en: 'Our architectural team designs custom layouts matching your vision.' },
                     'contactHeader': { az: 'Bizimlə Əlaqə Saxlayın', ru: 'Свяжитесь с Нами', en: 'Get In Touch' },
-                    'contactIntro': { az: 'Sualınız var və ya qiymət hesablamaq istəyirsiniz? Mesajınızı göndərin, komandamız tezliklə cavablandıracaq.', ru: 'Есть вопросы или хотите рассчитать цену?', en: 'Questions or custom requirements? Message us today.' },
+                    'contactIntro': { az: 'Sualınız və ya layihə tələbiniz varsa, komandamız sizinlə tezliklə əlaqə saxlayacaq.', ru: 'Если у вас есть вопрос или заявка по проекту, наша команда скоро свяжется с вами.', en: 'If you have a question or project request, our team will contact you shortly.' },
                     'contactInfoTitle': { az: 'Əlaqə Məlumatları', ru: 'Контактная информация', en: 'Contact Details' },
                     'addressHeader': { az: 'Ofis / İstehsalat', ru: 'Офис / Производство', en: 'Office & Facility' },
-                    'addressDetail': { az: 'Baksol küçəsi, Bakı, Azərbaycan', ru: 'Улица Баксол, Баку, Азербайджан', en: 'Baksol street, Baku, Azerbaijan' },
+                    'addressDetail': { az: 'CVGG+35W, Baksol Küçəsi, Baku', ru: 'CVGG+35W, улица Баксол, Баку', en: 'CVGG+35W, Baksol Street, Baku' },
                     'phoneHeader': { az: 'Telefon nömrələri', ru: 'Контактные Телефоны', en: 'Office Lines' },
+                    'contactPhoneTitle': { az: 'Telefon', ru: 'Телефон', en: 'Phone' },
+                    'contactEmailTitle': { az: 'Email', ru: 'Email', en: 'Email' },
+                    'contactAddressTitle': { az: 'Ünvan', ru: 'Адрес', en: 'Address' },
+                    'contactHoursTitle': { az: 'İş saatı', ru: 'Часы работы', en: 'Working Hours' },
+                    'contactWhatsApp': { az: 'WhatsApp ilə əlaqə', ru: 'Связаться через WhatsApp', en: 'Contact via WhatsApp' },
+                    'formEmail': { az: 'Email', ru: 'Email', en: 'Email' },
+                    'mapLocationLabel': { az: 'Məkan', ru: 'Локация', en: 'Location' },
+                    'mapRouteDesc': { az: 'Ofisimizə rahat marşrut qurmaq üçün xəritə tətbiqinizi seçin.', ru: 'Выберите карту, чтобы построить удобный маршрут к нашему офису.', en: 'Choose your map app to build a convenient route to our office.' },
+                    'mapAddressLine': { az: 'Ünvan: CVGG+35W, Baksol Küçəsi, Baku', ru: 'Адрес: CVGG+35W, улица Баксол, Баку', en: 'Address: CVGG+35W, Baksol Street, Baku' },
+                    'waze': { az: 'Waze', ru: 'Waze', en: 'Waze' },
+                    'mapAppChoice': { az: 'Marşrut tətbiqini seçin', ru: 'Выберите приложение для маршрута', en: 'Choose a route app' },
                     'socialMedia': { az: 'Bizi Sosial Şəbəkələrdə İzləyin', ru: 'Мы в социальных сетях', en: 'Follow Us' },
                     'writeUs': { az: 'Bizə Mesaj Yazın', ru: 'Написать нам', en: 'Write a Message' },
                     'formName': { az: 'Ad Soyad', ru: 'Имя Фамилия', en: 'Full Name' },
@@ -981,10 +992,11 @@
                     this.isCalculatorOpen = true;
                 },
 
-                get addressText() { return 'Baksol küçəsi, Bakı, Azərbaycan'; },
+                get addressText() { return 'CVGG+35W, Baksol Küçəsi, Baku'; },
                 get encodedAddress() { return encodeURIComponent(this.addressText); },
                 get googleMapsUrl() { return `https://www.google.com/maps/search/?api=1&query=${this.encodedAddress}`; },
                 get yandexMapsUrl() { return `https://yandex.com/maps/?text=${this.encodedAddress}`; },
+                get wazeMapsUrl() { return `https://waze.com/ul?q=${this.encodedAddress}&navigate=yes`; },
 
                 isMobileViewport() { return window.matchMedia('(max-width: 767px)').matches; },
                 openMapChoice() {
@@ -1957,28 +1969,28 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
             background: linear-gradient(90deg, rgba(5,15,12,.68) 0%, rgba(5,15,12,.38) 45%, rgba(5,15,12,.12) 100%);
         }
         .hero-content {
-            max-width: min(620px, 45vw);
-            padding-top: clamp(56px, 12vh, 128px);
+            max-width: min(580px, 42vw);
+            padding-top: clamp(48px, 10vh, 108px);
         }
         .hero-kicker {
             width: max-content;
             max-width: 100%;
-            padding: 8px 14px;
-            margin-bottom: 18px;
+            padding: 7px 13px;
+            margin-bottom: 16px;
             border-radius: 999px;
             font-size: 12px;
             animation: heroFadeUp .7s ease both;
         }
         .hero-title {
-            font-size: clamp(38px, 4.4vw, 68px);
-            line-height: .98;
+            font-size: clamp(36px, 3.8vw, 60px);
+            line-height: 1;
             font-weight: 900;
             letter-spacing: -.04em;
             animation: heroFadeUp .8s ease .08s both;
         }
         .hero-desc {
-            max-width: 560px;
-            font-size: clamp(16px, 1.25vw, 20px);
+            max-width: 520px;
+            font-size: clamp(15px, 1.1vw, 18px);
             line-height: 1.55;
             color: rgba(255,255,255,.86);
             animation: heroFadeUp .8s ease .16s both;
@@ -1991,8 +2003,8 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
         @media (max-width: 767px) {
             .hero-viewport { min-height: 100svh; height: auto; }
             .hero-content { max-width: 100%; padding-top: clamp(24px, 9vh, 70px); }
-            .hero-title { font-size: clamp(34px, 11vw, 52px); }
-            .hero-desc { font-size: 16px; }
+            .hero-title { font-size: clamp(34px, 10vw, 48px); }
+            .hero-desc { font-size: 15.5px; }
         }
         @media (prefers-reduced-motion: reduce) {
             .hero-kicker, .hero-title, .hero-desc, .hero-actions { animation: none; }
@@ -2232,7 +2244,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                             
                             <p class="hero-desc font-light" x-text="lang === 'en' ? (activeHeroSlides()[activeSlide] || {}).descEn || (activeHeroSlides()[activeSlide] || {}).desc : (lang === 'ru' ? (activeHeroSlides()[activeSlide] || {}).descRu || (activeHeroSlides()[activeSlide] || {}).desc : (activeHeroSlides()[activeSlide] || {}).desc)"></p>
 
-                            <div class="hero-actions flex flex-col sm:flex-row gap-3.5 pt-1">
+                            <div class="hero-actions flex flex-col sm:flex-row gap-3 pt-1">
                                 <a @click.prevent="setPage('projects')" href="#" class="min-h-[52px] max-h-[54px] bg-forest-600 hover:bg-forest-700 text-white px-[22px] py-3.5 rounded-[14px] text-sm sm:text-[15px] font-bold shadow-lg transition duration-300 transform hover:-translate-y-0.5 text-center flex items-center justify-center gap-2">
                                     <span x-text="t('heroProjects')">Layihələrimiz</span>
                                     <i class="fa-solid fa-arrow-right"></i>
@@ -2573,27 +2585,27 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 bg-white rounded-[2rem] border border-stone-200/70 shadow-sm p-4 sm:p-6">
                         <div class="rounded-[1.5rem] overflow-hidden min-h-[320px] border border-stone-200"><iframe class="w-full h-full min-h-[320px]" loading="lazy" :src="`https://www.google.com/maps?q=${encodedAddress}&output=embed`"></iframe></div>
                         <div class="p-4 sm:p-6 flex flex-col justify-center space-y-5">
-                            <span class="text-wood-600 font-bold uppercase tracking-widest text-xs">Location</span><h2 class="text-3xl font-black text-forest-950" x-text="t('findUsOnMap')">📍 Bizi xəritədə tapın</h2>
-                            <p class="text-stone-500">Ofisimizə rahat marşrut qurmaq üçün xəritə tətbiqinizi seçin.</p>
-                            <p class="font-bold text-stone-800"><i class="fa-solid fa-location-dot text-wood-600 mr-2"></i>Baksol küçəsi, Bakı, Azərbaycan</p>
-                            <button @click="openMapChoice()" class="bg-forest-700 hover:bg-forest-800 text-white rounded-xl px-5 py-3 font-bold shadow">Xəritədə aç</button>
-                            <div class="flex flex-wrap gap-2"><button @click="openExternalMap(googleMapsUrl)" class="px-3 py-2 rounded-lg bg-stone-100 font-bold text-xs">Google Maps</button><button @click="openExternalMap(yandexMapsUrl)" class="px-3 py-2 rounded-lg bg-stone-100 font-bold text-xs">Yandex Maps</button></div>
+                            <span class="text-wood-600 font-bold uppercase tracking-widest text-xs" x-text="t('mapLocationLabel')">Location</span>
+                            <h2 class="text-3xl font-black text-forest-950" x-text="t('findUsOnMap')">📍 Bizi xəritədə tapın</h2>
+                            <p class="text-stone-500" x-text="t('mapRouteDesc')">Ofisimizə rahat marşrut qurmaq üçün xəritə tətbiqinizi seçin.</p>
+                            <p class="font-bold text-stone-800"><i class="fa-solid fa-location-dot text-wood-600 mr-2"></i><span x-text="t('mapAddressLine')">Ünvan: CVGG+35W, Baksol Küçəsi, Baku</span></p>
+                            <button @click="openMapChoice()" class="bg-forest-700 hover:bg-forest-800 text-white rounded-xl px-5 py-3 font-bold shadow" x-text="t('openInMap')">Xəritədə aç</button>
+                            <div class="flex flex-wrap gap-2"><button @click="openExternalMap(googleMapsUrl)" class="px-3 py-2 rounded-lg bg-stone-100 hover:bg-forest-50 font-bold text-xs">Google Maps</button><button @click="openExternalMap(yandexMapsUrl)" class="px-3 py-2 rounded-lg bg-stone-100 hover:bg-forest-50 font-bold text-xs">Yandex Maps</button><button @click="openExternalMap(wazeMapsUrl)" class="px-3 py-2 rounded-lg bg-stone-100 hover:bg-forest-50 font-bold text-xs" x-text="t('waze')">Waze</button></div>
                         </div>
                     </div>
                 </section>
             </div>
 
             <!-- 5. CONTACT & LEAD CAPTURE PAGE -->
-            <div x-show="page === 'contact'" x-cloak class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-8 ad-safe-content">
-                <div class="text-center max-w-3xl mx-auto space-y-4"><span class="text-wood-600 font-bold uppercase tracking-widest text-sm block" x-text="t('navContact')">Əlaqə</span><h1 class="text-3xl sm:text-5xl font-black text-forest-950" x-text="t('contactHeader')">Bizimlə Əlaqə Saxlayın</h1><p class="text-stone-500" x-text="t('contactIntro')"></p></div>
-                <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            <div x-show="page === 'contact'" x-cloak class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16 space-y-10 ad-safe-content">
+                <div class="text-center max-w-3xl mx-auto space-y-4"><span class="text-wood-600 font-bold uppercase tracking-widest text-sm block" x-text="t('navContact')">Əlaqə</span><h1 class="text-3xl sm:text-5xl font-black text-forest-950" x-text="t('contactHeader')">Bizimlə Əlaqə Saxlayın</h1><p class="text-stone-500 sm:text-lg" x-text="t('contactIntro')"></p></div>
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
                     <div class="lg:col-span-5 space-y-4">
-                        <template x-for="card in [{i:'fa-phone',t:'Telefon',v:'(994 55) 322 11 09'},{i:'fa-envelope',t:'Email',v:'office@balticcaspian.com'},{i:'fa-location-dot',t:'Ünvan',v:'Baksol küçəsi, Bakı, Azərbaycan'},{i:'fa-clock',t:'İş saatı',v:t('workHours')}]"><div class="bg-white p-5 rounded-2xl border border-stone-200/70 shadow-sm flex gap-4"><div class="w-12 h-12 rounded-xl bg-forest-50 text-forest-700 flex items-center justify-center"><i class="fa-solid" :class="card.i"></i></div><div><p class="text-xs uppercase tracking-widest text-stone-400 font-bold" x-text="card.t"></p><p class="font-bold text-stone-800" x-text="card.v"></p></div></div></template>
-                        <a :href="`https://wa.me/994553221109?text=${encodeURIComponent('Salam, Baltic Caspian ilə əlaqə saxlamaq istəyirəm.')}`" target="_blank" class="flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white rounded-2xl py-4 font-black shadow"><i class="fa-brands fa-whatsapp text-xl"></i> WhatsApp quick contact</a>
+                        <template x-for="card in [{i:'fa-phone',t:'contactPhoneTitle',v:'(994 55) 322 11 09',href:'tel:+994553221109'},{i:'fa-envelope',t:'contactEmailTitle',v:'office@balticcaspian.com',href:'mailto:office@balticcaspian.com'},{i:'fa-location-dot',t:'contactAddressTitle',v:t('addressDetail')},{i:'fa-clock',t:'contactHoursTitle',v:t('workHours')} ]" :key="card.t"><div class="group bg-white/90 p-5 rounded-[24px] border border-stone-200/70 shadow-sm hover:shadow-lg transition flex gap-4"><div class="w-12 h-12 shrink-0 rounded-2xl bg-forest-50 text-forest-700 flex items-center justify-center group-hover:bg-forest-700 group-hover:text-white transition"><i class="fa-solid" :class="card.i"></i></div><div><p class="text-xs uppercase tracking-widest text-stone-400 font-bold" x-text="t(card.t)"></p><template x-if="card.href"><a :href="card.href" class="font-bold text-stone-800 hover:text-forest-700 transition" x-text="card.v"></a></template><template x-if="!card.href"><p class="font-bold text-stone-800" x-text="card.v"></p></template></div></div></template>
+                        <a href="https://wa.me/994553221109" target="_blank" rel="noopener" class="flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white rounded-2xl py-4 font-black shadow-lg shadow-green-900/10 transition"><i class="fa-brands fa-whatsapp text-xl"></i><span x-text="t('contactWhatsApp')">WhatsApp ilə əlaqə</span></a>
                     </div>
-                    <div class="lg:col-span-7 bg-white p-6 sm:p-10 rounded-[2rem] border border-stone-200/70 shadow-sm"><form @submit.prevent="submitContactForm()" class="space-y-5"><div class="grid grid-cols-1 sm:grid-cols-2 gap-5"><input type="text" x-model="contactForm.name" required class="w-full px-5 py-4 bg-stone-50 rounded-2xl border border-stone-200 focus:outline-none focus:ring-4 focus:ring-forest-100 focus:border-forest-600 text-sm" :placeholder="t('formName')"><input type="tel" x-model="contactForm.phone" required class="w-full px-5 py-4 bg-stone-50 rounded-2xl border border-stone-200 focus:outline-none focus:ring-4 focus:ring-forest-100 focus:border-forest-600 text-sm" :placeholder="t('formPhone')"></div><input type="email" x-model="contactForm.email" class="w-full px-5 py-4 bg-stone-50 rounded-2xl border border-stone-200 focus:outline-none focus:ring-4 focus:ring-forest-100 focus:border-forest-600 text-sm" placeholder="Email"><textarea x-model="contactForm.message" required rows="5" class="w-full px-5 py-4 bg-stone-50 rounded-2xl border border-stone-200 focus:outline-none focus:ring-4 focus:ring-forest-100 focus:border-forest-600 text-sm" :placeholder="t('formMessage')"></textarea><button type="submit" class="w-full py-4 bg-forest-700 hover:bg-forest-800 text-white font-bold rounded-2xl transition shadow-md" x-text="t('formSend')">Gönder</button></form></div>
+                    <div class="lg:col-span-7 rounded-[28px] border border-stone-200/80 bg-gradient-to-br from-white via-stone-50 to-forest-50/40 p-6 sm:p-10 shadow-xl shadow-stone-900/5"><form @submit.prevent="submitContactForm()" class="space-y-5"><div class="grid grid-cols-1 sm:grid-cols-2 gap-5"><input type="text" x-model="contactForm.name" required class="w-full px-5 py-4 bg-white/85 rounded-2xl border border-stone-200 focus:outline-none focus:ring-4 focus:ring-forest-100 focus:border-forest-600 text-sm transition" :placeholder="t('formName')"><input type="tel" x-model="contactForm.phone" required class="w-full px-5 py-4 bg-white/85 rounded-2xl border border-stone-200 focus:outline-none focus:ring-4 focus:ring-forest-100 focus:border-forest-600 text-sm transition" :placeholder="t('formPhone')"></div><input type="email" x-model="contactForm.email" class="w-full px-5 py-4 bg-white/85 rounded-2xl border border-stone-200 focus:outline-none focus:ring-4 focus:ring-forest-100 focus:border-wood-600 text-sm transition" :placeholder="t('formEmail')"><textarea x-model="contactForm.message" required rows="6" class="w-full px-5 py-4 bg-white/85 rounded-2xl border border-stone-200 focus:outline-none focus:ring-4 focus:ring-forest-100 focus:border-forest-600 text-sm transition resize-none" :placeholder="t('formMessage')"></textarea><button type="submit" class="w-full py-4 bg-forest-700 hover:bg-forest-800 text-white font-bold rounded-2xl transition shadow-md" x-text="t('formSend')">Göndər</button></form></div>
                 </div>
-                <div class="bg-white rounded-3xl border border-stone-200 p-4 shadow-sm flex flex-col md:flex-row gap-4 items-center"><div class="w-full md:w-1/2 h-56 rounded-2xl overflow-hidden"><iframe class="w-full h-full" loading="lazy" :src="`https://www.google.com/maps?q=${encodedAddress}&output=embed`"></iframe></div><div class="flex-1"><h3 class="text-xl font-black text-forest-950">Mini location card</h3><p class="text-stone-500 mt-2">Baksol küçəsi, Bakı, Azərbaycan</p><button @click="openMapChoice()" class="mt-4 px-5 py-3 bg-wood-600 text-white rounded-xl font-bold">Xəritədə aç</button></div></div>
             </div>
 
 
@@ -3108,6 +3120,11 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                                 <span class="text-lg font-black tracking-tight text-stone-100">BALTIC CASPIAN</span>
                             </a>
                             <p class="text-stone-400 text-sm leading-relaxed" x-text="t('footerAbout')">Baltic Caspian – Azərbaycanda keyfiyyətli taxta evlərin lider istehsalçısıdır.</p>
+                            <div class="flex items-center gap-2 pt-1">
+                                <a href="https://www.instagram.com/taxta_evlerin_tikintisi_mmc/?hl=en" target="_blank" rel="noopener" aria-label="Instagram" class="w-9 h-9 rounded-full border border-white/10 bg-white/[.07] text-stone-200 flex items-center justify-center transition hover:-translate-y-0.5 hover:border-pink-300/50 hover:bg-gradient-to-tr hover:from-pink-500/30 hover:to-orange-400/30 hover:text-white"><i class="fa-brands fa-instagram"></i></a>
+                                <a href="https://www.facebook.com/TAXTAEVLERINTIKINTISI/" target="_blank" rel="noopener" aria-label="Facebook" class="w-9 h-9 rounded-full border border-white/10 bg-white/[.07] text-stone-200 flex items-center justify-center transition hover:-translate-y-0.5 hover:border-blue-300/50 hover:bg-blue-500/25 hover:text-white"><i class="fa-brands fa-facebook-f"></i></a>
+                                <span aria-label="YouTube unavailable" aria-disabled="true" class="w-9 h-9 rounded-full border border-white/5 bg-white/[.03] text-stone-500 flex items-center justify-center opacity-60 cursor-not-allowed"><i class="fa-brands fa-youtube"></i></span>
+                            </div>
                         </div>
 
                         <div class="space-y-4">
@@ -3125,6 +3142,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                             <h4 class="text-stone-100 font-semibold tracking-wider text-sm uppercase" x-text="t('footerContact')">Əlaqə</h4>
                             <ul class="space-y-2 text-stone-400 text-sm">
                                 <li class="flex items-center gap-2"><i class="fa-solid fa-phone text-wood-500"></i><a href="tel:+994553221109" class="transition-all duration-[250ms] ease-in-out hover:text-[#D59A72]">(994 55) 322 11 09</a></li>
+                                <li class="flex items-start gap-2"><i class="fa-solid fa-location-dot text-wood-500 mt-1"></i><span x-text="t('addressDetail')">CVGG+35W, Baksol Küçəsi, Baku</span></li>
                             </ul>
                         </div>
 
@@ -3152,8 +3170,8 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
         <div class="absolute inset-0 bg-stone-950/70 backdrop-blur-sm" @click="isMapSheetOpen = false"></div>
         <div class="relative w-full bg-white rounded-t-[2rem] p-6 shadow-2xl space-y-3">
             <div class="w-12 h-1.5 bg-stone-200 rounded-full mx-auto mb-3"></div>
-            <h3 class="text-xl font-black text-forest-950">Marşrut tətbiqini seçin</h3>
-            <template x-for="app in [{n:'Google Maps',u:googleMapsUrl,i:'fa-map-location-dot'},{n:'Yandex Maps',u:yandexMapsUrl,i:'fa-location-arrow'}]">
+            <h3 class="text-xl font-black text-forest-950" x-text="t('mapAppChoice')">Marşrut tətbiqini seçin</h3>
+            <template x-for="app in [{n:'Google Maps',u:googleMapsUrl,i:'fa-map-location-dot'},{n:'Yandex Maps',u:yandexMapsUrl,i:'fa-location-arrow'},{n:t('waze'),u:wazeMapsUrl,i:'fa-waze'}]">
                 <button @click="openExternalMap(app.u)" class="w-full flex items-center gap-3 p-4 rounded-2xl bg-stone-50 border border-stone-200 font-bold text-stone-800"><i class="fa-solid w-6 text-forest-700" :class="app.i"></i><span x-text="app.n"></span></button>
             </template>
         </div>
