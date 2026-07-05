@@ -147,6 +147,7 @@
                 isHeaderScrolled: false,
                 isCalculatorOpen: false,
                 isProjectModalOpen: false,
+                projectModalOpen: false,
                 isGalleryModalOpen: false,
                 isMapSheetOpen: false,
                 translationStatus: {},
@@ -246,7 +247,8 @@
                 statsAnimated: false,
                 displayStats: { completed: 0, customers: 0, experience: 0, contract: 0 },
                 openFaqIndex: 0,
-                selectedProject: {},
+                selectedProject: null,
+                selectedProjectIndex: -1,
                 projectModalScrollY: 0,
                 contactForm: { name: '', phone: '', email: '', message: '' },
 
@@ -1089,13 +1091,16 @@
                     }
                 },
 
-                openProjectModal(proj) {
+                openProjectModal(proj, index = null) {
+                    if (!proj || !proj.id) return;
+
                     this.projectModalScrollY = window.scrollY || window.pageYOffset || 0;
                     this.selectedProject = proj;
+                    this.selectedProjectIndex = Number.isFinite(index) ? index : this.projects.findIndex(p => String(p.id) === String(proj.id));
                     this.activeProjectImageIndex = 0;
                     this.isProjectModalOpen = true;
-                    document.body.classList.add('modal-open');
-                    document.body.style.top = `-${this.projectModalScrollY}px`;
+                    this.projectModalOpen = true;
+                    this.lockProjectModalBodyScroll();
                     this.triggerAction(() => {
                         proj.views = (proj.views || 0) + 1;
                         this.stats.projectViews++;
@@ -1104,11 +1109,26 @@
                     }, false); // No global loader overlay to avoid blocking lightbox
                 },
 
+                lockProjectModalBodyScroll() {
+                    document.body.classList.add('modal-open');
+                    document.body.style.position = 'fixed';
+                    document.body.style.top = `-${this.projectModalScrollY || 0}px`;
+                    document.body.style.width = '100%';
+                },
+
                 closeProjectModal() {
+                    const scrollY = Number.isFinite(this.projectModalScrollY) ? this.projectModalScrollY : 0;
+                    this.selectedProject = null;
+                    this.selectedProjectIndex = -1;
+                    this.activeProjectImageIndex = 0;
                     this.isProjectModalOpen = false;
+                    this.projectModalOpen = false;
                     document.body.classList.remove('modal-open');
                     document.body.style.top = '';
-                    window.scrollTo(0, this.projectModalScrollY || 0);
+                    document.body.style.position = '';
+                    document.body.style.width = '';
+                    window.scrollTo(0, scrollY);
+                    this.projectModalScrollY = 0;
                 },
 
                 visibleProjects() { return (Array.isArray(this.filteredProjects) ? this.filteredProjects : []).filter(p => !p.archived); },
@@ -1135,6 +1155,7 @@
                     const current = this.projectModalIndex();
                     const next = (current + direction + items.length) % items.length;
                     this.selectedProject = items[next];
+                    this.selectedProjectIndex = next;
                     this.activeProjectImageIndex = 0;
                 },
 
@@ -1142,7 +1163,7 @@
 
                 prevProjectModal() { this.navigateProjectModal(-1); },
 
-                handleProjectModalKeydown(event) { if (!this.isProjectModalOpen) return; if (event.key === 'Escape') this.closeProjectModal(); if (event.key === 'ArrowRight') this.nextProjectModal(); if (event.key === 'ArrowLeft') this.prevProjectModal(); },
+                handleProjectModalKeydown(event) { if (!this.isProjectModalOpen || !this.selectedProject?.id) return; if (event.key === 'ArrowRight') this.nextProjectModal(); if (event.key === 'ArrowLeft') this.prevProjectModal(); },
 
                 openCalculator() {
                     this.isCalculatorOpen = true;
@@ -3100,14 +3121,14 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                 </div>
                 <div x-show="projectsLoaded && !(Array.isArray(filteredProjects) && filteredProjects.filter(p => !p.archived).length)" class="rounded-3xl border border-stone-200 bg-white p-10 text-center text-stone-500 font-bold" x-text="lang === 'az' ? 'Layihə tapılmadı.' : (lang === 'ru' ? 'Проекты не найдены.' : 'No projects found.')"></div>
                 <div x-show="projectsLoaded" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                    <template x-for="proj in (Array.isArray(filteredProjects) ? filteredProjects : []).filter(p => !p.archived)" :key="proj.id">
-                        <div @click="openProjectModal(proj)" class="project-card group cursor-pointer bg-white rounded-3xl overflow-hidden shadow-sm transition-all duration-[450ms] border border-stone-200/60 flex flex-col justify-between hover:shadow-2xl hover:shadow-forest-950/12 hover:border-wood-200">
+                    <template x-for="(proj, index) in (Array.isArray(filteredProjects) ? filteredProjects : []).filter(p => !p.archived)" :key="proj.id">
+                        <div @click="openProjectModal(proj, index)" class="project-card group cursor-pointer bg-white rounded-3xl overflow-hidden shadow-sm transition-all duration-[450ms] border border-stone-200/60 flex flex-col justify-between hover:shadow-2xl hover:shadow-forest-950/12 hover:border-wood-200">
                             <div>
                                 <div class="relative h-64 overflow-hidden">
                                     <img :src="(proj.images && proj.images[0]) || proj.image" class="project-card__image w-full h-full object-cover transition-transform duration-[500ms] ease-out" :alt="proj.title">
                                     <div class="project-card__overlay absolute inset-0 bg-gradient-to-t from-forest-950/65 via-forest-950/10 to-transparent opacity-0 transition-opacity duration-[450ms]"></div>
                                     <span class="absolute top-4 left-4 bg-forest-950/85 text-white backdrop-blur text-xs font-bold px-3 py-1 rounded-full uppercase" x-text="lang === 'en' ? proj.catNameEn : (lang === 'ru' ? proj.catNameRu : proj.catName)">Taxta Ev</span>
-                                    <button @click.stop="openProjectModal(proj)" class="project-card__cta absolute left-5 right-5 bottom-5 translate-y-4 opacity-0 rounded-xl border border-white/40 py-3 text-sm font-black text-white shadow-lg backdrop-blur transition-all duration-[450ms]">
+                                    <button @click.stop="openProjectModal(proj, index)" class="project-card__cta absolute left-5 right-5 bottom-5 translate-y-4 opacity-0 rounded-xl border border-white/40 py-3 text-sm font-black text-white shadow-lg backdrop-blur transition-all duration-[450ms]">
                                         <span x-text="t('viewDetails')">Layihəyə Bax</span>
                                     </button>
                                 </div>
@@ -3117,7 +3138,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                                 </div>
                             </div>
                             <div class="project-card__fallback p-6 pt-0">
-                                <button @click.stop="openProjectModal(proj)" class="w-full py-3 bg-forest-50 hover:bg-forest-600 text-forest-700 hover:text-white font-bold rounded-xl text-sm transition-all duration-300">
+                                <button @click.stop="openProjectModal(proj, index)" class="w-full py-3 bg-forest-50 hover:bg-forest-600 text-forest-700 hover:text-white font-bold rounded-xl text-sm transition-all duration-300">
                                     <span x-text="t('viewDetails')">Layihəyə Bax</span>
                                 </button>
                             </div>
@@ -3772,7 +3793,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
 
     </div>
 
-    <nav class="bottom-mobile-nav md:hidden" :class="selectedProject && isProjectModalOpen ? 'hidden' : ''" aria-label="Bottom mobile navigation">
+    <nav class="bottom-mobile-nav md:hidden" :class="selectedProject && selectedProject.id && isProjectModalOpen ? 'hidden' : ''" aria-label="Bottom mobile navigation">
         <button type="button" @click="navigateTo('home')" class="bottom-mobile-nav__item" :class="{ 'is-active': page === 'home' }">
             <i class="fa-solid fa-house"></i>
             <span x-text="t('navHome')">Ana səhifə</span>
@@ -3834,8 +3855,9 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
     </div>
 
     <!-- DETAILED PROJECT VIEW MODAL -->
-    <div x-show="isProjectModalOpen" x-cloak class="project-modal-overlay z-50 flex items-start justify-center p-3 pt-6 sm:p-6" x-transition @keydown.window="handleProjectModalKeydown($event)">
-        <div class="project-modal-backdrop absolute inset-0 bg-stone-950/78 backdrop-blur-sm" @click="closeProjectModal()"></div>
+    <template x-if="selectedProject && selectedProject.id">
+    <div x-show="isProjectModalOpen && selectedProject && selectedProject.id" x-cloak class="project-modal-overlay z-50 flex items-start justify-center p-3 pt-6 sm:p-6" x-transition @keydown.escape.window="closeProjectModal()" @keydown.window="handleProjectModalKeydown($event)">
+        <div class="project-modal-backdrop absolute inset-0 bg-stone-950/78 backdrop-blur-sm" @click.self="closeProjectModal()"></div>
 
         <button @click="prevProjectModal()" class="absolute left-3 top-1/2 z-20 hidden h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full border border-white/25 bg-white/15 text-white shadow-2xl backdrop-blur-xl transition hover:bg-white/25 lg:flex" aria-label="Previous project">
             <i class="fa-solid fa-chevron-left"></i>
@@ -3897,6 +3919,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
             </div>
         </div>
     </div>
+    </template>
 
     <!-- GALLERY LIGHTBOX MODAL WITH YOUTUBE -->
     <div x-show="isGalleryModalOpen" x-cloak class="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-6 bg-stone-950/95" x-transition @keydown.window="handleGalleryKeydown($event)" @click="closeGalleryModal()">
