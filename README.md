@@ -62,3 +62,11 @@ values (
 )
 on conflict (key) do nothing;
 ```
+
+## VPS upload size note
+
+The Express API and multer are configured for uploads up to 100MB. If this app is deployed behind Nginx on a VPS, set the same request-size limit in the relevant `server` or `location` block:
+
+```nginx
+client_max_body_size 100M;
+```

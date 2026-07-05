@@ -10,10 +10,16 @@ const prisma = new PrismaClient({ log: [{ level: 'error', emit: 'event' }, { lev
 prisma.$on('error', (event) => console.error('[prisma:error]', event.message));
 const app = express();
 app.use(cors());
-app.use(express.json({ limit: '1mb' }));
+app.use(express.json({ limit: '100mb' }));
+app.use(express.urlencoded({ extended: true, limit: '100mb' }));
 
 const allowedUploadBuckets = ['projects', 'gallery', 'hero', 'banners', 'home'];
-const upload = multer({ storage: multer.memoryStorage() });
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 100 * 1024 * 1024
+  }
+});
 const supabase = process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY
   ? createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
   : null;
@@ -249,6 +255,13 @@ app.post('/api/uploads/sign', (req,res)=>{
 app.use('/api', (req, res) => res.status(404).json({ error: 'API route not found' }));
 app.use((err, req, res, next) => {
   console.error('[express:error]', { name: err?.name, code: err?.code, message: err?.message });
+  if (err instanceof multer.MulterError && err.code === 'LIMIT_FILE_SIZE') {
+    return res.status(413).json({
+      ok: false,
+      error: 'FILE_TOO_LARGE',
+      message: 'Fayl çox böyükdür. Maksimum 100MB yükləyə bilərsiniz.'
+    });
+  }
   if (isDbError(err)) return dbUnavailable(res, err);
   res.status(err.code === 'P2025' ? 404 : 500).json({ ok: false, error: err.message || 'Server error' });
 });
