@@ -194,9 +194,12 @@
                 homeLightbox: { open: false, section: 'why_wood', images: [], index: 0 },
 
                 // Dynamic App State DB
-                projects: defaultProjects,
-                galleryItems: defaultGallery,
-                slides: defaultSlides,
+                projects: [],
+                projectsLoaded: false,
+                galleryItems: [],
+                galleryLoaded: false,
+                slides: [],
+                slidesLoaded: false,
                 messages: defaultMessages,
 
                 // Dynamic Live Statistics
@@ -560,9 +563,19 @@
                     if (payload && typeof payload === 'object') return [payload];
                     return [];
                 },
+                normalizeImageUrl(url = '') {
+                    const value = String(url || '').trim();
+                    if (!value) return '';
+                    if (value.startsWith('/uploads/')) return value;
+                    if (/^https?:\/\//i.test(value)) return value;
+                    return value;
+                },
+                normalizeImageList(images = []) {
+                    return (Array.isArray(images) ? images : []).map(image => this.normalizeImageUrl(image)).filter(Boolean);
+                },
                 normalizeProject(project = {}) {
-                    const images = Array.isArray(project.images) ? project.images.filter(Boolean) : [];
-                    const image = project.image || project.coverImage || project.cover || images[0] || '';
+                    const images = this.normalizeImageList(project.images);
+                    const image = this.normalizeImageUrl(project.image || project.coverImage || project.cover || images[0] || '');
                     const cat = String(project.cat || project.category || 'default');
                     return {
                         id: project.id ?? '',
@@ -601,8 +614,8 @@
                     return items.length ? items : (Array.isArray(fallback) ? fallback.map(item => this.normalizeProject(item)) : []);
                 },
                 normalizeGalleryItem(item = {}) {
-                    const images = Array.isArray(item.images) ? item.images.filter(Boolean) : [];
-                    const src = item.src || item.image || item.url || item.mediaUrl || images[0] || '';
+                    const images = this.normalizeImageList(item.images);
+                    const src = this.normalizeImageUrl(item.src || item.image || item.url || item.mediaUrl || images[0] || '');
                     return { id: item.id ?? '', src, image: item.image || src, url: item.url || src, mediaUrl: item.mediaUrl || src, images: images.length ? images : (src && (item.type || 'image') === 'image' ? [src] : []), title: item.title || item.titleAz || '', titleAz: item.titleAz || item.title || '', titleRu: item.titleRu || item.title || '', titleEn: item.titleEn || item.title || '', type: item.type || 'image', archived: Boolean(item.archived), sortOrder: Number(item.sortOrder) || 0 };
                 },
                 normalizeGallery(payload, fallback = []) {
@@ -610,7 +623,7 @@
                     return items.length ? items : (Array.isArray(fallback) ? fallback.map(item => this.normalizeGalleryItem(item)) : []);
                 },
                 normalizeSlide(slide = {}) {
-                    const image = slide.image || slide.mediaUrl || slide.media_url || slide.src || slide.url || '';
+                    const image = this.normalizeImageUrl(slide.image || slide.mediaUrl || slide.media_url || slide.src || slide.url || '');
                     const mediaType = this.getHeroMediaKind({ ...slide, mediaUrl: slide.mediaUrl || slide.media_url || image });
                     const mediaFit = ['cover', 'contain'].includes(slide.mediaFit || slide.media_fit) ? (slide.mediaFit || slide.media_fit) : (mediaType === 'video' ? 'contain' : 'cover');
                     return { id: slide.id ?? '', image, mediaUrl: slide.mediaUrl || slide.media_url || image, src: slide.src || image, url: slide.url || image, mediaType, media_type: mediaType, mediaFit, media_fit: mediaFit, tag: slide.tag || slide.tagAz || '', tagAz: slide.tagAz || slide.tag || '', tagRu: slide.tagRu || slide.tag || '', tagEn: slide.tagEn || slide.tag || '', title1: slide.title1 || slide.title1Az || '', title1Az: slide.title1Az || slide.title1 || '', title1Ru: slide.title1Ru || slide.title1 || '', title1En: slide.title1En || slide.title1 || '', title2: slide.title2 || slide.title2Az || '', title2Az: slide.title2Az || slide.title2 || '', title2Ru: slide.title2Ru || slide.title2 || '', title2En: slide.title2En || slide.title2 || '', desc: slide.desc || slide.descAz || '', descAz: slide.descAz || slide.desc || '', descRu: slide.descRu || slide.desc || '', descEn: slide.descEn || slide.desc || '', active: slide.active ?? true, archived: Boolean(slide.archived), sortOrder: Number(slide.sortOrder) || 0 };
@@ -759,22 +772,36 @@
 
                 async loadData() {
                     const cached = (key, fallback) => JSON.parse(localStorage.getItem(key) || 'null') || fallback;
-                    const requests = [
-                        ['/api/projects', cached('bc_projects', defaultProjects)],
-                        ['/api/gallery', cached('bc_gallery', defaultGallery)],
-                        [this.adminLoggedIn ? '/api/hero-slides?admin=true' : '/api/hero-slides', cached('bc_slides', defaultSlides)],
-                        ['/api/banners', cached('bc_banners_list', [])],
-                        ['/api/stats', cached('bc_stats', this.stats)]
-                    ];
-                    const settled = await Promise.allSettled(requests.map(([path, fallback]) => this.safeApi(path, fallback)));
-                    const valueAt = (index, fallback) => settled[index].status === 'fulfilled' ? settled[index].value : fallback;
-                    this.projects = this.normalizeProjects(valueAt(0, cached('bc_projects', defaultProjects)), defaultProjects);
-                    this.galleryItems = this.normalizeGallery(valueAt(1, cached('bc_gallery', defaultGallery)), defaultGallery);
-                    this.slides = this.normalizeSlides(valueAt(2, cached('bc_slides', defaultSlides)), defaultSlides);
-                    const banners = this.normalizeBanners(valueAt(3, cached('bc_banners_list', [])), null);
+                    const publicFetch = async (path) => {
+                        try {
+                            return { ok: true, data: await this.api(path) };
+                        } catch (error) {
+                            console.warn(`Failed ${path}; using local fallback if available.`, error);
+                            return { ok: false, error };
+                        }
+                    };
+                    const settled = await Promise.all([
+                        publicFetch('/api/projects'),
+                        publicFetch('/api/gallery'),
+                        publicFetch(this.adminLoggedIn ? '/api/hero-slides?admin=true' : '/api/hero-slides'),
+                        this.safeApi('/api/banners', cached('bc_banners_list', [])),
+                        this.safeApi('/api/stats', cached('bc_stats', this.stats))
+                    ]);
+                    const [projectsResult, galleryResult, slidesResult, bannersResult, statsResult] = settled;
+                    const projectItems = projectsResult.ok ? this.normalizeProjects(projectsResult.data, []) : this.normalizeProjects(cached('bc_projects', defaultProjects), defaultProjects);
+                    const galleryItems = galleryResult.ok ? this.normalizeGallery(galleryResult.data, []) : this.normalizeGallery(cached('bc_gallery', defaultGallery), defaultGallery);
+                    const slideItems = slidesResult.ok ? this.normalizeSlides(slidesResult.data, []) : this.normalizeSlides(cached('bc_slides', defaultSlides), defaultSlides);
+                    this.projects = projectItems;
+                    this.galleryItems = galleryItems;
+                    this.slides = slideItems;
+                    this.projectsLoaded = true;
+                    this.galleryLoaded = true;
+                    this.slidesLoaded = true;
+                    if (this.activeSlide >= this.activeHeroSlides().length) this.activeSlide = 0;
+                    const banners = this.normalizeBanners(bannersResult, null);
                     this.banners = banners;
                     this.mainBanner = this.firstActiveBanner() || banners[0] || this.normalizeBanner({}, 'both');
-                    this.stats = { ...this.stats, ...(valueAt(4, cached('bc_stats', this.stats)) || {}) };
+                    this.stats = { ...this.stats, ...(statsResult || {}) };
                     console.info('GET /api/projects'); console.info(`Loaded projects: ${this.projects.length}`);
                     console.info('GET /api/gallery'); console.info(`Loaded gallery: ${this.galleryItems.length}`);
                     console.info('GET /api/hero-slides'); console.info(`Loaded slides: ${this.slides.length}`);
@@ -2212,6 +2239,9 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
 
         .project-card__cta { color: #fff !important; background: rgba(25, 95, 61, .88) !important; border: 1px solid rgba(255,255,255,.35); backdrop-filter: blur(12px); text-shadow: 0 1px 2px rgba(0,0,0,.25); }
         .project-card:hover .project-card__cta { background: rgba(31, 119, 75, .95) !important; color: #fff !important; }
+        .skeleton-shimmer { position: relative; overflow: hidden; background: linear-gradient(90deg, #f5f5f4 25%, #e7e5e4 37%, #f5f5f4 63%); background-size: 400% 100%; animation: skeletonShimmer 1.35s ease infinite; }
+        @keyframes skeletonShimmer { 0% { background-position: 100% 0; } 100% { background-position: 0 0; } }
+        .hero-loading-placeholder { background: radial-gradient(circle at 25% 20%, rgba(51,115,79,.45), transparent 30%), linear-gradient(135deg, #06110e 0%, #13251b 55%, #0c1813 100%); }
 
         @media (hover: hover) and (pointer: fine) {
             .project-card:hover .project-card__image { transform: scale(1.06); }
@@ -2360,6 +2390,10 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                 <!-- HERO SLIDER SECTION -->
                 <section data-home-hero class="hero-viewport relative left-1/2 w-screen max-w-[100vw] -translate-x-1/2 bg-stone-900 overflow-hidden flex items-center">
                     <div class="absolute inset-0 z-0">
+                        <div x-show="!slidesLoaded" class="absolute inset-0 hero-loading-placeholder">
+                            <div class="absolute inset-0 opacity-20 skeleton-shimmer"></div>
+                            <div class="hero-overlay absolute inset-0"></div>
+                        </div>
                         <template x-for="(slide, index) in activeHeroSlides()" :key="index">
                             <div x-show="activeSlide === index" x-transition:enter="transition ease-out duration-1000" class="absolute inset-0">
                                 <template x-if="getHeroMediaKind(slide) === 'video' && !isYouTubeUrl(getHeroMediaUrl(slide))">
@@ -2377,7 +2411,12 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                     </div>
 
                     <div class="hero-content">
-                        <div class="hero-copy-panel space-y-4 sm:space-y-5">
+                        <div x-show="!slidesLoaded" class="hero-copy-panel space-y-4 sm:space-y-5">
+                            <div class="h-8 w-48 rounded-full bg-white/10 skeleton-shimmer"></div>
+                            <div class="h-14 sm:h-20 w-full max-w-xl rounded-2xl bg-white/10 skeleton-shimmer"></div>
+                            <div class="h-6 w-full max-w-lg rounded-xl bg-white/10 skeleton-shimmer"></div>
+                        </div>
+                        <div x-show="slidesLoaded && activeHeroSlides().length" class="hero-copy-panel space-y-4 sm:space-y-5">
                             <span x-show="(activeHeroSlides()[activeSlide] || {}).tag || (lang === 'en' && (activeHeroSlides()[activeSlide] || {}).tagEn) || (lang === 'ru' && (activeHeroSlides()[activeSlide] || {}).tagRu)" class="hero-kicker inline-flex items-center gap-2 bg-wood-600/90 text-stone-50 rounded-full font-bold uppercase tracking-wider shadow-md">
                                 <i class="fa-solid fa-tree"></i>
                                 <span x-text="lang === 'en' ? (activeHeroSlides()[activeSlide] || {}).tagEn || (activeHeroSlides()[activeSlide] || {}).tag : (lang === 'ru' ? (activeHeroSlides()[activeSlide] || {}).tagRu || (activeHeroSlides()[activeSlide] || {}).tag : (activeHeroSlides()[activeSlide] || {}).tag)"></span>
@@ -2398,7 +2437,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                         </div>
                     </div>
 
-                    <div x-show="isCurrentHeroVideo()" x-cloak class="hero-sound-control flex items-center gap-3 rounded-full border border-white/15 bg-black/10 p-1.5 pr-3 text-white shadow-2xl backdrop-blur-xl">
+                    <div x-show="slidesLoaded && isCurrentHeroVideo()" x-cloak class="hero-sound-control flex items-center gap-3 rounded-full border border-white/15 bg-black/10 p-1.5 pr-3 text-white shadow-2xl backdrop-blur-xl">
                         <button type="button" @click="toggleHeroSound()" class="hero-sound-button flex items-center justify-center transition hover:bg-white/15" :aria-label="heroMuted ? 'Videonun səsini aç' : 'Videonu səssizə al'">
                             <i class="fa-solid" :class="heroMuted || heroVolume <= 0 ? 'fa-volume-xmark' : 'fa-volume-high'"></i>
                         </button>
@@ -2406,7 +2445,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                     </div>
 
                     <!-- Slide bullet buttons and directional controls -->
-                    <div class="absolute bottom-6 sm:bottom-8 left-0 right-0 z-20">
+                    <div x-show="slidesLoaded && activeHeroSlides().length" class="absolute bottom-6 sm:bottom-8 left-0 right-0 z-20">
                         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-between items-center">
                             <div class="flex gap-2">
                                 <template x-for="(slide, idx) in activeHeroSlides()" :key="idx">
@@ -2662,7 +2701,16 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                     <button @click="filterCategory = 'bath'" class="px-5 py-2.5 rounded-xl font-bold text-sm transition" :class="filterCategory === 'bath' ? 'bg-forest-700 text-white shadow-md' : 'bg-white text-stone-600 hover:bg-stone-100 border border-stone-200'" x-text="lang === 'az' ? 'Hamam & Sauna' : (lang === 'ru' ? 'Бани & Сауны' : 'Bath & Sauna')">Hamam & Sauna</button>
                 </div>
 
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                <div x-show="!projectsLoaded" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                    <template x-for="idx in 3" :key="`project-skeleton-${idx}`">
+                        <div class="bg-white rounded-3xl overflow-hidden shadow-sm border border-stone-200/60">
+                            <div class="h-64 skeleton-shimmer"></div>
+                            <div class="p-6 space-y-4"><div class="h-6 w-2/3 rounded skeleton-shimmer"></div><div class="h-4 w-full rounded skeleton-shimmer"></div><div class="h-4 w-5/6 rounded skeleton-shimmer"></div></div>
+                        </div>
+                    </template>
+                </div>
+                <div x-show="projectsLoaded && !(Array.isArray(filteredProjects) && filteredProjects.filter(p => !p.archived).length)" class="rounded-3xl border border-stone-200 bg-white p-10 text-center text-stone-500 font-bold" x-text="lang === 'az' ? 'Layihə tapılmadı.' : (lang === 'ru' ? 'Проекты не найдены.' : 'No projects found.')"></div>
+                <div x-show="projectsLoaded" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                     <template x-for="proj in (Array.isArray(filteredProjects) ? filteredProjects : []).filter(p => !p.archived)" :key="proj.id">
                         <div @click="openProjectModal(proj)" class="project-card group cursor-pointer bg-white rounded-3xl overflow-hidden shadow-sm transition-all duration-[450ms] border border-stone-200/60 flex flex-col justify-between hover:shadow-2xl hover:shadow-forest-950/12 hover:border-wood-200">
                             <div>
@@ -2697,7 +2745,11 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                     <p class="text-stone-500 text-sm sm:text-base" x-text="t('galleryDesc')">Tamamladığımız layihələrdən xarici və daxili görüntülər.</p>
                 </div>
 
-                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                <div x-show="!galleryLoaded" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                    <template x-for="idx in 4" :key="`gallery-skeleton-${idx}`"><div class="aspect-square rounded-2xl skeleton-shimmer"></div></template>
+                </div>
+                <div x-show="galleryLoaded && !(Array.isArray(galleryItems) && galleryItems.filter(g => !g.archived).length)" class="rounded-3xl border border-stone-200 bg-white p-10 text-center text-stone-500 font-bold" x-text="lang === 'az' ? 'Qalereya boşdur.' : (lang === 'ru' ? 'Галерея пуста.' : 'Gallery is empty.')"></div>
+                <div x-show="galleryLoaded" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                     <template x-for="(img, idx) in (Array.isArray(galleryItems) ? galleryItems : []).filter(g => !g.archived)" :key="img.id">
                         <div class="group relative aspect-square overflow-hidden rounded-2xl bg-stone-200 cursor-pointer shadow-sm hover:shadow-lg transition duration-300" @click="openGalleryModal(idx)">
                             <template x-if="img.type === 'video'">
