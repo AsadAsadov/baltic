@@ -2472,27 +2472,69 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
             .bottom-mobile-nav__item span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
             .bottom-mobile-nav__item.is-active { color: #fff; background: linear-gradient(135deg, rgba(51,115,79,.72), rgba(184,138,96,.34)); box-shadow: inset 0 0 0 1px rgba(255,255,255,.10), 0 10px 26px rgba(51,115,79,.24); }
             .project-modal-overlay {
-                inset: 0;
-                padding: 16px 12px calc(110px + env(safe-area-inset-bottom));
-                align-items: flex-start;
-                z-index: 9999;
+                position: fixed !important;
+                inset: 0 !important;
+                z-index: 9999 !important;
+                overflow-y: auto !important;
+                -webkit-overflow-scrolling: touch;
+                overscroll-behavior: contain;
+                padding: calc(14px + env(safe-area-inset-top)) 12px calc(120px + env(safe-area-inset-bottom)) !important;
+                display: flex;
+                align-items: flex-start !important;
+                justify-content: center;
+                background: rgba(5, 12, 9, .72);
+                backdrop-filter: blur(14px);
+                -webkit-backdrop-filter: blur(14px);
+            }
+            .project-modal-backdrop {
+                display: none;
             }
             .project-detail-modal {
-                width: min(100%, calc(100vw - 24px));
-                max-height: none;
-                overflow: visible;
-                border-radius: 24px;
+                width: min(100%, calc(100vw - 24px)) !important;
+                max-height: none !important;
+                min-height: auto !important;
+                height: auto !important;
+                overflow: visible !important;
+                border-radius: 26px;
+                margin-top: 10px;
+                margin-bottom: 40px;
             }
             .project-detail-modal > .project-detail-scroll {
-                overflow: visible;
+                overflow: visible !important;
             }
+            .project-modal-info,
             .project-detail-modal .project-info-panel {
-                overflow: visible;
+                padding: 20px 18px 24px !important;
+                display: block;
+                overflow: visible !important;
             }
             .project-modal-close {
-                position: fixed;
-                top: 20px;
-                right: 20px;
+                position: sticky !important;
+                top: 10px;
+                margin-left: auto;
+                z-index: 50;
+                width: 44px;
+                height: 44px;
+                border-radius: 999px;
+                background: rgba(255,255,255,.96);
+                color: #123024;
+                box-shadow: 0 12px 30px rgba(0,0,0,.18);
+            }
+            .project-modal-image,
+            .project-detail-modal img {
+                height: 260px !important;
+                max-height: 32svh;
+                object-fit: cover;
+                border-radius: 22px;
+            }
+            .project-spec-grid {
+                display: grid;
+                grid-template-columns: repeat(3, minmax(0,1fr));
+                gap: 10px;
+            }
+            .project-whatsapp-button {
+                height: 54px;
+                margin-top: 14px;
             }
         }
 
@@ -3792,7 +3834,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
 
     <!-- DETAILED PROJECT VIEW MODAL -->
     <div x-show="isProjectModalOpen" x-cloak class="project-modal-overlay z-50 flex items-start justify-center p-3 pt-6 sm:p-6" x-transition @keydown.window="handleProjectModalKeydown($event)">
-        <div class="absolute inset-0 bg-stone-950/78 backdrop-blur-sm" @click="closeProjectModal()"></div>
+        <div class="project-modal-backdrop absolute inset-0 bg-stone-950/78 backdrop-blur-sm" @click="closeProjectModal()"></div>
 
         <button @click="prevProjectModal()" class="absolute left-3 top-1/2 z-20 hidden h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full border border-white/25 bg-white/15 text-white shadow-2xl backdrop-blur-xl transition hover:bg-white/25 lg:flex" aria-label="Previous project">
             <i class="fa-solid fa-chevron-left"></i>
@@ -3806,7 +3848,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
 
             <div class="project-detail-scroll min-h-0 overflow-y-auto lg:contents">
                 <div class="bg-stone-100 p-3 sm:p-4 lg:p-0">
-                    <div class="relative h-[280px] overflow-hidden rounded-[22px] bg-stone-200 sm:h-[340px] lg:h-[clamp(360px,58vh,560px)]">
+                    <div class="project-modal-image relative h-[280px] overflow-hidden rounded-[22px] bg-stone-200 sm:h-[340px] lg:h-[clamp(360px,58vh,560px)]">
                         <img :src="currentProjectImage()" class="h-full w-full object-cover" :alt="lang === 'en' ? selectedProject.titleEn : (lang === 'ru' ? selectedProject.titleRu : selectedProject.title)">
                         <template x-if="currentProjectImages().length > 1">
                             <div>
@@ -3826,7 +3868,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                     </template>
                 </div>
 
-                <div class="project-info-panel flex min-h-0 flex-col overflow-y-auto p-5 pt-4 sm:p-7 lg:max-h-[calc(100svh-190px)] lg:p-7 lg:pl-3">
+                <div class="project-modal-info project-info-panel flex min-h-0 flex-col overflow-y-auto p-5 pt-4 sm:p-7 lg:max-h-[calc(100svh-190px)] lg:p-7 lg:pl-3">
                     <div class="mb-5 flex gap-2 lg:hidden">
                         <button @click="prevProjectModal()" class="flex h-11 flex-1 items-center justify-center gap-2 rounded-2xl border border-stone-200 bg-stone-50 font-bold text-forest-800"><i class="fa-solid fa-chevron-left"></i><span>Previous</span></button>
                         <button @click="nextProjectModal()" class="flex h-11 flex-1 items-center justify-center gap-2 rounded-2xl border border-stone-200 bg-stone-50 font-bold text-forest-800"><span>Next</span><i class="fa-solid fa-chevron-right"></i></button>
@@ -3836,7 +3878,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                     <h3 class="text-2xl font-black leading-tight text-forest-950 sm:text-3xl" x-text="lang === 'en' ? selectedProject.titleEn : (lang === 'ru' ? selectedProject.titleRu : selectedProject.title)"></h3>
                     <p class="mt-4 text-sm leading-7 text-stone-600" x-text="lang === 'en' ? (selectedProject.descriptionEn || selectedProject.descEn || selectedProject.description || selectedProject.desc) : (lang === 'ru' ? (selectedProject.descriptionRu || selectedProject.descRu || selectedProject.description || selectedProject.desc) : (selectedProject.descriptionAz || selectedProject.descAz || selectedProject.description || selectedProject.desc))"></p>
 
-                    <div class="mt-5 grid grid-cols-3 gap-3 text-center">
+                    <div class="project-spec-grid mt-5 grid grid-cols-3 gap-3 text-center">
                         <div class="min-h-[68px] rounded-2xl border border-stone-100 bg-stone-50 p-3"><span class="text-[11px] font-bold uppercase text-stone-400">Sahə</span><p class="mt-1 font-black text-forest-950" x-text="(selectedProject.area || '-') + (selectedProject.area ? ' m²' : '')"></p></div>
                         <div class="min-h-[68px] rounded-2xl border border-stone-100 bg-stone-50 p-3"><span class="text-[11px] font-bold uppercase text-stone-400">Mərtəbə</span><p class="mt-1 font-black text-forest-950" x-text="selectedProject.stories || '-'"></p></div>
                         <div class="min-h-[68px] rounded-2xl border border-stone-100 bg-stone-50 p-3"><span class="text-[11px] font-bold uppercase text-stone-400">Otaq</span><p class="mt-1 font-black text-forest-950" x-text="selectedProject.rooms || '-'"></p></div>
@@ -3849,7 +3891,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                         </div>
                     </template>
 
-                    <button @click="openProjectWhatsApp()" class="mt-5 flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-green-600 px-6 py-3 font-black text-white shadow-lg shadow-green-900/20 transition hover:bg-green-700"><i class="fa-brands fa-whatsapp text-xl"></i><span>WhatsApp ilə müraciət et</span></button>
+                    <button @click="openProjectWhatsApp()" class="project-whatsapp-button mt-5 flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-green-600 px-6 py-3 font-black text-white shadow-lg shadow-green-900/20 transition hover:bg-green-700"><i class="fa-brands fa-whatsapp text-xl"></i><span>WhatsApp ilə müraciət et</span></button>
                 </div>
             </div>
         </div>
