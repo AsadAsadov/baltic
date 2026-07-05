@@ -247,6 +247,7 @@
                 displayStats: { completed: 0, customers: 0, experience: 0, contract: 0 },
                 openFaqIndex: 0,
                 selectedProject: {},
+                projectModalScrollY: 0,
                 contactForm: { name: '', phone: '', email: '', message: '' },
 
                 dict: {
@@ -1089,10 +1090,12 @@
                 },
 
                 openProjectModal(proj) {
+                    this.projectModalScrollY = window.scrollY || window.pageYOffset || 0;
                     this.selectedProject = proj;
                     this.activeProjectImageIndex = 0;
                     this.isProjectModalOpen = true;
-                    document.body.classList.add('overflow-hidden');
+                    document.body.classList.add('modal-open');
+                    document.body.style.top = `-${this.projectModalScrollY}px`;
                     this.triggerAction(() => {
                         proj.views = (proj.views || 0) + 1;
                         this.stats.projectViews++;
@@ -1101,7 +1104,12 @@
                     }, false); // No global loader overlay to avoid blocking lightbox
                 },
 
-                closeProjectModal() { this.isProjectModalOpen = false; document.body.classList.remove('overflow-hidden'); },
+                closeProjectModal() {
+                    this.isProjectModalOpen = false;
+                    document.body.classList.remove('modal-open');
+                    document.body.style.top = '';
+                    window.scrollTo(0, this.projectModalScrollY || 0);
+                },
 
                 visibleProjects() { return (Array.isArray(this.filteredProjects) ? this.filteredProjects : []).filter(p => !p.archived); },
 
@@ -2406,6 +2414,21 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
             .login-card-premium h2 { color: #f5f5f4; }
             .login-card-premium p { color: rgba(245,245,244,.72); }
         }
+        body.modal-open {
+            position: fixed;
+            width: 100%;
+            overflow: hidden;
+            left: 0;
+            right: 0;
+        }
+        .project-modal-overlay {
+            position: fixed;
+            inset: var(--header-height) 0 0 0;
+            overflow-y: auto;
+            overscroll-behavior: contain;
+            -webkit-overflow-scrolling: touch;
+        }
+        .project-detail-modal { overscroll-behavior: contain; }
         .bottom-mobile-nav { display: none; }
         @media (max-width: 767px) {
             .header-main .max-w-7xl { padding-left: 12px; padding-right: 12px; }
@@ -2448,6 +2471,29 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
             .bottom-mobile-nav__item i { font-size: 18px; }
             .bottom-mobile-nav__item span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
             .bottom-mobile-nav__item.is-active { color: #fff; background: linear-gradient(135deg, rgba(51,115,79,.72), rgba(184,138,96,.34)); box-shadow: inset 0 0 0 1px rgba(255,255,255,.10), 0 10px 26px rgba(51,115,79,.24); }
+            .project-modal-overlay {
+                inset: 0;
+                padding: 16px 12px calc(110px + env(safe-area-inset-bottom));
+                align-items: flex-start;
+                z-index: 9999;
+            }
+            .project-detail-modal {
+                width: min(100%, calc(100vw - 24px));
+                max-height: none;
+                overflow: visible;
+                border-radius: 24px;
+            }
+            .project-detail-modal > .project-detail-scroll {
+                overflow: visible;
+            }
+            .project-detail-modal .project-info-panel {
+                overflow: visible;
+            }
+            .project-modal-close {
+                position: fixed;
+                top: 20px;
+                right: 20px;
+            }
         }
 
         /* Mobile-only polish: compact header, BestHome-style hero card, and bottom-nav-safe footer. */
@@ -3683,7 +3729,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
 
     </div>
 
-    <nav class="bottom-mobile-nav md:hidden" aria-label="Bottom mobile navigation">
+    <nav class="bottom-mobile-nav md:hidden" :class="selectedProject && isProjectModalOpen ? 'hidden' : ''" aria-label="Bottom mobile navigation">
         <button type="button" @click="navigateTo('home')" class="bottom-mobile-nav__item" :class="{ 'is-active': page === 'home' }">
             <i class="fa-solid fa-house"></i>
             <span x-text="t('navHome')">Ana səhifə</span>
@@ -3745,7 +3791,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
     </div>
 
     <!-- DETAILED PROJECT VIEW MODAL -->
-    <div x-show="isProjectModalOpen" x-cloak class="fixed inset-x-0 bottom-0 top-[var(--header-height)] z-50 flex items-start justify-center p-3 pt-6 sm:p-6" x-transition @keydown.window="handleProjectModalKeydown($event)">
+    <div x-show="isProjectModalOpen" x-cloak class="project-modal-overlay z-50 flex items-start justify-center p-3 pt-6 sm:p-6" x-transition @keydown.window="handleProjectModalKeydown($event)">
         <div class="absolute inset-0 bg-stone-950/78 backdrop-blur-sm" @click="closeProjectModal()"></div>
 
         <button @click="prevProjectModal()" class="absolute left-3 top-1/2 z-20 hidden h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full border border-white/25 bg-white/15 text-white shadow-2xl backdrop-blur-xl transition hover:bg-white/25 lg:flex" aria-label="Previous project">
@@ -3755,10 +3801,10 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
             <i class="fa-solid fa-chevron-right"></i>
         </button>
 
-        <div class="relative z-10 grid w-full max-w-[980px] w-[min(94vw,980px)] grid-cols-1 gap-0 overflow-hidden rounded-[26px] border border-white/70 bg-white shadow-2xl shadow-stone-950/30 max-h-[calc(100svh-150px)] lg:grid-cols-[54%_46%] lg:gap-4 lg:p-4">
-            <button @click="closeProjectModal()" class="absolute right-4 top-4 z-30 flex h-11 w-11 items-center justify-center rounded-full border border-stone-200/70 bg-white/90 text-stone-800 shadow-lg backdrop-blur transition hover:bg-stone-950 hover:text-white" aria-label="Close project modal"><i class="fa-solid fa-xmark"></i></button>
+        <div class="project-detail-modal relative z-10 grid w-full max-w-[980px] w-[min(94vw,980px)] grid-cols-1 gap-0 overflow-hidden rounded-[26px] border border-white/70 bg-white shadow-2xl shadow-stone-950/30 max-h-[calc(100svh-150px)] lg:grid-cols-[54%_46%] lg:gap-4 lg:p-4" @touchmove.stop>
+            <button @click="closeProjectModal()" class="project-modal-close absolute right-4 top-4 z-30 flex h-11 w-11 items-center justify-center rounded-full border border-stone-200/70 bg-white/90 text-stone-800 shadow-lg backdrop-blur transition hover:bg-stone-950 hover:text-white" aria-label="Close project modal"><i class="fa-solid fa-xmark"></i></button>
 
-            <div class="min-h-0 overflow-y-auto lg:contents">
+            <div class="project-detail-scroll min-h-0 overflow-y-auto lg:contents">
                 <div class="bg-stone-100 p-3 sm:p-4 lg:p-0">
                     <div class="relative h-[280px] overflow-hidden rounded-[22px] bg-stone-200 sm:h-[340px] lg:h-[clamp(360px,58vh,560px)]">
                         <img :src="currentProjectImage()" class="h-full w-full object-cover" :alt="lang === 'en' ? selectedProject.titleEn : (lang === 'ru' ? selectedProject.titleRu : selectedProject.title)">
@@ -3780,7 +3826,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                     </template>
                 </div>
 
-                <div class="flex min-h-0 flex-col overflow-y-auto p-5 pt-4 sm:p-7 lg:max-h-[calc(100svh-190px)] lg:p-7 lg:pl-3">
+                <div class="project-info-panel flex min-h-0 flex-col overflow-y-auto p-5 pt-4 sm:p-7 lg:max-h-[calc(100svh-190px)] lg:p-7 lg:pl-3">
                     <div class="mb-5 flex gap-2 lg:hidden">
                         <button @click="prevProjectModal()" class="flex h-11 flex-1 items-center justify-center gap-2 rounded-2xl border border-stone-200 bg-stone-50 font-bold text-forest-800"><i class="fa-solid fa-chevron-left"></i><span>Previous</span></button>
                         <button @click="nextProjectModal()" class="flex h-11 flex-1 items-center justify-center gap-2 rounded-2xl border border-stone-200 bg-stone-50 font-bold text-forest-800"><span>Next</span><i class="fa-solid fa-chevron-right"></i></button>
