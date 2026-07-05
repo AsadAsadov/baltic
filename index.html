@@ -149,6 +149,8 @@
                 isMapSheetOpen: false,
                 translationStatus: {},
                 manualTranslationOverrides: {},
+                showProjectTranslations: false,
+                showHeroTranslations: false,
                 translationTimers: {},
                 activeSlide: 0,
                 filterCategory: 'all',
@@ -591,8 +593,9 @@
                     return items.length ? items : (Array.isArray(fallback) ? fallback.map(item => this.normalizeGalleryItem(item)) : []);
                 },
                 normalizeSlide(slide = {}) {
-                    const image = slide.image || slide.mediaUrl || slide.url || '';
-                    return { id: slide.id ?? '', image, mediaUrl: slide.mediaUrl || image, tag: slide.tag || slide.tagAz || '', tagAz: slide.tagAz || slide.tag || '', tagRu: slide.tagRu || slide.tag || '', tagEn: slide.tagEn || slide.tag || '', title1: slide.title1 || slide.title1Az || '', title1Az: slide.title1Az || slide.title1 || '', title1Ru: slide.title1Ru || slide.title1 || '', title1En: slide.title1En || slide.title1 || '', title2: slide.title2 || slide.title2Az || '', title2Az: slide.title2Az || slide.title2 || '', title2Ru: slide.title2Ru || slide.title2 || '', title2En: slide.title2En || slide.title2 || '', desc: slide.desc || slide.descAz || '', descAz: slide.descAz || slide.desc || '', descRu: slide.descRu || slide.desc || '', descEn: slide.descEn || slide.desc || '', active: slide.active ?? true, archived: Boolean(slide.archived), sortOrder: Number(slide.sortOrder) || 0 };
+                    const image = slide.image || slide.mediaUrl || slide.media_url || slide.src || slide.url || '';
+                    const mediaType = this.getHeroMediaKind({ ...slide, mediaUrl: slide.mediaUrl || slide.media_url || image });
+                    return { id: slide.id ?? '', image, mediaUrl: slide.mediaUrl || slide.media_url || image, src: slide.src || image, url: slide.url || image, mediaType, media_type: mediaType, tag: slide.tag || slide.tagAz || '', tagAz: slide.tagAz || slide.tag || '', tagRu: slide.tagRu || slide.tag || '', tagEn: slide.tagEn || slide.tag || '', title1: slide.title1 || slide.title1Az || '', title1Az: slide.title1Az || slide.title1 || '', title1Ru: slide.title1Ru || slide.title1 || '', title1En: slide.title1En || slide.title1 || '', title2: slide.title2 || slide.title2Az || '', title2Az: slide.title2Az || slide.title2 || '', title2Ru: slide.title2Ru || slide.title2 || '', title2En: slide.title2En || slide.title2 || '', desc: slide.desc || slide.descAz || '', descAz: slide.descAz || slide.desc || '', descRu: slide.descRu || slide.desc || '', descEn: slide.descEn || slide.desc || '', active: slide.active ?? true, archived: Boolean(slide.archived), sortOrder: Number(slide.sortOrder) || 0 };
                 },
                 normalizeSlides(payload, fallback = []) {
                     const items = this.asArray(payload).map(item => this.normalizeSlide(item));
@@ -600,6 +603,47 @@
                 },
                 isUuid(value) {
                     return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(value || ''));
+                },
+
+                isYouTubeUrl(url = '') { return Boolean(this.getYouTubeId(url)); },
+                getYouTubeId(url = '') {
+                    const value = String(url || '').trim();
+                    if (!value) return '';
+                    const patterns = [/[?&]v=([^&]+)/i, /youtu\.be\/([^?&#/]+)/i, /youtube\.com\/embed\/([^?&#/]+)/i, /youtube\.com\/shorts\/([^?&#/]+)/i];
+                    for (const pattern of patterns) {
+                        const match = value.match(pattern);
+                        if (match?.[1]) return decodeURIComponent(match[1]).replace(/[^a-zA-Z0-9_-]/g, '');
+                    }
+                    return '';
+                },
+                getYouTubeThumbnail(url = '') {
+                    const id = this.getYouTubeId(url);
+                    return id ? `https://img.youtube.com/vi/${id}/hqdefault.jpg` : '';
+                },
+                getHeroMediaUrl(slide = {}) { return slide.mediaUrl || slide.media_url || slide.image || slide.src || slide.url || ''; },
+                getHeroMediaKind(slide = {}) {
+                    const url = this.getHeroMediaUrl(slide);
+                    const explicit = slide.mediaType || slide.media_type || slide.type;
+                    if (this.isYouTubeUrl(url) || /\.(mp4|webm|mov)(?:[?#].*)?$/i.test(url)) return 'video';
+                    return explicit === 'video' ? 'video' : 'image';
+                },
+                getHeroVisualUrl(slide = {}) {
+                    const url = this.getHeroMediaUrl(slide);
+                    return this.getYouTubeThumbnail(url) || url;
+                },
+                syncHeroMediaUrl() {
+                    const url = this.heroPreviewImg || this.newHero.mediaUrl || this.newHero.image || '';
+                    this.newHero.mediaUrl = url;
+                    this.newHero.image = url;
+                    this.newHero.mediaType = this.getHeroMediaKind({ mediaUrl: url, mediaType: this.newHero.mediaType });
+                },
+                ensureAutoTranslations(pairs = []) {
+                    pairs.forEach(([sourcePath, ruPath, enPath]) => {
+                        const source = this.getPath(sourcePath) || '';
+                        const local = this.translateAzText(source);
+                        if (!this.manualTranslationOverrides[ruPath] || !this.getPath(ruPath)) this.setPath(ruPath, local.ru || this.getPath(ruPath) || source);
+                        if (!this.manualTranslationOverrides[enPath] || !this.getPath(enPath)) this.setPath(enPath, local.en || this.getPath(enPath) || source);
+                    });
                 },
                 isPersistedHero(slide = {}) {
                     return this.isUuid(slide.id);
@@ -1326,6 +1370,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
 
                 setupEditProject(proj) {
                     this.newProj = { ...proj, titleAz: proj.title, titleRu: proj.titleRu, titleEn: proj.titleEn, descAz: proj.desc, descRu: proj.descRu, descEn: proj.descEn, buildTimeAz: proj.buildTime, buildTimeRu: proj.buildTimeRu, buildTimeEn: proj.buildTimeEn };
+                    this.showProjectTranslations = false;
                     this.projectPreviewImages = proj.images || (proj.image ? [proj.image] : []);
                     this.projectPreviewImg = this.projectPreviewImages[0] || proj.image;
                 },
@@ -1338,6 +1383,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                             : ((Array.isArray(this.projectPreviewImages) ? this.projectPreviewImages : []).length ? this.projectPreviewImages : (this.projectPreviewImg ? [this.projectPreviewImg] : ['https://images.unsplash.com/photo-1510798831971-661eb04b3739?auto=format&fit=crop&q=80&w=800']));
                         const finalImage = this.projectPreviewImgFile ? await this.uploadMedia(this.projectPreviewImgFile, 'projects') : finalImages[0];
                         if (this.projectPreviewImgFile && !finalImages.includes(finalImage)) finalImages.unshift(finalImage);
+                        this.ensureAutoTranslations([['newProj.titleAz','newProj.titleRu','newProj.titleEn'], ['newProj.descAz','newProj.descRu','newProj.descEn'], ['newProj.buildTimeAz','newProj.buildTimeRu','newProj.buildTimeEn']]);
                         const categoryMap = {
                             house: { az: 'Taxta Ev', ru: 'Деревянный Дом', en: 'Wooden House' },
                             restaurant: { az: 'Restoran', ru: 'Ресторан', en: 'Restaurant' },
@@ -1519,6 +1565,8 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                 saveHero() {
                     this.triggerAction(async () => {
                         let finalImage = '';
+                        this.syncHeroMediaUrl();
+                        this.ensureAutoTranslations([['newHero.tag','newHero.tagRu','newHero.tagEn'], ['newHero.title1','newHero.title1Ru','newHero.title1En'], ['newHero.title2','newHero.title2Ru','newHero.title2En'], ['newHero.desc','newHero.descRu','newHero.descEn']]);
                         const selectedFile = this.heroPreviewImgFile;
                         console.info('[saveHero:start]', { selectedHeroId: this.newHero.id || null, hasSelectedFile: Boolean(selectedFile), selectedFile: selectedFile ? { name: selectedFile.name, type: selectedFile.type, size: selectedFile.size } : null, uploadedHeroUrl: this.newHero.mediaUrl || this.newHero.image || '' });
                         let mediaType = this.newHero.mediaType || 'image';
@@ -1528,7 +1576,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                             mediaType = this.heroPreviewImgFile.type.startsWith('video/') ? 'video' : 'image';
                         } else if (typedUrl) {
                             finalImage = typedUrl;
-                            mediaType = /\.(mp4|webm|mov)(?:[?#].*)?$/i.test(finalImage) ? 'video' : 'image';
+                            mediaType = this.getHeroMediaKind({ mediaUrl: finalImage, mediaType });
                         }
                         if (!this.newHero.id && !finalImage) {
                             this.showToast('Media tələb olunur', 'Hero slayd üçün şəkil və ya video seçin.');
@@ -1536,7 +1584,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                         }
                         const isExisting = this.isPersistedHero(this.newHero);
                         const payload = { ...this.newHero, active: this.newHero.active ?? true };
-                        if (finalImage) Object.assign(payload, { image: finalImage, mediaUrl: finalImage, mediaType });
+                        if (finalImage) Object.assign(payload, { image: finalImage, mediaUrl: finalImage, media_url: finalImage, src: finalImage, url: finalImage, mediaType, media_type: mediaType, type: mediaType });
                         if (!isExisting) delete payload.id;
                         console.info('[saveHero:payload]', { selectedHeroId: isExisting ? this.newHero.id : null, hasSelectedFile: Boolean(selectedFile), selectedFile: selectedFile ? { name: selectedFile.name, type: selectedFile.type, size: selectedFile.size } : null, uploadedHeroUrl: finalImage, payload });
                         let saved;
@@ -1721,6 +1769,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
 
                 resetHeroForm() {
                     this.newHero = { id: null, activeIndex: null, active: true, mediaUrl: '', mediaType: 'image', tag: '', tagRu: '', tagEn: '', title1: '', title1Ru: '', title1En: '', title2: '', title2Ru: '', title2En: '', desc: '', descRu: '', descEn: '', image: '' };
+                    this.showHeroTranslations = false;
                     this.heroPreviewImg = '';
                     this.heroPreviewImgFile = null;
                 },
@@ -1745,11 +1794,12 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                 },
 
                 getYouTubeId(url) {
-                    if (!url) return '';
-                    const patterns = [/(?:youtube\.com\/watch\?v=)([^&?#]{11})/, /(?:youtu\.be\/)([^&?#]{11})/, /(?:youtube\.com\/embed\/)([^&?#]{11})/, /(?:youtube\.com\/shorts\/)([^&?#]{11})/];
+                    const value = String(url || '').trim();
+                    if (!value) return '';
+                    const patterns = [/[?&]v=([^&]+)/i, /youtu\.be\/([^?&#/]+)/i, /youtube\.com\/embed\/([^?&#/]+)/i, /youtube\.com\/shorts\/([^?&#/]+)/i];
                     for (const pattern of patterns) {
-                        const match = url.match(pattern);
-                        if (match) return match[1];
+                        const match = value.match(pattern);
+                        if (match?.[1]) return decodeURIComponent(match[1]).replace(/[^a-zA-Z0-9_-]/g, '');
                     }
                     return '';
                 },
@@ -1761,7 +1811,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
 
                 getYouTubeThumbnail(url) {
                     const id = this.getYouTubeId(url);
-                    return id ? `https://img.youtube.com/vi/${id}/hqdefault.jpg` : 'https://images.unsplash.com/photo-1542718610-a1d656d1884c?auto=format&fit=crop&q=80&w=800';
+                    return id ? `https://img.youtube.com/vi/${id}/hqdefault.jpg` : '';
                 },
 
                 translateAzText(text) {
@@ -1888,6 +1938,15 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
         :root { --header-height: 72px; }
         .header-main { position: fixed; top: 0; left: 0; right: 0; z-index: 100; }
         .page-shell { padding-top: var(--header-height); }
+
+        .hero-viewport {
+            min-height: calc(100svh - var(--header-height, 88px));
+        }
+        @media (min-width: 768px) {
+            .hero-viewport {
+                height: calc(100svh - var(--header-height, 88px));
+            }
+        }
         .ad-content-grid { display: grid; grid-template-columns: minmax(0, 1fr); }
         .ad-rail { display: none; }
         [data-reveal] { opacity: 1; transform: none; }
@@ -2094,11 +2153,16 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
             <main class="flex-1"><div x-show="page === 'home'" x-cloak class="space-y-12 sm:space-y-16 pb-16">
                 
                 <!-- HERO SLIDER SECTION -->
-                <section data-home-hero class="relative left-1/2 w-screen max-w-[100vw] -translate-x-1/2 min-h-[calc(100vh-5rem)] bg-stone-900 overflow-hidden flex items-center pt-24 lg:pt-28">
+                <section data-home-hero class="hero-viewport relative left-1/2 w-screen max-w-[100vw] -translate-x-1/2 bg-stone-900 overflow-hidden flex items-center py-20 sm:py-24 lg:py-28">
                     <div class="absolute inset-0 z-0">
                         <template x-for="(slide, index) in activeHeroSlides()" :key="index">
                             <div x-show="activeSlide === index" x-transition:enter="transition ease-out duration-1000" class="absolute inset-0">
-                                <img :src="slide.image" class="w-full h-full object-cover" alt="Hero background">
+                                <template x-if="getHeroMediaKind(slide) === 'video' && !isYouTubeUrl(getHeroMediaUrl(slide))">
+                                    <video :src="getHeroMediaUrl(slide)" autoplay muted loop playsinline class="w-full h-full object-cover"></video>
+                                </template>
+                                <template x-if="getHeroMediaKind(slide) !== 'video' || isYouTubeUrl(getHeroMediaUrl(slide))">
+                                    <img :src="getHeroVisualUrl(slide)" class="w-full h-full object-cover" alt="Hero background">
+                                </template>
                                 <div class="absolute inset-0 bg-gradient-to-r from-stone-950/80 via-stone-900/60 to-transparent"></div>
                             </div>
                         </template>
@@ -2615,12 +2679,12 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                         <!-- Real-time dynamic mirror language synchronization AZ -> RU / EN -->
                         <div>
                             <label class="flex justify-between">
-                                <span x-text="lang==='az'?'Başlıq (AZ)':(lang==='ru'?'Название (АЗ)':'Title (AZ)')">Başlıq (AZ)</span>
+                                <span x-text="lang==='az'?'Başlıq':(lang==='ru'?'Название (АЗ)':'Title (AZ)')">Başlıq</span>
                                 <span class="text-wood-600 font-normal lowercase tracking-normal" x-text="lang==='az'?'(Lüğətdə varsa avtomatik tərcümə edilir)':'(Авто-заполнение других языков)'"></span>
                             </label>
                             <input type="text" x-model="newProj.titleAz" @input="autocompleteFields('title')" class="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg text-stone-800 mt-1 font-medium tracking-normal">
                         </div>
-                        <div class="grid grid-cols-2 gap-3">
+                        <div x-show="showProjectTranslations" x-transition class="grid grid-cols-2 gap-3">
                             <div>
                                 <label x-text="lang==='az'?'Başlıq (RU)':(lang==='ru'?'Название (РУ)':'Title (RU)')">Başlıq (RU)</label>
                                 <input type="text" x-model="newProj.titleRu" @input="markManualTranslation('newProj.titleRu')" class="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg text-stone-800 mt-1 font-medium tracking-normal">
@@ -2649,10 +2713,10 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
 
                         <!-- Description character-by-character synchronization -->
                         <div>
-                            <label x-text="lang==='az'?'Təsvir (AZ)':(lang==='ru'?'Описание (АЗ)':'Description (AZ)')">Təsvir (AZ)</label>
+                            <label x-text="lang==='az'?'Təsvir':(lang==='ru'?'Описание (АЗ)':'Description (AZ)')">Təsvir</label>
                             <textarea x-model="newProj.descAz" @input="autocompleteFields('desc')" class="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg text-stone-800 mt-1 font-medium tracking-normal"></textarea>
                         </div>
-                        <div class="grid grid-cols-2 gap-3">
+                        <div x-show="showProjectTranslations" x-transition class="grid grid-cols-2 gap-3">
                             <div>
                                 <label x-text="lang==='az'?'Təsvir (RU)':(lang==='ru'?'Описание (РУ)':'Description (RU)')">Təsvir (RU)</label>
                                 <textarea x-model="newProj.descRu" @input="markManualTranslation('newProj.descRu')" class="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg text-stone-800 mt-1 font-medium tracking-normal"></textarea>
@@ -2674,20 +2738,23 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                             </div>
                         </div>
 
-                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div class="grid grid-cols-1 gap-3">
                             <div>
-                                <label x-text="lang==='az'?'Tikinti müddəti (AZ)':(lang==='ru'?'Срок (АЗ)':'Build time (AZ)')">Tikinti müddəti (AZ)</label>
+                                <label x-text="lang==='az'?'Tikinti müddəti':(lang==='ru'?'Срок':'Build time')">Tikinti müddəti</label>
                                 <input type="text" x-model="newProj.buildTimeAz" @input="autocompleteFields('buildTime')" class="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg text-stone-800 mt-1 font-medium tracking-normal">
                             </div>
-                            <div>
+                            <div x-show="showProjectTranslations" x-transition>
                                 <label x-text="lang==='az'?'Tikinti müddəti (RU)':(lang==='ru'?'Срок (РУ)':'Build time (RU)')">Tikinti müddəti (RU)</label>
                                 <input type="text" x-model="newProj.buildTimeRu" @input="markManualTranslation('newProj.buildTimeRu')" class="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg text-stone-800 mt-1 font-medium tracking-normal">
                             </div>
-                            <div>
+                            <div x-show="showProjectTranslations" x-transition>
                                 <label x-text="lang==='az'?'Tikinti müddəti (EN)':(lang==='ru'?'Срок (EN)':'Build time (EN)')">Tikinti müddəti (EN)</label>
                                 <input type="text" x-model="newProj.buildTimeEn" @input="markManualTranslation('newProj.buildTimeEn')" class="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg text-stone-800 mt-1 font-medium tracking-normal">
                             </div>
                         </div>
+
+                        <p class="text-[10px] text-wood-600 normal-case">RU/EN avtomatik hazırlanacaq</p>
+                        <button type="button" @click="showProjectTranslations = !showProjectTranslations" class="text-[11px] text-forest-700 font-black normal-case underline" x-text="showProjectTranslations ? 'Tərcümələri gizlət' : 'Tərcümələri göstər'"></button>
 
                         <div class="flex gap-2">
                             <button @click="saveProject()" class="flex-1 py-3 bg-forest-700 text-white rounded-xl font-bold uppercase tracking-wider text-xs" x-text="lang==='az'?'Məlumatları Yadda Saxla':'Сохранить Layihə'">Yadda Saxla</button>
@@ -2817,33 +2884,35 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                                     <span class="block mt-3 text-stone-900 text-sm font-black normal-case">Fon şəkli seç</span>
                                     <span class="block mt-1 text-[10px] text-stone-400 normal-case">Premium hero background üçün şəkil yükləyin</span>
                                 </label>
-                                <template x-if="heroPreviewImg"><div class="relative mt-4 w-full h-44 rounded-2xl overflow-hidden shadow bg-stone-900"><template x-if="newHero.mediaType !== 'video'"><img :src="heroPreviewImg" class="w-full h-full object-cover"></template><template x-if="newHero.mediaType === 'video'"><video :src="heroPreviewImg" class="w-full h-full object-cover" controls muted></video></template><button @click="removeSelectedFile('heroPreviewImg')" class="absolute top-2 right-2 w-8 h-8 bg-black/60 hover:bg-black/85 text-white rounded-full flex items-center justify-center text-xs"><i class="fa-solid fa-x"></i></button></div></template>
+                                <template x-if="heroPreviewImg"><div class="relative mt-4 w-full h-44 rounded-2xl overflow-hidden shadow bg-stone-900"><template x-if="getHeroMediaKind({ mediaUrl: heroPreviewImg, mediaType: newHero.mediaType }) !== 'video' || isYouTubeUrl(heroPreviewImg)"><img :src="getHeroVisualUrl({ mediaUrl: heroPreviewImg, image: heroPreviewImg, mediaType: newHero.mediaType })" class="w-full h-full object-cover"></template><template x-if="getHeroMediaKind({ mediaUrl: heroPreviewImg, mediaType: newHero.mediaType }) === 'video' && !isYouTubeUrl(heroPreviewImg)"><video :src="heroPreviewImg" class="w-full h-full object-cover" controls muted></video></template><button @click="removeSelectedFile('heroPreviewImg')" class="absolute top-2 right-2 w-8 h-8 bg-black/60 hover:bg-black/85 text-white rounded-full flex items-center justify-center text-xs"><i class="fa-solid fa-x"></i></button></div></template>
                             </div>
                             <div>
                                 <label>Media URL (optional)</label>
-                                <input type="url" x-model="heroPreviewImg" @input="newHero.mediaType = /\.(mp4|webm|mov)(?:[?#].*)?$/i.test(heroPreviewImg) ? 'video' : 'image'" class="w-full px-3 py-2 bg-white border border-stone-200 rounded-lg text-stone-800 tracking-normal mt-1 font-medium normal-case" placeholder="https://.../hero.jpg və ya .mp4">
+                                <input type="url" x-model="heroPreviewImg" @input="syncHeroMediaUrl()" class="w-full px-3 py-2 bg-white border border-stone-200 rounded-lg text-stone-800 tracking-normal mt-1 font-medium normal-case" placeholder="https://.../hero.jpg və ya .mp4">
                             </div>
-                            <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
-                                <div><label>Tagline AZ</label><input type="text" x-model="newHero.tag" @input="autocompleteHeroField('tag')" class="w-full px-3 py-2 bg-white border border-stone-200 rounded-lg text-stone-800 tracking-normal mt-1 font-medium"><p class="text-[10px] text-wood-600 mt-1 normal-case" x-text="translationStatusText('heroTag')"></p></div>
-                                <div><label>Tagline RU</label><input x-model="newHero.tagRu" @input="markManualTranslation('newHero.tagRu')" class="w-full px-3 py-2 bg-white border border-stone-200 rounded-lg text-stone-800 tracking-normal mt-1 font-medium"></div>
-                                <div><label>Tagline EN</label><input x-model="newHero.tagEn" @input="markManualTranslation('newHero.tagEn')" class="w-full px-3 py-2 bg-white border border-stone-200 rounded-lg text-stone-800 tracking-normal mt-1 font-medium"></div>
-                                <div><label>Başlıq 1 AZ</label><input x-model="newHero.title1" @input="autocompleteHeroField('title1')" class="w-full px-3 py-2 bg-white border border-stone-200 rounded-lg text-stone-800 tracking-normal mt-1 font-medium"><p class="text-[10px] text-wood-600 mt-1 normal-case" x-text="translationStatusText('heroTitle1')"></p></div>
-                                <div><label>Başlıq 1 RU</label><input x-model="newHero.title1Ru" @input="markManualTranslation('newHero.title1Ru')" class="w-full px-3 py-2 bg-white border border-stone-200 rounded-lg text-stone-800 tracking-normal mt-1 font-medium"></div>
-                                <div><label>Başlıq 1 EN</label><input x-model="newHero.title1En" @input="markManualTranslation('newHero.title1En')" class="w-full px-3 py-2 bg-white border border-stone-200 rounded-lg text-stone-800 tracking-normal mt-1 font-medium"></div>
-                                <div><label>Başlıq 2 AZ</label><input x-model="newHero.title2" @input="autocompleteHeroField('title2')" class="w-full px-3 py-2 bg-white border border-stone-200 rounded-lg text-stone-800 tracking-normal mt-1 font-medium"><p class="text-[10px] text-wood-600 mt-1 normal-case" x-text="translationStatusText('heroTitle2')"></p></div>
-                                <div><label>Başlıq 2 RU</label><input x-model="newHero.title2Ru" @input="markManualTranslation('newHero.title2Ru')" class="w-full px-3 py-2 bg-white border border-stone-200 rounded-lg text-stone-800 tracking-normal mt-1 font-medium"></div>
-                                <div><label>Başlıq 2 EN</label><input x-model="newHero.title2En" @input="markManualTranslation('newHero.title2En')" class="w-full px-3 py-2 bg-white border border-stone-200 rounded-lg text-stone-800 tracking-normal mt-1 font-medium"></div>
-                                <div><label>Açıqlama AZ</label><textarea x-model="newHero.desc" @input="autocompleteHeroField('desc')" rows="3" class="w-full px-3 py-2 bg-white border border-stone-200 rounded-lg text-stone-800 tracking-normal mt-1 font-medium"></textarea><p class="text-[10px] text-wood-600 mt-1 normal-case" x-text="translationStatusText('heroDesc')"></p></div>
-                                <div><label>Açıqlama RU</label><textarea x-model="newHero.descRu" @input="markManualTranslation('newHero.descRu')" rows="3" class="w-full px-3 py-2 bg-white border border-stone-200 rounded-lg text-stone-800 tracking-normal mt-1 font-medium"></textarea></div>
-                                <div><label>Açıqlama EN</label><textarea x-model="newHero.descEn" @input="markManualTranslation('newHero.descEn')" rows="3" class="w-full px-3 py-2 bg-white border border-stone-200 rounded-lg text-stone-800 tracking-normal mt-1 font-medium"></textarea></div>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                <div><label>Tagline</label><input type="text" x-model="newHero.tag" @input="autocompleteHeroField('tag')" class="w-full px-3 py-2 bg-white border border-stone-200 rounded-lg text-stone-800 tracking-normal mt-1 font-medium"><p class="text-[10px] text-wood-600 mt-1 normal-case" x-text="translationStatusText('heroTag')"></p></div>
+                                <div x-show="showHeroTranslations" x-transition><label>Tagline RU</label><input x-model="newHero.tagRu" @input="markManualTranslation('newHero.tagRu')" class="w-full px-3 py-2 bg-white border border-stone-200 rounded-lg text-stone-800 tracking-normal mt-1 font-medium"></div>
+                                <div x-show="showHeroTranslations" x-transition><label>Tagline EN</label><input x-model="newHero.tagEn" @input="markManualTranslation('newHero.tagEn')" class="w-full px-3 py-2 bg-white border border-stone-200 rounded-lg text-stone-800 tracking-normal mt-1 font-medium"></div>
+                                <div><label>Başlıq 1</label><input x-model="newHero.title1" @input="autocompleteHeroField('title1')" class="w-full px-3 py-2 bg-white border border-stone-200 rounded-lg text-stone-800 tracking-normal mt-1 font-medium"><p class="text-[10px] text-wood-600 mt-1 normal-case" x-text="translationStatusText('heroTitle1')"></p></div>
+                                <div x-show="showHeroTranslations" x-transition><label>Başlıq 1 RU</label><input x-model="newHero.title1Ru" @input="markManualTranslation('newHero.title1Ru')" class="w-full px-3 py-2 bg-white border border-stone-200 rounded-lg text-stone-800 tracking-normal mt-1 font-medium"></div>
+                                <div x-show="showHeroTranslations" x-transition><label>Başlıq 1 EN</label><input x-model="newHero.title1En" @input="markManualTranslation('newHero.title1En')" class="w-full px-3 py-2 bg-white border border-stone-200 rounded-lg text-stone-800 tracking-normal mt-1 font-medium"></div>
+                                <div><label>Başlıq 2</label><input x-model="newHero.title2" @input="autocompleteHeroField('title2')" class="w-full px-3 py-2 bg-white border border-stone-200 rounded-lg text-stone-800 tracking-normal mt-1 font-medium"><p class="text-[10px] text-wood-600 mt-1 normal-case" x-text="translationStatusText('heroTitle2')"></p></div>
+                                <div x-show="showHeroTranslations" x-transition><label>Başlıq 2 RU</label><input x-model="newHero.title2Ru" @input="markManualTranslation('newHero.title2Ru')" class="w-full px-3 py-2 bg-white border border-stone-200 rounded-lg text-stone-800 tracking-normal mt-1 font-medium"></div>
+                                <div x-show="showHeroTranslations" x-transition><label>Başlıq 2 EN</label><input x-model="newHero.title2En" @input="markManualTranslation('newHero.title2En')" class="w-full px-3 py-2 bg-white border border-stone-200 rounded-lg text-stone-800 tracking-normal mt-1 font-medium"></div>
+                                <div><label>Açıqlama</label><textarea x-model="newHero.desc" @input="autocompleteHeroField('desc')" rows="3" class="w-full px-3 py-2 bg-white border border-stone-200 rounded-lg text-stone-800 tracking-normal mt-1 font-medium"></textarea><p class="text-[10px] text-wood-600 mt-1 normal-case" x-text="translationStatusText('heroDesc')"></p></div>
+                                <div x-show="showHeroTranslations" x-transition><label>Açıqlama RU</label><textarea x-model="newHero.descRu" @input="markManualTranslation('newHero.descRu')" rows="3" class="w-full px-3 py-2 bg-white border border-stone-200 rounded-lg text-stone-800 tracking-normal mt-1 font-medium"></textarea></div>
+                                <div x-show="showHeroTranslations" x-transition><label>Açıqlama EN</label><textarea x-model="newHero.descEn" @input="markManualTranslation('newHero.descEn')" rows="3" class="w-full px-3 py-2 bg-white border border-stone-200 rounded-lg text-stone-800 tracking-normal mt-1 font-medium"></textarea></div>
                             </div>
+                            <p class="text-[10px] text-wood-600 normal-case">RU/EN avtomatik hazırlanacaq</p>
+                            <button type="button" @click="showHeroTranslations = !showHeroTranslations" class="text-[11px] text-forest-700 font-black normal-case underline" x-text="showHeroTranslations ? 'Tərcümələri gizlət' : 'Tərcümələri göstər'"></button>
                             <button @click="saveHero()" class="w-full py-3 bg-forest-700 text-white font-bold rounded-xl shadow hover:bg-forest-800 normal-case" x-text="newHero.id ? 'Slaydı Güncəllə' : 'Yeni slayd yarat'"></button>
                         </div>
                         <div class="order-1 lg:order-2 grid grid-cols-1 gap-3 bg-stone-50 border border-stone-200 rounded-3xl p-4">
                             <template x-for="(sld, sIdx) in (Array.isArray(slides) ? slides : [])" :key="sld.id || sIdx">
                                 <div class="p-3 bg-white rounded-2xl border border-stone-200 hover:bg-stone-50 space-y-3" :class="newHero.activeIndex === sIdx ? '!border-wood-600 ring-2 ring-wood-200 shadow-md' : ''" draggable="true" @dragstart="onHeroDragStart($event, sIdx)" @dragover.prevent @drop="onHeroDrop($event, sIdx)">
                                     <div class="flex justify-between items-center gap-2"><span class="cursor-grab text-stone-400"><i class="fa-solid fa-grip-vertical"></i></span><span class="font-black text-forest-900 flex-1" x-text="`${sIdx + 1}-ci Slayd`"></span><span class="text-[9px] px-1.5 py-0.5 rounded uppercase" :class="sld.active === false ? 'bg-stone-100 text-stone-500' : 'bg-green-100 text-green-700'" x-text="sld.active === false ? 'Deaktiv' : 'Aktiv'"></span></div>
-                                    <img :src="sld.image" class="w-full h-32 lg:h-28 object-cover rounded-xl shadow">
+                                    <template x-if="getHeroMediaKind(sld) === 'video' && !isYouTubeUrl(getHeroMediaUrl(sld))"><video :src="getHeroMediaUrl(sld)" muted class="w-full h-32 lg:h-28 object-cover rounded-xl shadow"></video></template><template x-if="getHeroMediaKind(sld) !== 'video' || isYouTubeUrl(getHeroMediaUrl(sld))"><img :src="getHeroVisualUrl(sld)" class="w-full h-32 lg:h-28 object-cover rounded-xl shadow"></template>
                                     <p class="text-[10px] text-stone-500 normal-case truncate" x-text="sld.tag || sld.title1 || 'Adsız hero slayd'"></p>
                                     <div class="grid grid-cols-2 gap-2">
                                         <button @click="setupEditHero(sIdx)" class="py-1.5 bg-forest-700 text-white rounded text-[10px] font-bold">Redaktə et</button>
