@@ -3001,6 +3001,216 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                 margin-top: 8px !important;
             }
 
+            /* Dedicated native-feeling mobile calculator sheet. Desktop classes above are intentionally left intact. */
+            .calc-modal-overlay {
+                align-items: end !important;
+                justify-content: center !important;
+                padding: 0 8px max(8px, env(safe-area-inset-bottom)) !important;
+            }
+
+            .calculator-modal {
+                width: min(100%, 430px) !important;
+                max-width: 430px !important;
+                height: auto !important;
+                max-height: calc(100svh - 10px - env(safe-area-inset-top) - env(safe-area-inset-bottom)) !important;
+                border-radius: 24px 24px 20px 20px !important;
+                border: 1px solid rgba(15, 23, 42, .08) !important;
+                background: #f7f6f3 !important;
+                box-shadow: 0 -8px 28px rgba(15, 23, 42, .18) !important;
+            }
+
+            .calculator-header {
+                height: 56px !important;
+                min-height: 56px !important;
+                max-height: 56px !important;
+                padding: 0 14px !important;
+                background: rgba(248, 247, 244, .96) !important;
+                color: #173429 !important;
+                border-bottom: 1px solid rgba(15, 23, 42, .08) !important;
+            }
+
+            .calculator-header-title {
+                gap: 8px !important;
+                font-size: 15px !important;
+                font-weight: 800 !important;
+                letter-spacing: 0 !important;
+            }
+
+            .calculator-header-icon {
+                display: none !important;
+            }
+
+            .calculator-close {
+                width: 32px !important;
+                height: 32px !important;
+                border: 0 !important;
+                background: rgba(120, 120, 128, .16) !important;
+                color: #647067 !important;
+                box-shadow: none !important;
+            }
+
+            .calculator-scroll {
+                display: flex !important;
+                flex-direction: column !important;
+                gap: 12px !important;
+                padding: 12px !important;
+                background: #f7f6f3 !important;
+                overflow-y: auto !important;
+            }
+
+            .calculator-section,
+            .calculator-area-card,
+            .calculator-price-footer {
+                margin: 0 !important;
+            }
+
+            .calculator-label,
+            .calculator-price-label {
+                display: block !important;
+                margin: 0 0 6px !important;
+                color: #6f746f !important;
+                font-size: 13px !important;
+                font-weight: 700 !important;
+                line-height: 1.15 !important;
+                letter-spacing: 0 !important;
+                text-transform: none !important;
+            }
+
+            .calculator-option-grid,
+            .calculator-floor-grid,
+            .calculator-material-grid {
+                gap: 8px !important;
+            }
+
+            .calculator-option-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+            }
+
+            .calculator-material-grid {
+                grid-template-columns: 1fr !important;
+            }
+
+            .calculator-option-card,
+            .calculator-floor-btn {
+                border-radius: 12px !important;
+                border-color: rgba(15, 23, 42, .10) !important;
+                background: rgba(255, 255, 255, .92) !important;
+                color: #173429 !important;
+                box-shadow: none !important;
+            }
+
+            .calculator-option-card {
+                height: 44px !important;
+                min-height: 44px !important;
+                padding: 0 12px !important;
+                gap: 8px !important;
+            }
+
+            .calculator-option-card i {
+                display: none !important;
+            }
+
+            .calculator-option-card::before {
+                width: 20px !important;
+                flex: 0 0 20px !important;
+                font-size: 17px !important;
+                line-height: 1 !important;
+            }
+
+            .calculator-option-card:nth-child(1)::before { content: "🏠"; }
+            .calculator-option-card:nth-child(2)::before { content: "♨"; }
+            .calculator-material-grid .calculator-option-card:nth-child(1)::before { content: "🌲"; }
+            .calculator-material-grid .calculator-option-card:nth-child(2)::before { content: "🌳"; }
+
+            .calculator-option-title {
+                font-size: 15px !important;
+                font-weight: 700 !important;
+                line-height: 1.1 !important;
+                white-space: nowrap !important;
+                overflow: hidden !important;
+                text-overflow: ellipsis !important;
+            }
+
+            .calculator-option-subtitle {
+                display: none !important;
+            }
+
+            .calculator-option-card[class*="bg-forest-700"],
+            .calculator-floor-btn[class*="bg-forest-700"] {
+                background: #1f5f46 !important;
+                border-color: #1f5f46 !important;
+                color: #fff !important;
+                box-shadow: none !important;
+            }
+
+            .calculator-floor-grid {
+                grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+            }
+
+            .calculator-floor-btn {
+                height: 42px !important;
+                min-height: 42px !important;
+                font-size: 15px !important;
+                font-weight: 700 !important;
+            }
+
+            .calculator-area-card {
+                padding: 12px !important;
+                border-radius: 14px !important;
+                background: rgba(255, 255, 255, .92) !important;
+                border-color: rgba(15, 23, 42, .10) !important;
+                box-shadow: none !important;
+            }
+
+            .calculator-area-row {
+                margin-bottom: 10px !important;
+            }
+
+            .calculator-area-value {
+                padding: 0 !important;
+                background: transparent !important;
+                color: #173429 !important;
+                font-size: 20px !important;
+                font-weight: 800 !important;
+            }
+
+            .calc-range,
+            .calculator-slider {
+                height: 4px !important;
+                accent-color: #1f5f46 !important;
+            }
+
+            .calculator-price-footer {
+                display: block !important;
+                padding: 0 !important;
+                border-radius: 0 !important;
+                background: transparent !important;
+                color: #173429 !important;
+                box-shadow: none !important;
+            }
+
+            .calculator-price-value {
+                color: #173429 !important;
+                font-size: 28px !important;
+                font-weight: 900 !important;
+                line-height: 1.05 !important;
+                letter-spacing: -.03em !important;
+                white-space: nowrap !important;
+            }
+
+            .calculator-request-btn {
+                width: 100% !important;
+                height: 46px !important;
+                min-height: 46px !important;
+                margin-top: 12px !important;
+                border-radius: 14px !important;
+                background: #1f5f46 !important;
+                color: #fff !important;
+                font-size: 15px !important;
+                font-weight: 800 !important;
+                box-shadow: none !important;
+            }
+
             .project-modal-overlay {
                 position: fixed !important;
                 inset: 0 !important;
@@ -4380,7 +4590,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
             <div class="calculator-scroll calc-modal-content grid flex-1 grid-cols-1 gap-4 overflow-y-auto bg-stone-50/80 p-4 sm:grid-cols-2 sm:gap-[18px] sm:p-5">
                 <div class="calculator-section space-y-2"><span class="calculator-label text-[11px] font-black uppercase tracking-wider text-stone-500" x-text="t('calcType')"></span><div class="calculator-option-grid grid grid-cols-2 gap-2.5"><button @click="calc.type='house'" class="calculator-option-card flex min-h-[66px] items-center gap-3 rounded-2xl border p-3 text-left transition" :class="calc.type==='house' ? 'bg-forest-700 text-white border-forest-700 shadow-lg shadow-forest-900/15' : 'bg-white border-stone-200 text-stone-700 hover:border-forest-200'"><i class="fa-solid fa-house-chimney text-lg"></i><span><span class="calculator-option-title block text-base font-black leading-tight">Taxta Ev</span><small class="calculator-option-subtitle block text-[13px] opacity-75">Premium</small></span></button><button @click="calc.type='sauna'" class="calculator-option-card flex min-h-[66px] items-center gap-3 rounded-2xl border p-3 text-left transition" :class="calc.type==='sauna' ? 'bg-forest-700 text-white border-forest-700 shadow-lg shadow-forest-900/15' : 'bg-white border-stone-200 text-stone-700 hover:border-forest-200'"><i class="fa-solid fa-hot-tub-person text-lg"></i><span><span class="calculator-option-title block text-base font-black leading-tight">Hamam & Sauna</span><small class="calculator-option-subtitle block text-[13px] opacity-75">Spa</small></span></button></div></div>
                 <div class="calculator-section space-y-2"><span class="calculator-label text-[11px] font-black uppercase tracking-wider text-stone-500" x-text="t('calcStories')"></span><div class="calculator-floor-grid grid grid-cols-3 gap-2.5"><template x-for="n in [1,2,3]"><button @click="calc.stories=n" class="calculator-floor-btn min-h-[66px] rounded-2xl border text-lg font-black transition" :class="calc.stories===n ? 'bg-forest-700 text-white border-forest-700 shadow-lg shadow-forest-900/15' : 'bg-white border-stone-200 text-stone-700 hover:border-forest-200'" x-text="n"></button></template></div></div>
-                <div class="calculator-section space-y-2 sm:col-span-2"><span class="calculator-label text-[11px] font-black uppercase tracking-wider text-stone-500" x-text="t('calcTimber')"></span><div class="calculator-option-grid grid grid-cols-1 gap-2.5 sm:grid-cols-2"><button @click="calc.timber='pine'" class="calculator-option-card flex min-h-[66px] items-center gap-3 rounded-2xl border p-3 text-left transition" :class="calc.timber==='pine' ? 'bg-forest-700 text-white border-forest-700 shadow-lg shadow-forest-900/15' : 'bg-white border-stone-200 text-stone-700 hover:border-forest-200'"><i class="fa-solid fa-tree text-lg"></i><span><span class="calculator-option-title block text-base font-black leading-tight">Sibir Şamı</span><small class="calculator-option-subtitle block text-[13px] opacity-75">Premium softwood</small></span></button><button @click="calc.timber='oak'" class="calculator-option-card flex min-h-[66px] items-center gap-3 rounded-2xl border p-3 text-left transition" :class="calc.timber==='oak' ? 'bg-forest-700 text-white border-forest-700 shadow-lg shadow-forest-900/15' : 'bg-white border-stone-200 text-stone-700 hover:border-forest-200'"><i class="fa-solid fa-seedling text-lg"></i><span><span class="calculator-option-title block text-base font-black leading-tight">Massiv Palıd</span><small class="calculator-option-subtitle block text-[13px] opacity-75">Solid oak</small></span></button></div></div>
+                <div class="calculator-section calculator-material-section space-y-2 sm:col-span-2"><span class="calculator-label text-[11px] font-black uppercase tracking-wider text-stone-500" x-text="t('calcTimber')"></span><div class="calculator-option-grid calculator-material-grid grid grid-cols-1 gap-2.5 sm:grid-cols-2"><button @click="calc.timber='pine'" class="calculator-option-card flex min-h-[66px] items-center gap-3 rounded-2xl border p-3 text-left transition" :class="calc.timber==='pine' ? 'bg-forest-700 text-white border-forest-700 shadow-lg shadow-forest-900/15' : 'bg-white border-stone-200 text-stone-700 hover:border-forest-200'"><i class="fa-solid fa-tree text-lg"></i><span><span class="calculator-option-title block text-base font-black leading-tight">Sibir Şamı</span><small class="calculator-option-subtitle block text-[13px] opacity-75">Premium softwood</small></span></button><button @click="calc.timber='oak'" class="calculator-option-card flex min-h-[66px] items-center gap-3 rounded-2xl border p-3 text-left transition" :class="calc.timber==='oak' ? 'bg-forest-700 text-white border-forest-700 shadow-lg shadow-forest-900/15' : 'bg-white border-stone-200 text-stone-700 hover:border-forest-200'"><i class="fa-solid fa-seedling text-lg"></i><span><span class="calculator-option-title block text-base font-black leading-tight">Massiv Palıd</span><small class="calculator-option-subtitle block text-[13px] opacity-75">Solid oak</small></span></button></div></div>
                 <div class="calculator-area-card rounded-3xl border border-stone-200 bg-white p-4 shadow-sm sm:col-span-2"><div class="calculator-area-row mb-3 flex items-center justify-between"><span class="calculator-label text-[11px] font-black uppercase tracking-wider text-stone-500" x-text="t('calcArea')">Sahə</span><span class="calculator-area-value rounded-full bg-forest-50 px-3 py-1 text-xl font-black text-forest-800" x-text="calc.area + ' m²'"></span></div><input type="range" min="20" max="400" step="5" x-model.number="calc.area" class="calculator-slider calc-range w-full accent-wood-600 cursor-pointer"></div>
 
                 <div class="calculator-price-footer calc-price-panel flex flex-col justify-between gap-3 bg-gradient-to-r from-forest-950 to-forest-800 p-4 text-white sm:col-span-2 sm:max-h-[90px] sm:flex-row sm:items-center sm:px-5">
