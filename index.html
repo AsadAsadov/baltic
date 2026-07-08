@@ -2768,10 +2768,12 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
             .ad-media { display: block; width: var(--ad-width, 260px); height: var(--ad-height, 600px); object-fit: cover; border-radius: 18px; }
         }
 
+        .calculator-option-title-mobile { display: none !important; }
+
         @media (max-width: 767px) {
           .calculator-modal {
             width: calc(100vw - 26px) !important;
-            max-height: calc(100svh - 96px) !important;
+            max-height: calc(100svh - 72px) !important;
             border-radius: 22px !important;
             overflow: hidden !important;
             display: flex !important;
@@ -2799,7 +2801,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
           }
 
           .calculator-body {
-            padding: 12px !important;
+            padding: 12px 12px 18px !important;
             overflow-y: auto !important;
             flex: 1 !important;
             min-height: 0 !important;
@@ -2841,7 +2843,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
           }
 
           .calculator-option-title {
-            font-size: 13px !important;
+            font-size: 14px !important;
             line-height: 1.05 !important;
             font-weight: 800 !important;
             white-space: normal !important;
@@ -2851,6 +2853,14 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
 
           .calculator-option-subtitle {
             display: none !important;
+          }
+
+          .calculator-option-title-desktop {
+            display: none !important;
+          }
+
+          .calculator-option-title-mobile {
+            display: block !important;
           }
 
           .calculator-floor-grid {
@@ -2863,7 +2873,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
             height: 38px !important;
             min-height: 38px !important;
             border-radius: 12px !important;
-            font-size: 16px !important;
+            font-size: 18px !important;
             font-weight: 800 !important;
           }
 
@@ -4046,7 +4056,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
             </div>
 
             <div class="calculator-body calculator-scroll calc-modal-content grid flex-1 grid-cols-1 gap-4 overflow-y-auto bg-stone-50/80 p-4 sm:grid-cols-2 sm:gap-[18px] sm:p-5">
-                <div class="calculator-section space-y-2"><span class="calculator-label text-[11px] font-black uppercase tracking-wider text-stone-500" x-text="t('calcType')"></span><div class="calculator-option-grid grid grid-cols-2 gap-2.5"><button @click="calc.type='house'" class="calculator-option-card flex min-h-[66px] items-center gap-3 rounded-2xl border p-3 text-left transition" :class="calc.type==='house' ? 'bg-forest-700 text-white border-forest-700 shadow-lg shadow-forest-900/15' : 'bg-white border-stone-200 text-stone-700 hover:border-forest-200'"><i class="fa-solid fa-house-chimney text-lg"></i><span><span class="calculator-option-title block text-base font-black leading-tight">Taxta Ev</span><small class="calculator-option-subtitle block text-[13px] opacity-75">Premium</small></span></button><button @click="calc.type='sauna'" class="calculator-option-card flex min-h-[66px] items-center gap-3 rounded-2xl border p-3 text-left transition" :class="calc.type==='sauna' ? 'bg-forest-700 text-white border-forest-700 shadow-lg shadow-forest-900/15' : 'bg-white border-stone-200 text-stone-700 hover:border-forest-200'"><i class="fa-solid fa-hot-tub-person text-lg"></i><span><span class="calculator-option-title block text-base font-black leading-tight">Hamam</span><small class="calculator-option-subtitle block text-[13px] opacity-75">Spa</small></span></button></div></div>
+                <div class="calculator-section space-y-2"><span class="calculator-label text-[11px] font-black uppercase tracking-wider text-stone-500" x-text="t('calcType')"></span><div class="calculator-option-grid grid grid-cols-2 gap-2.5"><button @click="calc.type='house'" class="calculator-option-card flex min-h-[66px] items-center gap-3 rounded-2xl border p-3 text-left transition" :class="calc.type==='house' ? 'bg-forest-700 text-white border-forest-700 shadow-lg shadow-forest-900/15' : 'bg-white border-stone-200 text-stone-700 hover:border-forest-200'"><i class="fa-solid fa-house-chimney text-lg"></i><span><span class="calculator-option-title block text-base font-black leading-tight">Taxta Ev</span><small class="calculator-option-subtitle block text-[13px] opacity-75">Premium</small></span></button><button @click="calc.type='sauna'" class="calculator-option-card flex min-h-[66px] items-center gap-3 rounded-2xl border p-3 text-left transition" :class="calc.type==='sauna' ? 'bg-forest-700 text-white border-forest-700 shadow-lg shadow-forest-900/15' : 'bg-white border-stone-200 text-stone-700 hover:border-forest-200'"><i class="fa-solid fa-hot-tub-person text-lg"></i><span><span class="calculator-option-title calculator-option-title-desktop block text-base font-black leading-tight">Hamam</span><span class="calculator-option-title calculator-option-title-mobile block text-base font-black leading-tight" aria-hidden="true">Hamam &<br>Sauna</span><small class="calculator-option-subtitle block text-[13px] opacity-75">Spa</small></span></button></div></div>
                 <div class="calculator-section space-y-2"><span class="calculator-label text-[11px] font-black uppercase tracking-wider text-stone-500" x-text="t('calcStories')"></span><div class="calculator-floor-grid grid grid-cols-3 gap-2.5"><template x-for="n in [1,2,3]"><button @click="calc.stories=n" class="calculator-floor-btn min-h-[66px] rounded-2xl border text-lg font-black transition" :class="calc.stories===n ? 'bg-forest-700 text-white border-forest-700 shadow-lg shadow-forest-900/15' : 'bg-white border-stone-200 text-stone-700 hover:border-forest-200'" x-text="n"></button></template></div></div>
                 <div class="calculator-section calculator-material-section space-y-2 sm:col-span-2"><span class="calculator-label text-[11px] font-black uppercase tracking-wider text-stone-500" x-text="t('calcTimber')"></span><div class="calculator-option-grid calculator-material-grid grid grid-cols-1 gap-2.5 sm:grid-cols-2"><button @click="calc.timber='pine'" class="calculator-option-card flex min-h-[66px] items-center gap-3 rounded-2xl border p-3 text-left transition" :class="calc.timber==='pine' ? 'bg-forest-700 text-white border-forest-700 shadow-lg shadow-forest-900/15' : 'bg-white border-stone-200 text-stone-700 hover:border-forest-200'"><i class="fa-solid fa-tree text-lg"></i><span><span class="calculator-option-title block text-base font-black leading-tight">Sibir Şamı</span><small class="calculator-option-subtitle block text-[13px] opacity-75">Premium softwood</small></span></button><button @click="calc.timber='oak'" class="calculator-option-card flex min-h-[66px] items-center gap-3 rounded-2xl border p-3 text-left transition" :class="calc.timber==='oak' ? 'bg-forest-700 text-white border-forest-700 shadow-lg shadow-forest-900/15' : 'bg-white border-stone-200 text-stone-700 hover:border-forest-200'"><i class="fa-solid fa-seedling text-lg"></i><span><span class="calculator-option-title block text-base font-black leading-tight">Massiv Palıd</span><small class="calculator-option-subtitle block text-[13px] opacity-75">Solid oak</small></span></button></div></div>
                 <div class="calculator-area-card rounded-3xl border border-stone-200 bg-white p-4 shadow-sm sm:col-span-2"><div class="calculator-area-row mb-3 flex items-center justify-between"><span class="calculator-label text-[11px] font-black uppercase tracking-wider text-stone-500" x-text="t('calcArea')">Sahə</span><span class="calculator-area-value rounded-full bg-forest-50 px-3 py-1 text-xl font-black text-forest-800" x-text="calc.area + ' m²'"></span></div><input type="range" min="20" max="400" step="5" x-model.number="calc.area" class="calculator-slider calc-range w-full accent-wood-600 cursor-pointer"></div>
