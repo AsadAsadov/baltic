@@ -150,6 +150,7 @@
                 projectModalOpen: false,
                 isGalleryModalOpen: false,
                 isMapSheetOpen: false,
+                isMapNavigationHidden: false,
                 translationStatus: {},
                 manualTranslationOverrides: {},
                 showProjectTranslations: false,
@@ -1167,6 +1168,12 @@
 
                 openCalculator() {
                     this.isCalculatorOpen = true;
+                    document.body.classList.add('calculator-modal-open');
+                },
+
+                closeCalculator() {
+                    this.isCalculatorOpen = false;
+                    document.body.classList.remove('calculator-modal-open');
                 },
 
                 get addressText() { return this.t('addressDetail'); },
@@ -1177,10 +1184,23 @@
 
                 isMobileViewport() { return window.matchMedia('(max-width: 767px)').matches; },
                 openMapChoice() {
-                    if (this.isMobileViewport()) this.isMapSheetOpen = true;
-                    else window.open(this.googleMapsUrl, '_blank', 'noopener');
+                    if (this.isMobileViewport()) {
+                        this.isMapNavigationHidden = true;
+                        this.isMapSheetOpen = true;
+                    } else window.open(this.googleMapsUrl, '_blank', 'noopener');
                 },
-                openExternalMap(url) { window.open(url, '_blank', 'noopener'); this.isMapSheetOpen = false; },
+                closeMapChoice() {
+                    this.isMapSheetOpen = false;
+                    this.isMapNavigationHidden = false;
+                },
+                openExternalMap(url) {
+                    window.open(url, '_blank', 'noopener');
+                    this.isMapSheetOpen = false;
+                    this.isMapNavigationHidden = true;
+                    const restoreMapNav = () => { this.isMapNavigationHidden = false; window.removeEventListener('focus', restoreMapNav); };
+                    window.addEventListener('focus', restoreMapNav, { once: true });
+                    setTimeout(restoreMapNav, 1800);
+                },
 
                 openGalleryModal(idx) { this.activeGalleryIndex = idx; this.activeGalleryImageIndex = 0; this.isGalleryModalOpen = true; },
 
@@ -2492,7 +2512,97 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
             .bottom-mobile-nav__item i { font-size: 18px; }
             .bottom-mobile-nav__item span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
             .bottom-mobile-nav__item.is-active { color: #fff; background: linear-gradient(135deg, rgba(51,115,79,.72), rgba(184,138,96,.34)); box-shadow: inset 0 0 0 1px rgba(255,255,255,.10), 0 10px 26px rgba(51,115,79,.24); }
-            body.modal-open .bottom-mobile-nav { display: none !important; }
+            body.modal-open .bottom-mobile-nav,
+            body.calculator-modal-open .bottom-mobile-nav,
+            .bottom-mobile-nav.hidden { display: none !important; opacity: 0; pointer-events: none; }
+            body.calculator-modal-open { overflow: hidden !important; touch-action: none; }
+            .calc-modal-overlay {
+                padding: calc(var(--header-height) + 10px) 12px calc(10px + env(safe-area-inset-bottom)) !important;
+                overflow: hidden !important;
+                align-items: center !important;
+            }
+            .calc-modal-shell {
+                width: min(100%, 420px) !important;
+                max-height: 90svh !important;
+                border-radius: 24px !important;
+                box-shadow: 0 24px 80px rgba(8, 24, 18, .28) !important;
+            }
+            .calc-modal-header {
+                height: auto !important;
+                max-height: none !important;
+                padding: 16px 18px !important;
+            }
+            .calc-modal-title { gap: 10px !important; font-size: 28px !important; line-height: 1 !important; letter-spacing: -.04em; }
+            .calc-modal-icon { width: 44px !important; height: 44px !important; font-size: 16px !important; }
+            .calc-modal-close { width: 46px !important; height: 46px !important; }
+            .calc-modal-content {
+                gap: 18px !important;
+                padding: 16px !important;
+                overflow-y: auto !important;
+                -webkit-overflow-scrolling: touch;
+                overscroll-behavior: contain;
+            }
+            .calc-modal-content > div { margin: 0 !important; }
+            .calc-modal-content .space-y-2 > :not([hidden]) ~ :not([hidden]) { margin-top: 8px !important; }
+            .calc-modal-content span[x-text="t('calcType')"],
+            .calc-modal-content span[x-text="t('calcStories')"],
+            .calc-modal-content span[x-text="t('calcTimber')"],
+            .calc-modal-content span[x-text="t('calcArea')"] {
+                font-size: 15px !important;
+                line-height: 1.15 !important;
+                letter-spacing: .02em !important;
+                text-transform: none !important;
+            }
+            .calc-modal-content button {
+                border-radius: 20px !important;
+                box-shadow: 0 10px 24px rgba(15, 47, 36, .06);
+            }
+            .calc-modal-content .grid.grid-cols-2 button,
+            .calc-modal-content .grid.grid-cols-1 button {
+                min-height: 78px !important;
+                padding: 16px !important;
+                gap: 12px !important;
+            }
+            .calc-modal-content .grid.grid-cols-2 button i,
+            .calc-modal-content .grid.grid-cols-1 button i { font-size: 26px !important; line-height: 1 !important; }
+            .calc-modal-content button .text-base { font-size: 14px !important; line-height: 1.05 !important; }
+            .calc-modal-content button small { font-size: 11px !important; line-height: 1.1 !important; margin-top: 3px; }
+            .calc-modal-content .grid.grid-cols-3 { gap: 10px !important; grid-template-columns: repeat(3, minmax(80px, 1fr)) !important; }
+            .calc-modal-content .grid.grid-cols-3 button {
+                min-width: 80px !important;
+                min-height: 70px !important;
+                height: 70px !important;
+                border-radius: 16px !important;
+                font-size: 18px !important;
+            }
+            .calc-modal-content .rounded-3xl {
+                border-radius: 20px !important;
+                padding: 16px !important;
+            }
+            .calc-modal-content .rounded-3xl .mb-3 { margin-bottom: 12px !important; }
+            .calc-modal-content .rounded-3xl span.rounded-full {
+                padding: 5px 10px !important;
+                font-size: 16px !important;
+                line-height: 1 !important;
+            }
+            .calc-range { height: 6px !important; accent-color: #b88a60; }
+            .calc-range::-webkit-slider-runnable-track { height: 6px; border-radius: 999px; }
+            .calc-range::-webkit-slider-thumb { width: 18px; height: 18px; margin-top: -6px; }
+            .calc-range::-moz-range-track { height: 6px; border-radius: 999px; }
+            .calc-range::-moz-range-thumb { width: 18px; height: 18px; border: 0; }
+            .calc-price-panel {
+                padding: 18px !important;
+                gap: 0 !important;
+            }
+            .calc-price-panel span:first-child { font-size: 14px !important; letter-spacing: .04em !important; }
+            .calc-price-panel span[x-text*="calculatePrice"] { font-size: 30px !important; margin-top: 6px; }
+            .calc-submit {
+                width: 100% !important;
+                height: 56px !important;
+                min-height: 56px !important;
+                margin-top: 16px !important;
+                border-radius: 16px !important;
+            }
             .project-modal-overlay {
                 position: fixed !important;
                 inset: 0 !important;
@@ -3825,7 +3935,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
 
     </div>
 
-    <nav class="bottom-mobile-nav md:hidden" :class="selectedProject && selectedProject.id && isProjectModalOpen ? 'hidden' : ''" aria-label="Bottom mobile navigation">
+    <nav class="bottom-mobile-nav md:hidden" :class="(selectedProject && selectedProject.id && isProjectModalOpen) || isMapSheetOpen || isMapNavigationHidden ? 'hidden' : ''" aria-label="Bottom mobile navigation">
         <button type="button" @click="navigateTo('home')" class="bottom-mobile-nav__item" :class="{ 'is-active': page === 'home' }">
             <i class="fa-solid fa-house"></i>
             <span x-text="t('navHome')">Ana səhifə</span>
@@ -3850,7 +3960,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
 
     <!-- MOBILE MAP APP CHOICE SHEET -->
     <div x-show="isMapSheetOpen" x-cloak class="fixed inset-0 z-50 flex items-end md:hidden" x-transition>
-        <div class="absolute inset-0 bg-stone-950/70 backdrop-blur-sm" @click="isMapSheetOpen = false"></div>
+        <div class="absolute inset-0 bg-stone-950/70 backdrop-blur-sm" @click="closeMapChoice()"></div>
         <div class="relative w-full bg-white rounded-t-[2rem] p-6 shadow-2xl space-y-3">
             <div class="w-12 h-1.5 bg-stone-200 rounded-full mx-auto mb-3"></div>
             <h3 class="text-xl font-black text-forest-950" x-text="t('mapAppChoice')">Marşrut tətbiqini seçin</h3>
@@ -3861,27 +3971,27 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
     </div>
 
     <!-- INTERACTIVE CALCULATION MODAL -->
-    <div x-show="isCalculatorOpen" x-cloak class="fixed inset-0 z-[120] flex items-center justify-center px-3 pb-4 pt-[calc(var(--header-height)+16px)] sm:px-5 sm:pt-[calc(var(--header-height)+24px)]" x-transition>
-        <div class="absolute inset-0 bg-stone-950/78 backdrop-blur-md" @click="isCalculatorOpen = false"></div>
-        <div class="relative z-10 flex max-h-[calc(100svh-120px)] w-full max-w-[760px] flex-col overflow-hidden rounded-[28px] border border-white/15 bg-white shadow-2xl sm:max-h-[calc(100svh-120px)]">
-            <div class="flex h-[72px] max-h-[72px] shrink-0 items-center justify-between bg-gradient-to-r from-forest-950 via-forest-900 to-forest-800 px-5 text-white sm:px-6">
-                <h3 class="flex items-center gap-3 text-xl font-black sm:text-2xl"><span class="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-wood-300"><i class="fa-solid fa-calculator"></i></span><span>Qiymət Hesabla</span></h3>
-                <button @click="isCalculatorOpen = false" class="flex h-10 w-10 items-center justify-center rounded-full border border-white/15 bg-white/10 text-white shadow-lg backdrop-blur transition hover:bg-white/20" aria-label="Close calculator"><i class="fa-solid fa-xmark"></i></button>
+    <div x-show="isCalculatorOpen" x-cloak class="calc-modal-overlay fixed inset-0 z-[120] flex items-center justify-center px-3 pb-4 pt-[calc(var(--header-height)+16px)] sm:px-5 sm:pt-[calc(var(--header-height)+24px)]" x-transition>
+        <div class="absolute inset-0 bg-stone-950/78 backdrop-blur-md" @click="closeCalculator()"></div>
+        <div class="calc-modal-shell relative z-10 flex max-h-[calc(100svh-120px)] w-full max-w-[760px] flex-col overflow-hidden rounded-[28px] border border-white/15 bg-white shadow-2xl sm:max-h-[calc(100svh-120px)]">
+            <div class="calc-modal-header flex h-[72px] max-h-[72px] shrink-0 items-center justify-between bg-gradient-to-r from-forest-950 via-forest-900 to-forest-800 px-5 text-white sm:px-6">
+                <h3 class="calc-modal-title flex items-center gap-3 text-xl font-black sm:text-2xl"><span class="calc-modal-icon flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-wood-300"><i class="fa-solid fa-calculator"></i></span><span>Qiymət Hesabla</span></h3>
+                <button @click="closeCalculator()" class="calc-modal-close flex h-10 w-10 items-center justify-center rounded-full border border-white/15 bg-white/10 text-white shadow-lg backdrop-blur transition hover:bg-white/20" aria-label="Close calculator"><i class="fa-solid fa-xmark"></i></button>
             </div>
 
-            <div class="grid flex-1 grid-cols-1 gap-4 overflow-y-auto bg-stone-50/80 p-4 sm:grid-cols-2 sm:gap-[18px] sm:p-5">
+            <div class="calc-modal-content grid flex-1 grid-cols-1 gap-4 overflow-y-auto bg-stone-50/80 p-4 sm:grid-cols-2 sm:gap-[18px] sm:p-5">
                 <div class="space-y-2"><span class="text-[11px] font-black uppercase tracking-wider text-stone-500" x-text="t('calcType')"></span><div class="grid grid-cols-2 gap-2.5"><button @click="calc.type='house'" class="flex min-h-[66px] items-center gap-3 rounded-2xl border p-3 text-left transition" :class="calc.type==='house' ? 'bg-forest-700 text-white border-forest-700 shadow-lg shadow-forest-900/15' : 'bg-white border-stone-200 text-stone-700 hover:border-forest-200'"><i class="fa-solid fa-house-chimney text-lg"></i><span><span class="block text-base font-black leading-tight">Taxta Ev</span><small class="block text-[13px] opacity-75">Premium</small></span></button><button @click="calc.type='sauna'" class="flex min-h-[66px] items-center gap-3 rounded-2xl border p-3 text-left transition" :class="calc.type==='sauna' ? 'bg-forest-700 text-white border-forest-700 shadow-lg shadow-forest-900/15' : 'bg-white border-stone-200 text-stone-700 hover:border-forest-200'"><i class="fa-solid fa-hot-tub-person text-lg"></i><span><span class="block text-base font-black leading-tight">Hamam & Sauna</span><small class="block text-[13px] opacity-75">Spa</small></span></button></div></div>
                 <div class="space-y-2"><span class="text-[11px] font-black uppercase tracking-wider text-stone-500" x-text="t('calcStories')"></span><div class="grid grid-cols-3 gap-2.5"><template x-for="n in [1,2,3]"><button @click="calc.stories=n" class="min-h-[66px] rounded-2xl border text-lg font-black transition" :class="calc.stories===n ? 'bg-forest-700 text-white border-forest-700 shadow-lg shadow-forest-900/15' : 'bg-white border-stone-200 text-stone-700 hover:border-forest-200'" x-text="n"></button></template></div></div>
                 <div class="space-y-2 sm:col-span-2"><span class="text-[11px] font-black uppercase tracking-wider text-stone-500" x-text="t('calcTimber')"></span><div class="grid grid-cols-1 gap-2.5 sm:grid-cols-2"><button @click="calc.timber='pine'" class="flex min-h-[66px] items-center gap-3 rounded-2xl border p-3 text-left transition" :class="calc.timber==='pine' ? 'bg-forest-700 text-white border-forest-700 shadow-lg shadow-forest-900/15' : 'bg-white border-stone-200 text-stone-700 hover:border-forest-200'"><i class="fa-solid fa-tree text-lg"></i><span><span class="block text-base font-black leading-tight">Sibir Şamı</span><small class="block text-[13px] opacity-75">Premium softwood</small></span></button><button @click="calc.timber='oak'" class="flex min-h-[66px] items-center gap-3 rounded-2xl border p-3 text-left transition" :class="calc.timber==='oak' ? 'bg-forest-700 text-white border-forest-700 shadow-lg shadow-forest-900/15' : 'bg-white border-stone-200 text-stone-700 hover:border-forest-200'"><i class="fa-solid fa-seedling text-lg"></i><span><span class="block text-base font-black leading-tight">Massiv Palıd</span><small class="block text-[13px] opacity-75">Solid oak</small></span></button></div></div>
-                <div class="rounded-3xl border border-stone-200 bg-white p-4 shadow-sm sm:col-span-2"><div class="mb-3 flex items-center justify-between"><span class="text-[11px] font-black uppercase tracking-wider text-stone-500" x-text="t('calcArea')">Sahə</span><span class="rounded-full bg-forest-50 px-3 py-1 text-xl font-black text-forest-800" x-text="calc.area + ' m²'"></span></div><input type="range" min="20" max="400" step="5" x-model.number="calc.area" class="w-full accent-wood-600 cursor-pointer"></div>
+                <div class="rounded-3xl border border-stone-200 bg-white p-4 shadow-sm sm:col-span-2"><div class="mb-3 flex items-center justify-between"><span class="text-[11px] font-black uppercase tracking-wider text-stone-500" x-text="t('calcArea')">Sahə</span><span class="rounded-full bg-forest-50 px-3 py-1 text-xl font-black text-forest-800" x-text="calc.area + ' m²'"></span></div><input type="range" min="20" max="400" step="5" x-model.number="calc.area" class="calc-range w-full accent-wood-600 cursor-pointer"></div>
             </div>
 
-            <div class="flex shrink-0 flex-col justify-between gap-3 bg-gradient-to-r from-forest-950 to-forest-800 p-4 text-white sm:max-h-[90px] sm:flex-row sm:items-center sm:px-5">
+            <div class="calc-price-panel flex shrink-0 flex-col justify-between gap-3 bg-gradient-to-r from-forest-950 to-forest-800 p-4 text-white sm:max-h-[90px] sm:flex-row sm:items-center sm:px-5">
                 <div>
                     <span class="block text-[11px] font-black uppercase tracking-wider text-wood-200" x-text="t('estPrice')">Təxmini Qiymət</span>
                     <span class="block text-[30px] font-black leading-none text-white sm:text-[34px]" x-text="calculatePrice() + ' AZN'"></span>
                 </div>
-                <button @click="contactFromCalculator()" class="h-14 rounded-2xl bg-wood-600 px-7 font-black text-white shadow-lg transition hover:bg-wood-700">Müraciət et</button>
+                <button @click="contactFromCalculator()" class="calc-submit h-14 rounded-2xl bg-wood-600 px-7 font-black text-white shadow-lg transition hover:bg-wood-700">Müraciət et</button>
             </div>
         </div>
     </div>
