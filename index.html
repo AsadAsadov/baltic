@@ -3265,6 +3265,120 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                 box-shadow: 0 12px 24px rgba(0, 0, 0, .14) !important;
             }
 
+
+            /* Final mobile calculator overflow fix: body flows after fixed-height header, labels never truncate. */
+            .calculator-modal {
+                width: calc(100vw - 24px) !important;
+                max-height: calc(100svh - 96px) !important;
+                display: flex !important;
+                flex-direction: column !important;
+                overflow: hidden !important;
+            }
+
+            .calculator-header {
+                flex: 0 0 60px !important;
+                height: 60px !important;
+                min-height: 60px !important;
+                max-height: 60px !important;
+                padding: 0 16px !important;
+                position: relative !important;
+                z-index: 2 !important;
+            }
+
+            .calculator-body,
+            .calculator-scroll {
+                flex: 1 1 auto !important;
+                min-height: 0 !important;
+                overflow-y: auto !important;
+                padding: 14px !important;
+                padding-top: 14px !important;
+                margin-top: 0 !important;
+                transform: none !important;
+                position: static !important;
+            }
+
+            .calculator-title,
+            .calculator-header-title {
+                font-size: 24px !important;
+                line-height: 1 !important;
+            }
+
+            .calculator-option-grid {
+                display: grid !important;
+                grid-template-columns: 1fr 1fr !important;
+                gap: 8px !important;
+            }
+
+            .calculator-option-card {
+                height: 46px !important;
+                min-height: 46px !important;
+                padding: 6px 10px !important;
+                border-radius: 14px !important;
+                gap: 7px !important;
+                overflow: visible !important;
+            }
+
+            .calculator-option-card > span {
+                min-width: 0 !important;
+                overflow: visible !important;
+            }
+
+            .calculator-option-title,
+            .calculator-material-grid .calculator-option-title {
+                font-size: 14px !important;
+                line-height: 1.05 !important;
+                white-space: normal !important;
+                overflow: visible !important;
+                text-overflow: unset !important;
+                word-break: keep-all !important;
+                overflow-wrap: normal !important;
+            }
+
+            .calculator-option-subtitle {
+                display: none !important;
+            }
+
+            .calculator-floor-btn {
+                height: 40px !important;
+                min-height: 40px !important;
+                font-size: 17px !important;
+                border-radius: 13px !important;
+            }
+
+            .calculator-area-card {
+                padding: 11px !important;
+                border-radius: 15px !important;
+            }
+
+            .calculator-area-value {
+                font-size: 18px !important;
+            }
+
+            .calculator-price-panel,
+            .calculator-price-footer,
+            .calculator-price-box {
+                position: static !important;
+                bottom: auto !important;
+                top: auto !important;
+                z-index: auto !important;
+                margin-top: 12px !important;
+                padding: 13px !important;
+                border-radius: 16px !important;
+            }
+
+            .calculator-price-value {
+                font-size: 24px !important;
+                line-height: 1.1 !important;
+                white-space: nowrap !important;
+            }
+
+            .calculator-request-btn {
+                height: 42px !important;
+                min-height: 42px !important;
+                font-size: 16px !important;
+                border-radius: 13px !important;
+            }
+
             .project-modal-overlay {
                 position: fixed !important;
                 inset: 0 !important;
@@ -4641,8 +4755,8 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                 <button @click="closeCalculator()" class="calculator-close calc-modal-close flex h-10 w-10 items-center justify-center rounded-full border border-white/15 bg-white/10 text-white shadow-lg backdrop-blur transition hover:bg-white/20" aria-label="Close calculator"><i class="fa-solid fa-xmark"></i></button>
             </div>
 
-            <div class="calculator-scroll calc-modal-content grid flex-1 grid-cols-1 gap-4 overflow-y-auto bg-stone-50/80 p-4 sm:grid-cols-2 sm:gap-[18px] sm:p-5">
-                <div class="calculator-section space-y-2"><span class="calculator-label text-[11px] font-black uppercase tracking-wider text-stone-500" x-text="t('calcType')"></span><div class="calculator-option-grid grid grid-cols-2 gap-2.5"><button @click="calc.type='house'" class="calculator-option-card flex min-h-[66px] items-center gap-3 rounded-2xl border p-3 text-left transition" :class="calc.type==='house' ? 'bg-forest-700 text-white border-forest-700 shadow-lg shadow-forest-900/15' : 'bg-white border-stone-200 text-stone-700 hover:border-forest-200'"><i class="fa-solid fa-house-chimney text-lg"></i><span><span class="calculator-option-title block text-base font-black leading-tight">Taxta Ev</span><small class="calculator-option-subtitle block text-[13px] opacity-75">Premium</small></span></button><button @click="calc.type='sauna'" class="calculator-option-card flex min-h-[66px] items-center gap-3 rounded-2xl border p-3 text-left transition" :class="calc.type==='sauna' ? 'bg-forest-700 text-white border-forest-700 shadow-lg shadow-forest-900/15' : 'bg-white border-stone-200 text-stone-700 hover:border-forest-200'"><i class="fa-solid fa-hot-tub-person text-lg"></i><span><span class="calculator-option-title block text-base font-black leading-tight">Hamam Sauna</span><small class="calculator-option-subtitle block text-[13px] opacity-75">Spa</small></span></button></div></div>
+            <div class="calculator-body calculator-scroll calc-modal-content grid flex-1 grid-cols-1 gap-4 overflow-y-auto bg-stone-50/80 p-4 sm:grid-cols-2 sm:gap-[18px] sm:p-5">
+                <div class="calculator-section space-y-2"><span class="calculator-label text-[11px] font-black uppercase tracking-wider text-stone-500" x-text="t('calcType')"></span><div class="calculator-option-grid grid grid-cols-2 gap-2.5"><button @click="calc.type='house'" class="calculator-option-card flex min-h-[66px] items-center gap-3 rounded-2xl border p-3 text-left transition" :class="calc.type==='house' ? 'bg-forest-700 text-white border-forest-700 shadow-lg shadow-forest-900/15' : 'bg-white border-stone-200 text-stone-700 hover:border-forest-200'"><i class="fa-solid fa-house-chimney text-lg"></i><span><span class="calculator-option-title block text-base font-black leading-tight">Taxta Ev</span><small class="calculator-option-subtitle block text-[13px] opacity-75">Premium</small></span></button><button @click="calc.type='sauna'" class="calculator-option-card flex min-h-[66px] items-center gap-3 rounded-2xl border p-3 text-left transition" :class="calc.type==='sauna' ? 'bg-forest-700 text-white border-forest-700 shadow-lg shadow-forest-900/15' : 'bg-white border-stone-200 text-stone-700 hover:border-forest-200'"><i class="fa-solid fa-hot-tub-person text-lg"></i><span><span class="calculator-option-title block text-base font-black leading-tight">Hamam &amp; Sauna</span><small class="calculator-option-subtitle block text-[13px] opacity-75">Spa</small></span></button></div></div>
                 <div class="calculator-section space-y-2"><span class="calculator-label text-[11px] font-black uppercase tracking-wider text-stone-500" x-text="t('calcStories')"></span><div class="calculator-floor-grid grid grid-cols-3 gap-2.5"><template x-for="n in [1,2,3]"><button @click="calc.stories=n" class="calculator-floor-btn min-h-[66px] rounded-2xl border text-lg font-black transition" :class="calc.stories===n ? 'bg-forest-700 text-white border-forest-700 shadow-lg shadow-forest-900/15' : 'bg-white border-stone-200 text-stone-700 hover:border-forest-200'" x-text="n"></button></template></div></div>
                 <div class="calculator-section calculator-material-section space-y-2 sm:col-span-2"><span class="calculator-label text-[11px] font-black uppercase tracking-wider text-stone-500" x-text="t('calcTimber')"></span><div class="calculator-option-grid calculator-material-grid grid grid-cols-1 gap-2.5 sm:grid-cols-2"><button @click="calc.timber='pine'" class="calculator-option-card flex min-h-[66px] items-center gap-3 rounded-2xl border p-3 text-left transition" :class="calc.timber==='pine' ? 'bg-forest-700 text-white border-forest-700 shadow-lg shadow-forest-900/15' : 'bg-white border-stone-200 text-stone-700 hover:border-forest-200'"><i class="fa-solid fa-tree text-lg"></i><span><span class="calculator-option-title block text-base font-black leading-tight">Sibir Şamı</span><small class="calculator-option-subtitle block text-[13px] opacity-75">Premium softwood</small></span></button><button @click="calc.timber='oak'" class="calculator-option-card flex min-h-[66px] items-center gap-3 rounded-2xl border p-3 text-left transition" :class="calc.timber==='oak' ? 'bg-forest-700 text-white border-forest-700 shadow-lg shadow-forest-900/15' : 'bg-white border-stone-200 text-stone-700 hover:border-forest-200'"><i class="fa-solid fa-seedling text-lg"></i><span><span class="calculator-option-title block text-base font-black leading-tight">Massiv Palıd</span><small class="calculator-option-subtitle block text-[13px] opacity-75">Solid oak</small></span></button></div></div>
                 <div class="calculator-area-card rounded-3xl border border-stone-200 bg-white p-4 shadow-sm sm:col-span-2"><div class="calculator-area-row mb-3 flex items-center justify-between"><span class="calculator-label text-[11px] font-black uppercase tracking-wider text-stone-500" x-text="t('calcArea')">Sahə</span><span class="calculator-area-value rounded-full bg-forest-50 px-3 py-1 text-xl font-black text-forest-800" x-text="calc.area + ' m²'"></span></div><input type="range" min="20" max="400" step="5" x-model.number="calc.area" class="calculator-slider calc-range w-full accent-wood-600 cursor-pointer"></div>
