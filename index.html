@@ -2,7 +2,7 @@
 <html lang="az" class="overflow-x-hidden">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <title>Baltic Caspian | Premium Taxta Evlər</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -2288,7 +2288,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
             to { opacity: 1; transform: translateY(0); }
         }
         @media (max-width: 767px) {
-            body { padding-bottom: calc(90px + env(safe-area-inset-bottom)); }
+            body { padding-bottom: 0 !important; }
             .page-shell { padding-top: var(--mobile-header-height); }
             .header-main .h-16 { height: var(--mobile-header-height); }
             .header-main .max-w-7xl { padding-left: 12px; padding-right: 12px; }
@@ -2343,7 +2343,6 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
             [data-hero-controls] > div { padding-left: 24px; padding-right: 24px; }
             [data-hero-controls] button[aria-label],
             [data-hero-controls] .hero-arrow-button { width: 48px; height: 48px; background: rgba(0,0,0,.36); border-color: rgba(255,255,255,.18); }
-            footer { padding-bottom: calc(6rem + env(safe-area-inset-bottom)) !important; }
         }
         @media (prefers-reduced-motion: reduce) {
             .hero-kicker, .hero-title, .hero-desc, .hero-actions { animation: none; }
@@ -2488,13 +2487,22 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
             .header-main a.group span:first-child { font-size: .92rem; white-space: nowrap; }
             .header-main a.group span:last-child { font-size: 8px; letter-spacing: .12em; white-space: nowrap; }
             .header-main a.group .w-10 { width: 2.35rem; height: 2.35rem; flex-shrink: 0; }
+            :root {
+                --mobile-nav-height: 68px;
+                --mobile-nav-side-gap: 14px;
+                --mobile-nav-bottom-gap: max(8px, env(safe-area-inset-bottom));
+            }
             .bottom-mobile-nav {
-                position: fixed;
-                left: 12px;
-                right: 12px;
-                bottom: calc(10px + env(safe-area-inset-bottom));
-                z-index: 90;
-                height: 66px;
+                position: fixed !important;
+                left: var(--mobile-nav-side-gap) !important;
+                right: var(--mobile-nav-side-gap) !important;
+                bottom: var(--mobile-nav-bottom-gap) !important;
+                width: auto !important;
+                height: var(--mobile-nav-height) !important;
+                margin: 0 !important;
+                z-index: 9000 !important;
+                transform: translateZ(0);
+                will-change: transform;
                 border-radius: 24px;
                 background: rgba(8, 24, 18, .92);
                 backdrop-filter: blur(18px);
@@ -2504,6 +2512,16 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                 display: grid;
                 grid-template-columns: repeat(5, minmax(0, 1fr));
                 padding: 6px;
+            }
+            main {
+                padding-bottom: calc(var(--mobile-nav-height) + max(16px, env(safe-area-inset-bottom))) !important;
+            }
+            footer,
+            .site-footer {
+                margin-bottom: 0 !important;
+                padding-bottom: calc(20px + env(safe-area-inset-bottom)) !important;
+                min-height: 0 !important;
+                height: auto !important;
             }
             .bottom-mobile-nav__item {
                 min-width: 0;
@@ -2524,7 +2542,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
             .bottom-mobile-nav__item.is-active { color: #fff; background: linear-gradient(135deg, rgba(51,115,79,.72), rgba(184,138,96,.34)); box-shadow: inset 0 0 0 1px rgba(255,255,255,.10), 0 10px 26px rgba(51,115,79,.24); }
             body.modal-open .bottom-mobile-nav,
             body.calculator-modal-open .bottom-mobile-nav,
-            .bottom-mobile-nav.hidden { display: none !important; opacity: 0; pointer-events: none; }
+            .bottom-mobile-nav.hidden { visibility: hidden !important; opacity: 0; pointer-events: none; }
             body.calculator-modal-open { overflow: hidden !important; touch-action: none; }
             .project-modal-overlay {
                 position: fixed !important;
@@ -2596,11 +2614,10 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
         /* Mobile-only polish: compact header, BestHome-style hero card, and bottom-nav-safe footer. */
         @media (max-width: 767px) {
             :root { --mobile-header-height: 76px; --header-height: 76px; }
-            html, body { overflow-x: hidden; }
-            body { padding-bottom: 0 !important; background: #0B1915; }
+            html, body { min-height: 100%; overflow-x: hidden; }
+            body { min-height: 100vh; min-height: 100dvh; padding-bottom: 0 !important; background: #0B1915; }
             main {
-                flex: 0 0 auto !important;
-                padding-bottom: calc(88px + env(safe-area-inset-bottom));
+                flex: 1 0 auto !important;
             }
             .header-main {
                 height: 76px;
@@ -2725,8 +2742,6 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
             [data-hero-controls] > div { height: 100%; padding: 0 24px 18px !important; align-items: flex-end !important; pointer-events: none; }
             [data-hero-controls] button { pointer-events: auto; }
             [data-hero-controls] .hero-arrow-button { width: 44px !important; height: 44px !important; background: rgba(0,0,0,.36) !important; border-color: rgba(255,255,255,.18) !important; }
-            .bottom-mobile-nav { left: 14px !important; right: 14px !important; bottom: calc(10px + env(safe-area-inset-bottom)) !important; height: 66px !important; }
-
             .site-viewport,
             .page-shell,
             .page-content,
@@ -2735,7 +2750,6 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
             .about-page,
             .contact-page {
                 min-height: auto !important;
-                padding-bottom: 24px !important;
                 margin-bottom: 0 !important;
             }
             .projects-page,
@@ -2754,7 +2768,6 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
             section { margin-bottom: 32px; }
             footer {
                 margin-top: 0 !important;
-                padding-bottom: calc(110px + env(safe-area-inset-bottom)) !important;
             }
         }
 
@@ -3166,7 +3179,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
     <div class="flex max-w-full flex-1 items-stretch">
         
         <!-- MAIN SITE VIEWPORT -->
-        <div class="site-viewport flex-1 min-w-0 bg-stone-50 flex flex-col min-h-[calc(100vh-5rem)]">
+        <div class="site-viewport flex-1 min-w-0 bg-stone-50 flex flex-col min-h-[calc(100dvh-5rem)]">
 
             <!-- 1. HOME VIEW -->
             <main class="flex-1"><div x-show="page === 'home'" x-cloak class="page-content home-page pb-16">
