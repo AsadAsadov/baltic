@@ -173,7 +173,7 @@
                 homeGalleryImages: defaultHomeGalleryImages,
                 homeAdvantagesImages: defaultHomeAdvantagesImages,
                 isLoading: false,
-                actionLoading: { heroSave: false, projectSave: false, gallerySave: false, bannerSave: false, contactSend: false, projectView: null, deleteId: null },
+                actionLoading: { heroSave: false, projectSave: false, workSave: false, gallerySave: false, bannerSave: false, contactSend: false, projectView: null, deleteId: null },
                 apiBase: '',
 
                 // Admin authentication
@@ -181,17 +181,18 @@
                 adminUsername: '',
                 adminPassword: '',
                 adminLoginError: '',
-                adminTab: 'dashboard', // dashboard, messages, projects, gallery, hero, home-images, ads
+                adminTab: 'dashboard', // dashboard, messages, projects, works, gallery, hero, home-images, ads
                 adminTabs: [
                     { key: 'dashboard', labelKey: 'adminTabStats' },
                     { key: 'messages', labelKey: 'adminTabMessages' },
                     { key: 'projects', labelKey: 'adminTabProjects' },
+                    { key: 'works', labelKey: 'adminTabWorks' },
                     { key: 'gallery', labelKey: 'adminTabGallery' },
                     { key: 'hero', labelKey: 'adminTabHero' },
                     { key: 'home-images', settingKey: 'homeImages', labelKey: 'adminTabHomeImages' },
                     { key: 'ads', labelKey: 'adminTabAds' }
                 ],
-                adminTabVisibility: JSON.parse(localStorage.getItem('bc_admin_tab_visibility') || 'null') || { dashboard: true, messages: true, projects: true, gallery: true, hero: true, homeImages: true, ads: true },
+                adminTabVisibility: JSON.parse(localStorage.getItem('bc_admin_tab_visibility') || 'null') || { dashboard: true, messages: true, projects: true, works: true, gallery: true, hero: true, homeImages: true, ads: true },
                 showAdminTabManager: false,
                 adminTitleTapCount: 0,
                 adminTitleTapTimer: null,
@@ -200,6 +201,16 @@
                 // Dynamic App State DB
                 projects: [],
                 projectsLoaded: false,
+                workItems: [],
+                workItemsLoaded: false,
+                activeWorkCategory: 'all',
+                selectedWorkItem: null,
+                selectedWorkItemIndex: -1,
+                activeWorkImageIndex: 0,
+                editingWorkItemId: null,
+                workForm: { category: 'Taxta Ev', titleAz: '', titleRu: '', titleEn: '', descriptionAz: '', descriptionRu: '', descriptionEn: '', locationAz: '', locationRu: '', locationEn: '', completionDate: '', coverImage: '', images: [], featured: false, active: true, sortOrder: 0 },
+                workCoverFile: null,
+                workImageFiles: [],
                 galleryItems: [],
                 galleryLoaded: false,
                 slides: [],
@@ -260,9 +271,15 @@
                     'callUs': { az: 'Zəng edin', ru: 'Позвоните нам', en: 'Call us' },
                     'calcBtn': { az: 'Qiymət Hesabla', ru: 'Калькулятор Цен', en: 'Price Calculator' },
                     'viewDetails': { az: 'Layihəyə Bax', ru: 'Смотреть Проект', en: 'View Project' },
+                    'workViewDetails': { az: 'Ətraflı bax', ru: 'Подробнее', en: 'View details' },
+                    'workEyebrow': { az: 'TAMAMLANMIŞ İŞLƏR', ru: 'ЗАВЕРШЁННЫЕ РАБОТЫ', en: 'COMPLETED WORK' },
+                    'workTitle': { az: 'Gördüyümüz işlər', ru: 'Наши выполненные работы', en: 'Our completed work' },
+                    'workDescription': { az: 'Tamamladığımız taxta ev, restoran, besedka, hamam və sauna layihələri ilə tanış olun.', ru: 'Познакомьтесь с завершёнными проектами деревянных домов, ресторанов, беседок, бань и саун.', en: 'Explore our completed wooden house, restaurant, gazebo, bath and sauna work.' },
+                    'workWhatsapp': { az: 'WhatsApp ilə müraciət et', ru: 'Связаться через WhatsApp', en: 'Contact via WhatsApp' },
                     'heroProjects': { az: 'Layihələrimiz', ru: 'Наши Проекты', en: 'Our Projects' },
                     'navHome': { az: 'Ana Səhifə', ru: 'Главная', en: 'Home' },
                     'navProjects': { az: 'Layihələr', ru: 'Проекты', en: 'Projects' },
+                    'navWorks': { az: 'İşlərimiz', ru: 'Наши работы', en: 'Our Work' },
                     'navGallery': { az: 'Qalereya', ru: 'Галерея', en: 'Gallery' },
                     'navAbout': { az: 'Haqqımızda', ru: 'О компании', en: 'About Us' },
                     'navContact': { az: 'Əlaqə', ru: 'Контакты', en: 'Contact' },
@@ -382,6 +399,7 @@
                     'adminTabStats': { az: 'Real-time Statistikalar', ru: 'Статистика в реальном времени', en: 'Real-time Statistics' },
                     'adminTabMessages': { az: 'Müraciətlər', ru: 'Запросы', en: 'Messages' },
                     'adminTabProjects': { az: 'Layihə Əlavə / Redaktə', ru: 'Добавить / Изменить Проект', en: 'Manage Projects' },
+                    'adminTabWorks': { az: 'İşlərimiz', ru: 'Наши работы', en: 'Our Work' },
                     'adminTabGallery': { az: 'Qalereya & Youtube', ru: 'Галерея и Видео', en: 'Gallery & YouTube' },
                     'adminTabHero': { az: 'Hero Slaydlar', ru: 'Слайды Главной', en: 'Hero Slides' },
                     'adminTabHomeImages': { az: 'Ana səhifə şəkilləri', ru: 'Изображения главной', en: 'Home page images' },
@@ -538,6 +556,7 @@
 
                 async api(path, options = {}) {
                     const headers = options.body instanceof FormData ? { ...(options.headers || {}) } : { 'Content-Type': 'application/json', ...(options.headers || {}) };
+                    if (this.adminLoggedIn) headers['x-admin-auth'] = 'true';
                     const res = await fetch(`${this.apiBase}${path}`, { ...options, headers });
                     const contentType = res.headers.get('content-type') || '';
                     const data = contentType.includes('application/json') ? await res.json().catch(() => null) : await res.text().catch(() => '');
@@ -844,6 +863,7 @@
                 async loadData() {
                     this.projectsLoaded = false;
                     this.galleryLoaded = false;
+                    this.workItemsLoaded = false;
                     const cached = (key, fallback) => JSON.parse(localStorage.getItem(key) || 'null') || fallback;
                     const publicFetch = async (path) => {
                         try {
@@ -859,18 +879,21 @@
                         const settled = await Promise.allSettled([
                             publicFetch('/api/projects'),
                             publicFetch('/api/gallery'),
+                            publicFetch(this.adminLoggedIn ? '/api/work-items?includeInactive=true' : '/api/work-items'),
                             this.safeApi('/api/banners', cached('bc_banners_list', [])),
                             this.safeApi('/api/stats', cached('bc_stats', this.stats))
                         ]);
-                        const [projectsSettled, gallerySettled, bannersSettled, statsSettled] = settled;
+                        const [projectsSettled, gallerySettled, worksSettled, bannersSettled, statsSettled] = settled;
                         const projectsResult = projectsSettled.status === 'fulfilled' ? projectsSettled.value : { ok: false, error: projectsSettled.reason };
                         const galleryResult = gallerySettled.status === 'fulfilled' ? gallerySettled.value : { ok: false, error: gallerySettled.reason };
+                        const worksResult = worksSettled.status === 'fulfilled' ? worksSettled.value : { ok: false, error: worksSettled.reason };
                         const bannersResult = bannersSettled.status === 'fulfilled' ? bannersSettled.value : cached('bc_banners_list', []);
                         const statsResult = statsSettled.status === 'fulfilled' ? statsSettled.value : this.stats;
                         const projectItems = projectsResult.ok ? this.normalizeProjects(projectsResult.data, []) : this.normalizeProjects(cached('bc_projects', defaultProjects), defaultProjects);
                         const galleryItems = galleryResult.ok ? this.normalizeGallery(galleryResult.data, []) : this.normalizeGallery(cached('bc_gallery', defaultGallery), defaultGallery);
                         this.projects = projectItems;
                         this.galleryItems = galleryItems;
+                        this.workItems = worksResult.ok ? this.normalizeWorkItems(worksResult.data, []) : [];
                         this.galleryLoaded = true;
                         banners = this.normalizeBanners(bannersResult, null);
                         this.banners = banners;
@@ -889,6 +912,7 @@
                         this.restartAdRotation();
                     } finally {
                         this.projectsLoaded = true;
+                        this.workItemsLoaded = true;
                     }
                 },
 
@@ -2132,11 +2156,49 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                     };
                 },
 
+
+                workCategories() { return ['all', 'Taxta Ev', 'Restoran', 'Besedka', 'Hamam & Sauna']; },
+                workCategoryLabel(category) {
+                    if (category === 'all') return this.lang === 'az' ? 'Bütün' : (this.lang === 'ru' ? 'Все' : 'All');
+                    const map = { 'Taxta Ev': { az:'Taxta Evlər', ru:'Деревянные дома', en:'Wooden Houses' }, Restoran:{az:'Restoranlar',ru:'Рестораны',en:'Restaurants'}, Besedka:{az:'Besedkalar',ru:'Беседки',en:'Gazebos'}, 'Hamam & Sauna':{az:'Hamam & Sauna',ru:'Бани и сауны',en:'Bath & Sauna'}, 'Digər':{az:'Digər',ru:'Другое',en:'Other'} };
+                    return map[category]?.[this.lang] || category;
+                },
+                normalizeWorkItem(item = {}) {
+                    const images = this.normalizeImageList(item.images);
+                    const coverImage = this.normalizeImageUrl(item.coverImage || item.image || images[0] || '');
+                    return { id:item.id || '', category:item.category || 'Digər', title:item.title || item.titleAz || '', titleAz:item.titleAz || item.title || '', titleRu:item.titleRu || item.title || '', titleEn:item.titleEn || item.title || '', description:item.description || item.descriptionAz || '', descriptionAz:item.descriptionAz || item.description || '', descriptionRu:item.descriptionRu || item.description || '', descriptionEn:item.descriptionEn || item.description || '', location:item.location || item.locationAz || '', locationAz:item.locationAz || item.location || '', locationRu:item.locationRu || item.location || '', locationEn:item.locationEn || item.location || '', completionDate:item.completionDate || '', coverImage, image:coverImage, images:images.length ? images : (coverImage ? [coverImage] : []), sortOrder:Number(item.sortOrder)||0, featured:Boolean(item.featured), active:item.active !== false, createdAt:item.createdAt || '' };
+                },
+                normalizeWorkItems(payload, fallback = []) { const items = this.asArray(payload).map(item => this.normalizeWorkItem(item)); return items.length ? items : fallback.map(item => this.normalizeWorkItem(item)); },
+                localizedWorkTitle(item) { return this.lang === 'en' ? (item.titleEn || item.titleAz) : (this.lang === 'ru' ? (item.titleRu || item.titleAz) : item.titleAz); },
+                localizedWorkDescription(item) { return this.lang === 'en' ? (item.descriptionEn || item.descriptionAz) : (this.lang === 'ru' ? (item.descriptionRu || item.descriptionAz) : item.descriptionAz); },
+                localizedWorkLocation(item) { return this.lang === 'en' ? (item.locationEn || item.locationAz) : (this.lang === 'ru' ? (item.locationRu || item.locationAz) : item.locationAz); },
+                formatWorkDate(value) { if (!value) return ''; try { return new Date(value).toLocaleDateString(this.lang === 'az' ? 'az-AZ' : (this.lang === 'ru' ? 'ru-RU' : 'en-US'), { year:'numeric', month:'short' }); } catch { return ''; } },
+                openWorkModal(item, index = 0) { this.selectedWorkItem = item; this.selectedWorkItemIndex = index; this.activeWorkImageIndex = 0; this.lastWorkFocus = document.activeElement; document.body.classList.add('modal-open'); this.$nextTick(() => document.querySelector('.work-modal-close')?.focus()); },
+                closeWorkModal() { this.selectedWorkItem = null; this.selectedWorkItemIndex = -1; document.body.classList.remove('modal-open'); this.$nextTick(() => this.lastWorkFocus?.focus?.()); },
+                currentWorkImages() { const item = this.selectedWorkItem || {}; return (Array.isArray(item.images) && item.images.length) ? item.images : (item.coverImage ? [item.coverImage] : []); },
+                currentWorkImage() { return this.currentWorkImages()[this.activeWorkImageIndex] || this.selectedWorkItem?.coverImage || ''; },
+                prevWorkImage() { const n=this.currentWorkImages().length; if(n>1) this.activeWorkImageIndex=(this.activeWorkImageIndex-1+n)%n; },
+                nextWorkImage() { const n=this.currentWorkImages().length; if(n>1) this.activeWorkImageIndex=(this.activeWorkImageIndex+1)%n; },
+                workWhatsAppUrl(item) { return `https://wa.me/994553221109?text=${encodeURIComponent('Salam, '+this.localizedWorkTitle(item)+' işi ilə bağlı məlumat almaq istəyirəm.')}`; },
+                resetWorkForm() { this.editingWorkItemId = null; this.workForm = { category: 'Taxta Ev', titleAz: '', titleRu: '', titleEn: '', descriptionAz: '', descriptionRu: '', descriptionEn: '', locationAz: '', locationRu: '', locationEn: '', completionDate: '', coverImage: '', images: [], featured: false, active: true, sortOrder: (this.workItems?.length || 0) }; this.workCoverFile = null; this.workImageFiles = []; },
+                editWorkItem(item) { this.editingWorkItemId = item.id; this.workForm = { ...item, completionDate: item.completionDate ? String(item.completionDate).slice(0,10) : '' }; this.workCoverFile = null; this.workImageFiles = []; },
+                async saveWorkItem() { this.actionLoading.workSave = true; try { const cover = this.workCoverFile ? await this.uploadMedia(this.workCoverFile, 'works') : this.workForm.coverImage; const more = this.workImageFiles.length ? await Promise.all(this.workImageFiles.map(f => this.uploadMedia(f, 'works'))) : []; const body = { ...this.workForm, titleRu: this.workForm.titleRu || this.workForm.titleAz, titleEn: this.workForm.titleEn || this.workForm.titleAz, descriptionRu: this.workForm.descriptionRu || this.workForm.descriptionAz, descriptionEn: this.workForm.descriptionEn || this.workForm.descriptionAz, locationRu: this.workForm.locationRu || this.workForm.locationAz, locationEn: this.workForm.locationEn || this.workForm.locationAz, coverImage: cover, images: [...(this.workForm.images || []), ...more].filter(Boolean), sortOrder: Number(this.workForm.sortOrder) || 0, active: Boolean(this.workForm.active), featured: Boolean(this.workForm.featured), completionDate: this.workForm.completionDate || null }; await this.api(this.editingWorkItemId ? `/api/work-items/${this.editingWorkItemId}` : '/api/work-items', { method: this.editingWorkItemId ? 'PUT' : 'POST', body: JSON.stringify(body) }); await this.loadData(); this.resetWorkForm(); } finally { this.actionLoading.workSave = false; } },
+                removeWorkImage(index) { this.workForm.images = (this.workForm.images || []).filter((_, i) => i !== index); },
+                moveWorkImage(index, dir) { const arr=[...(this.workForm.images || [])]; const j=index+dir; if(j<0||j>=arr.length)return; [arr[index],arr[j]]=[arr[j],arr[index]]; this.workForm.images=arr; },
+                async toggleWorkStatus(item) { await this.api(`/api/work-items/${item.id}/status`, { method:'PATCH', body:JSON.stringify({ active: !item.active }) }); await this.loadData(); },
+                async toggleWorkFeatured(item) { await this.api(`/api/work-items/${item.id}/featured`, { method:'PATCH', body:JSON.stringify({ featured: !item.featured }) }); await this.loadData(); },
+                async deleteWorkItem(item) { if(!confirm('Silinsin?')) return; await this.api(`/api/work-items/${item.id}`, { method:'DELETE' }); await this.loadData(); },
+                async moveWorkItem(item, dir) { const arr=[...this.workItems]; const i=arr.findIndex(x=>x.id===item.id), j=i+dir; if(i<0||j<0||j>=arr.length)return; [arr[i],arr[j]]=[arr[j],arr[i]]; await this.api('/api/work-items/reorder', { method:'PUT', body:JSON.stringify({ items: arr.map((x,k)=>({id:x.id, sortOrder:k})) }) }); await this.loadData(); },
+
                 get filteredProjects() {
                     if (this.filterCategory === 'all') {
                         return Array.isArray(this.projects) ? this.projects : [];
                     }
                     return (Array.isArray(this.projects) ? this.projects : []).filter(p => p.cat === this.filterCategory);
+                },
+                get filteredWorkItems() {
+                    const items = Array.isArray(this.workItems) ? this.workItems : [];
+                    return this.activeWorkCategory === 'all' ? items.filter(i => i.active || this.adminLoggedIn) : items.filter(i => (i.active || this.adminLoggedIn) && i.category === this.activeWorkCategory);
                 }
             };
         }
@@ -3129,26 +3191,12 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
 
                 <!-- Desktop Nav (Optimized sizes to prevent breaking/wrapping on Ru/En selection) -->
                 <nav class="hidden md:flex items-center gap-3 lg:gap-6 xl:gap-8 font-semibold text-xs lg:text-sm xl:text-base">
-                    <a @click.prevent="setPage('home')" href="#" class="transition relative py-2" :class="page === 'home' && !isHeaderScrolled ? 'text-white hover:text-wood-200 drop-shadow' : 'text-stone-700 hover:text-forest-700'">
-                        <span x-text="t('navHome')">Ana Səhifə</span>
-                        <span x-show="page === 'home'" class="absolute bottom-0 left-0 right-0 h-0.5 bg-wood-500 rounded" x-transition></span>
-                    </a>
-                    <a @click.prevent="setPage('projects')" href="#" class="transition relative py-2" :class="page === 'home' && !isHeaderScrolled ? 'text-white hover:text-wood-200 drop-shadow' : (page === 'projects' ? 'text-forest-700' : 'text-stone-700 hover:text-forest-700')">
-                        <span x-text="t('navProjects')">Layihələr</span>
-                        <span x-show="page === 'projects'" class="absolute bottom-0 left-0 right-0 h-0.5 bg-wood-500 rounded" x-transition></span>
-                    </a>
-                    <a @click.prevent="setPage('gallery')" href="#" class="transition relative py-2" :class="page === 'home' && !isHeaderScrolled ? 'text-white hover:text-wood-200 drop-shadow' : (page === 'gallery' ? 'text-forest-700' : 'text-stone-700 hover:text-forest-700')">
-                        <span x-text="t('navGallery')">Qalereya</span>
-                        <span x-show="page === 'gallery'" class="absolute bottom-0 left-0 right-0 h-0.5 bg-wood-500 rounded" x-transition></span>
-                    </a>
-                    <a @click.prevent="setPage('about')" href="#" class="transition relative py-2" :class="page === 'home' && !isHeaderScrolled ? 'text-white hover:text-wood-200 drop-shadow' : (page === 'about' ? 'text-forest-700' : 'text-stone-700 hover:text-forest-700')">
-                        <span x-text="t('navAbout')">Haqqımızda</span>
-                        <span x-show="page === 'about'" class="absolute bottom-0 left-0 right-0 h-0.5 bg-wood-500 rounded" x-transition></span>
-                    </a>
-                    <a @click.prevent="setPage('contact')" href="#" class="transition relative py-2" :class="page === 'home' && !isHeaderScrolled ? 'text-white hover:text-wood-200 drop-shadow' : (page === 'contact' ? 'text-forest-700' : 'text-stone-700 hover:text-forest-700')">
-                        <span x-text="t('navContact')">Əlaqə</span>
-                        <span x-show="page === 'contact'" class="absolute bottom-0 left-0 right-0 h-0.5 bg-wood-500 rounded" x-transition></span>
-                    </a>
+                    <template x-for="item in [{p:'home',k:'navHome'},{p:'projects',k:'navProjects'},{p:'works',k:'navWorks'},{p:'gallery',k:'navGallery'},{p:'about',k:'navAbout'},{p:'contact',k:'navContact'}]" :key="item.p">
+                        <a @click.prevent="setPage(item.p)" href="#" class="transition relative py-2" :class="page === 'home' && !isHeaderScrolled ? 'text-white hover:text-wood-200 drop-shadow' : (page === item.p ? 'text-forest-700' : 'text-stone-700 hover:text-forest-700')">
+                            <span x-text="t(item.k)"></span>
+                            <span x-show="page === item.p" class="absolute bottom-0 left-0 right-0 h-0.5 bg-wood-500 rounded" x-transition></span>
+                        </a>
+                    </template>
                 </nav>
 
                 <!-- Header actions -->
@@ -3554,6 +3602,35 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                 </template>
             </div>
 
+
+            <!-- 2B. COMPLETED WORK / PORTFOLIO PAGE -->
+            <section x-show="page === 'works'" x-cloak class="works-page max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-8 ad-safe-content" aria-labelledby="works-heading">
+                <div class="text-center max-w-3xl mx-auto space-y-4">
+                    <span class="text-wood-600 font-bold uppercase tracking-widest text-sm block" x-text="t('workEyebrow')">TAMAMLANMIŞ İŞLƏR</span>
+                    <h1 id="works-heading" class="text-3xl sm:text-5xl font-black text-forest-950" x-text="t('workTitle')">Gördüyümüz işlər</h1>
+                    <p class="text-stone-500 sm:text-lg" x-text="t('workDescription')"></p>
+                </div>
+                <div class="flex flex-wrap justify-center gap-2">
+                    <template x-for="cat in workCategories()" :key="cat">
+                        <button type="button" @click="activeWorkCategory = cat" class="rounded-full border px-4 py-2 text-xs font-black uppercase tracking-wider transition" :class="activeWorkCategory === cat ? 'bg-forest-800 text-white border-forest-800 shadow-lg shadow-forest-900/15' : 'bg-white text-stone-600 border-stone-200 hover:border-wood-300'" x-text="workCategoryLabel(cat)"></button>
+                    </template>
+                </div>
+                <template x-if="!workItemsLoaded"><div class="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-6"><template x-for="n in 6"><div class="h-60 rounded-[22px] skeleton-shimmer"></div></template></div></template>
+                <template x-if="workItemsLoaded">
+                    <div>
+                        <div x-show="!filteredWorkItems.length" class="rounded-3xl border border-stone-200 bg-white p-10 text-center font-bold text-stone-500" x-text="lang === 'az' ? 'Hələ iş əlavə edilməyib.' : (lang === 'ru' ? 'Работы пока не добавлены.' : 'No work items yet.')"></div>
+                        <div x-show="filteredWorkItems.length" class="work-grid grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-6">
+                            <template x-for="(item, index) in filteredWorkItems" :key="item.id">
+                                <button type="button" @click="openWorkModal(item, index)" class="work-card group flex h-full flex-col overflow-hidden rounded-[20px] border border-stone-200/80 bg-white text-left shadow-sm transition hover:-translate-y-1 hover:shadow-xl hover:shadow-forest-950/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-forest-700" :aria-label="localizedWorkTitle(item)">
+                                    <div class="relative aspect-[4/3] overflow-hidden bg-stone-100"><img :src="item.coverImage" :alt="localizedWorkTitle(item)" class="h-full w-full object-cover transition duration-500 group-hover:scale-105"><span class="absolute left-2 top-2 rounded-full bg-forest-950/85 px-2.5 py-1 text-[10px] font-black uppercase text-white" x-text="workCategoryLabel(item.category)"></span></div>
+                                    <div class="flex flex-1 flex-col gap-2 p-3 sm:p-4"><h2 class="line-clamp-2 text-sm sm:text-lg font-black leading-tight text-forest-950" x-text="localizedWorkTitle(item)"></h2><p x-show="localizedWorkLocation(item)" class="truncate text-[11px] sm:text-sm font-semibold text-stone-500"><i class="fa-solid fa-location-dot text-wood-500"></i> <span x-text="localizedWorkLocation(item)"></span></p><p x-show="formatWorkDate(item.completionDate)" class="text-[11px] font-bold text-stone-400" x-text="formatWorkDate(item.completionDate)"></p><span class="mt-auto inline-flex items-center gap-1 text-xs font-black text-forest-700"><span x-text="t('workViewDetails')"></span><i class="fa-solid fa-arrow-right"></i></span></div>
+                                </button>
+                            </template>
+                        </div>
+                    </div>
+                </template>
+            </section>
+
             <!-- 3. GALLERY & MEDIA PAGE -->
             <div x-show="page === 'gallery'" x-cloak class="gallery-page max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-12 ad-safe-content">
                 <div class="text-center max-w-3xl mx-auto space-y-4">
@@ -3881,6 +3958,29 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                 </div>
 
                 <!-- SUB-TAB 4: GALLERY MANAGEMENT WITH REALTIME PREVIEWS -->
+
+                <div x-show="adminTab === 'works'" x-transition class="grid grid-cols-1 lg:grid-cols-12 gap-6 text-xs font-bold uppercase tracking-wider text-stone-500">
+                    <div class="lg:col-span-5 bg-white p-6 rounded-3xl border border-stone-200 shadow-sm space-y-4">
+                        <div class="flex items-center justify-between"><h3 class="text-lg font-black text-stone-900 tracking-normal" x-text="editingWorkItemId ? 'İşi redaktə et' : 'Yeni iş yarat'"></h3><button @click="resetWorkForm()" class="px-3 py-2 rounded-xl bg-stone-100 text-stone-700">Yeni iş yarat</button></div>
+                        <label>Kateqoriya<select x-model="workForm.category" class="w-full mt-1 px-3 py-2 rounded-lg border border-stone-200 bg-stone-50 text-stone-800"><template x-for="c in ['Taxta Ev','Restoran','Besedka','Hamam & Sauna','Digər']"><option :value="c" x-text="c"></option></template></select></label>
+                        <label>Başlıq<input x-model="workForm.titleAz" class="w-full mt-1 px-3 py-2 rounded-lg border border-stone-200 bg-stone-50 text-stone-800"></label>
+                        <label>Açıqlama<textarea x-model="workForm.descriptionAz" class="w-full mt-1 px-3 py-2 rounded-lg border border-stone-200 bg-stone-50 text-stone-800"></textarea></label>
+                        <label>Ünvan<input x-model="workForm.locationAz" class="w-full mt-1 px-3 py-2 rounded-lg border border-stone-200 bg-stone-50 text-stone-800"></label>
+                        <div class="grid grid-cols-2 gap-3"><label>Tamamlanma tarixi<input type="date" x-model="workForm.completionDate" class="w-full mt-1 px-3 py-2 rounded-lg border border-stone-200 bg-stone-50 text-stone-800"></label><label>Sıralama<input type="number" min="0" x-model.number="workForm.sortOrder" class="w-full mt-1 px-3 py-2 rounded-lg border border-stone-200 bg-stone-50 text-stone-800"></label></div>
+                        <label>Əsas şəkil<input type="file" accept="image/jpeg,image/png,image/webp" @change="workCoverFile=$event.target.files[0]" class="w-full mt-1"></label>
+                        <img x-show="workForm.coverImage" :src="workForm.coverImage" class="h-28 w-full rounded-2xl object-cover" alt="Work cover preview">
+                        <label>Əlavə şəkillər<input type="file" multiple accept="image/jpeg,image/png,image/webp" @change="workImageFiles=[...$event.target.files]" class="w-full mt-1"></label>
+                        <div class="grid grid-cols-4 gap-2"><template x-for="(img,i) in workForm.images" :key="img+i"><div class="relative"><img :src="img" class="h-16 w-full rounded-xl object-cover" alt="Work image"><button @click="removeWorkImage(i)" class="absolute right-1 top-1 bg-white rounded-full w-6 h-6">×</button><button @click="moveWorkImage(i,-1)" class="absolute left-1 bottom-1 bg-white rounded w-6 h-5">↑</button><button @click="moveWorkImage(i,1)" class="absolute right-1 bottom-1 bg-white rounded w-6 h-5">↓</button></div></template></div>
+                        <div class="flex gap-4"><label class="inline-flex items-center gap-2"><input type="checkbox" x-model="workForm.featured"> Seçilmiş iş</label><label class="inline-flex items-center gap-2"><input type="checkbox" x-model="workForm.active"> Aktiv</label></div>
+                        <div class="flex gap-2"><button @click="saveWorkItem()" :disabled="actionLoading.workSave" class="flex-1 py-3 rounded-xl bg-forest-700 text-white" x-text="editingWorkItemId ? 'Yadda saxla' : 'Yeni iş yarat'"></button><button @click="resetWorkForm()" class="px-4 rounded-xl bg-stone-200 text-stone-700">Ləğv et</button></div>
+                    </div>
+                    <div class="lg:col-span-7 bg-white p-6 rounded-3xl border border-stone-200 shadow-sm space-y-3">
+                        <h3 class="text-lg font-black text-stone-900 tracking-normal">Mövcud işlər</h3>
+                        <div x-show="!workItemsLoaded" class="p-6 rounded-2xl skeleton-shimmer">Yüklənir...</div><div x-show="workItemsLoaded && !workItems.length" class="p-6 rounded-2xl bg-stone-50 text-center">İş yoxdur.</div>
+                        <template x-for="item in workItems" :key="item.id"><div class="flex items-center gap-3 rounded-2xl border border-stone-100 p-3"><img :src="item.coverImage" class="h-16 w-20 rounded-xl object-cover" alt=""><div class="min-w-0 flex-1 normal-case tracking-normal"><p class="truncate font-black text-stone-900" x-text="item.titleAz"></p><p class="text-stone-500" x-text="item.category"></p><span class="mr-1 rounded-full px-2 py-0.5 text-[10px]" :class="item.active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'" x-text="item.active ? 'Aktiv' : 'Deaktiv'"></span><span x-show="item.featured" class="rounded-full bg-wood-100 text-wood-700 px-2 py-0.5 text-[10px]">Seçilmiş</span></div><div class="flex flex-wrap justify-end gap-1"><button @click="moveWorkItem(item,-1)" class="px-2 py-1 bg-stone-100 rounded">↑</button><button @click="moveWorkItem(item,1)" class="px-2 py-1 bg-stone-100 rounded">↓</button><button @click="editWorkItem(item)" class="px-2 py-1 bg-forest-50 text-forest-700 rounded">Redaktə et</button><button @click="toggleWorkStatus(item)" class="px-2 py-1 bg-stone-100 rounded" x-text="item.active ? 'Deaktiv et' : 'Aktiv et'"></button><button @click="toggleWorkFeatured(item)" class="px-2 py-1 bg-wood-50 text-wood-700 rounded" x-text="item.featured ? 'Seçilməmiş' : 'Seçilmiş'"></button><button @click="deleteWorkItem(item)" class="px-2 py-1 bg-red-50 text-red-700 rounded">Sil</button></div></div></template>
+                    </div>
+                </div>
+
                 <div x-show="adminTab === 'gallery'" x-transition class="grid grid-cols-1 lg:grid-cols-12 gap-8 text-xs font-bold uppercase tracking-wider text-stone-500">
                     <div class="lg:col-span-5 bg-white p-6 rounded-3xl border border-stone-200/80 shadow-sm space-y-4">
                         <h3 class="text-lg font-black text-stone-900 tracking-normal mb-4" x-text="lang==='az'?'Yeni Media Elementi':'Новое медиа'">Yeni Media</h3>
@@ -4168,6 +4268,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                             <ul class="space-y-2 text-stone-400 text-sm">
                                 <li><a @click.prevent="navigateTo('home')" href="#" class="transition-all duration-[250ms] ease-in-out hover:text-[#D59A72]" x-text="t('navHome')">Ana Səhifə</a></li>
                                 <li><a @click.prevent="navigateTo('projects')" href="#" class="transition-all duration-[250ms] ease-in-out hover:text-[#D59A72]" x-text="t('navProjects')">Layihələr</a></li>
+                                <li><a @click.prevent="navigateTo('works')" href="#" class="transition-all duration-[250ms] ease-in-out hover:text-[#D59A72]" x-text="t('navWorks')">İşlərimiz</a></li>
                                 <li><a @click.prevent="navigateTo('gallery')" href="#" class="transition-all duration-[250ms] ease-in-out hover:text-[#D59A72]" x-text="t('navGallery')">Qalereya</a></li>
                                 <li><a @click.prevent="navigateTo('about')" href="#" class="transition-all duration-[250ms] ease-in-out hover:text-[#D59A72]" x-text="t('navAbout')">Haqqımızda</a></li>
                                 <li><a @click.prevent="navigateTo('contact')" href="#" class="transition-all duration-[250ms] ease-in-out hover:text-[#D59A72]" x-text="t('navContact')">Əlaqə</a></li>
@@ -4200,7 +4301,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
 
     </div>
 
-    <nav class="bottom-mobile-nav md:hidden" :class="(selectedProject && selectedProject.id && isProjectModalOpen) || isMapSheetOpen || isMapNavigationHidden ? 'hidden' : ''" aria-label="Bottom mobile navigation">
+    <nav class="bottom-mobile-nav md:hidden" :class="(selectedProject && selectedProject.id && isProjectModalOpen) || (selectedWorkItem && selectedWorkItem.id) || isMapSheetOpen || isMapNavigationHidden ? 'hidden' : ''" aria-label="Bottom mobile navigation">
         <button type="button" @click="navigateTo('home')" class="bottom-mobile-nav__item" :class="{ 'is-active': page === 'home' }">
             <i class="fa-solid fa-house"></i>
             <span x-text="t('navHome')">Ana səhifə</span>
@@ -4209,13 +4310,13 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
             <i class="fa-solid fa-tree-city"></i>
             <span x-text="t('navProjects')">Layihələr</span>
         </button>
+        <button type="button" @click="navigateTo('works')" class="bottom-mobile-nav__item" :class="{ 'is-active': page === 'works' }">
+            <i class="fa-solid fa-briefcase"></i>
+            <span x-text="t('navWorks')">İşlərimiz</span>
+        </button>
         <button type="button" @click="navigateTo('gallery')" class="bottom-mobile-nav__item" :class="{ 'is-active': page === 'gallery' }">
             <i class="fa-solid fa-images"></i>
             <span x-text="t('navGallery')">Qalereya</span>
-        </button>
-        <button type="button" @click="navigateTo('about')" class="bottom-mobile-nav__item" :class="{ 'is-active': page === 'about' }">
-            <i class="fa-solid fa-circle-info"></i>
-            <span x-text="t('navAbout')">Haqqımızda</span>
         </button>
         <button type="button" @click="navigateTo('contact')" class="bottom-mobile-nav__item" :class="{ 'is-active': page === 'contact' }">
             <i class="fa-solid fa-phone"></i>
@@ -4260,6 +4361,27 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
             </div>
         </div>
     </div>
+
+
+    <template x-if="selectedWorkItem && selectedWorkItem.id">
+    <div x-show="selectedWorkItem && selectedWorkItem.id" x-cloak class="fixed inset-0 z-[110] flex items-center justify-center bg-stone-950/80 p-3 sm:p-6" role="dialog" aria-modal="true" @keydown.escape.window="closeWorkModal()" @keydown.arrow-right.window="nextWorkImage()" @keydown.arrow-left.window="prevWorkImage()">
+        <div class="absolute inset-0" @click="closeWorkModal()"></div>
+        <div class="relative grid w-full max-w-[980px] max-h-[calc(100svh-24px)] overflow-hidden rounded-[26px] bg-white shadow-2xl lg:grid-cols-[58%_42%]">
+            <button @click="closeWorkModal()" class="work-modal-close absolute right-4 top-4 z-20 flex h-11 w-11 items-center justify-center rounded-full bg-white/95 text-forest-950 shadow-lg" aria-label="Close work details"><i class="fa-solid fa-xmark"></i></button>
+            <div class="min-h-0 overflow-y-auto bg-stone-100 p-3">
+                <div class="relative aspect-[4/3] overflow-hidden rounded-[22px] bg-stone-200"><img :src="currentWorkImage()" :alt="localizedWorkTitle(selectedWorkItem)" class="h-full w-full object-cover"><template x-if="currentWorkImages().length > 1"><div><button @click.stop="prevWorkImage()" class="absolute left-3 top-1/2 h-10 w-10 -translate-y-1/2 rounded-full bg-white/85"><i class="fa-solid fa-chevron-left"></i></button><button @click.stop="nextWorkImage()" class="absolute right-3 top-1/2 h-10 w-10 -translate-y-1/2 rounded-full bg-white/85"><i class="fa-solid fa-chevron-right"></i></button><span class="absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full bg-black/60 px-3 py-1 text-xs font-bold text-white" x-text="`${activeWorkImageIndex + 1} / ${currentWorkImages().length}`"></span></div></template></div>
+                <div x-show="currentWorkImages().length > 1" class="mt-3 grid grid-cols-5 gap-2"><template x-for="(img,i) in currentWorkImages()" :key="img+i"><button @click="activeWorkImageIndex=i" class="h-16 rounded-xl overflow-hidden border-2" :class="activeWorkImageIndex===i ? 'border-forest-700' : 'border-white'"><img :src="img" class="h-full w-full object-cover" alt=""></button></template></div>
+            </div>
+            <div class="min-h-0 overflow-y-auto p-5 sm:p-7 space-y-4">
+                <span class="inline-flex rounded-full bg-forest-50 px-3 py-1 text-xs font-black uppercase text-forest-800" x-text="workCategoryLabel(selectedWorkItem.category)"></span>
+                <h2 class="text-2xl sm:text-3xl font-black text-forest-950" x-text="localizedWorkTitle(selectedWorkItem)"></h2>
+                <p x-show="localizedWorkDescription(selectedWorkItem)" class="text-sm leading-7 text-stone-600" x-text="localizedWorkDescription(selectedWorkItem)"></p>
+                <div class="grid grid-cols-1 gap-3 text-sm"><div x-show="localizedWorkLocation(selectedWorkItem)" class="rounded-2xl bg-stone-50 p-4"><b>Ünvan:</b> <span x-text="localizedWorkLocation(selectedWorkItem)"></span></div><div x-show="formatWorkDate(selectedWorkItem.completionDate)" class="rounded-2xl bg-stone-50 p-4"><b>Tarix:</b> <span x-text="formatWorkDate(selectedWorkItem.completionDate)"></span></div></div>
+                <a :href="workWhatsAppUrl(selectedWorkItem)" target="_blank" rel="noopener" class="flex h-14 items-center justify-center gap-2 rounded-2xl bg-[#25D366] font-black text-white shadow-lg"><i class="fa-brands fa-whatsapp"></i><span x-text="t('workWhatsapp')"></span></a>
+            </div>
+        </div>
+    </div>
+    </template>
 
     <!-- DETAILED PROJECT VIEW MODAL -->
     <template x-if="selectedProject && selectedProject.id">
