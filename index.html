@@ -3013,6 +3013,176 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
             .ad-media { display: block; width: var(--ad-width, 260px); height: var(--ad-height, 600px); object-fit: cover; border-radius: 18px; }
         }
 
+
+        .about-page-redesign {
+            width: 100%;
+            max-width: 100%;
+            padding: 48px 0 64px;
+            overflow-x: hidden;
+        }
+        .about-section {
+            width: calc(100% - 32px);
+            max-width: 1120px;
+            margin-inline: auto;
+        }
+        .about-eyebrow {
+            display: block;
+            color: #b88a60;
+            font-size: 11px;
+            font-weight: 800;
+            letter-spacing: .14em;
+            text-transform: uppercase;
+        }
+        .about-intro-card {
+            display: grid;
+            grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr);
+            gap: 34px;
+            align-items: center;
+        }
+        .about-intro-image {
+            width: 100%;
+            aspect-ratio: 16 / 9;
+            min-height: 300px;
+            border-radius: 28px;
+            object-fit: cover;
+            box-shadow: 0 24px 60px rgba(15, 47, 36, .12);
+        }
+        .about-value-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 14px;
+        }
+        .about-value-card {
+            min-height: 126px;
+            border-radius: 20px;
+            border: 1px solid rgba(28, 55, 43, .08);
+            background: #fff;
+            padding: 18px;
+            box-shadow: 0 14px 34px rgba(15, 23, 42, .055);
+        }
+        .about-value-icon, .location-address-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            background: rgba(184, 138, 96, .14);
+            color: #a66e45;
+        }
+        .about-value-icon { width: 38px; height: 38px; border-radius: 14px; margin-bottom: 12px; }
+        .location-card {
+            display: grid;
+            grid-template-columns: 1.1fr .9fr;
+            overflow: hidden;
+            border-radius: 28px;
+            background: #fff;
+            border: 1px solid rgba(28, 55, 43, .08);
+            box-shadow: 0 18px 50px rgba(15, 47, 36, .08);
+        }
+        .location-map {
+            width: 100%;
+            min-height: 390px;
+            height: 100%;
+            border: 0;
+        }
+        .location-content { padding: 34px; }
+        .location-address {
+            display: flex;
+            gap: 12px;
+            align-items: flex-start;
+            padding: 14px;
+            border-radius: 16px;
+            background: rgba(31, 119, 75, .06);
+        }
+        .location-address-icon { width: 40px; height: 40px; border-radius: 999px; }
+        .location-primary-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 9px;
+            width: 100%;
+            height: 50px;
+            border-radius: 14px;
+            background: #1f5f3d;
+            color: #fff;
+            font-size: 15px;
+            font-weight: 800;
+            box-shadow: 0 14px 30px rgba(31, 95, 61, .18);
+        }
+        .location-app-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+        .location-app-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            height: 44px;
+            border-radius: 12px;
+            background: #f7f5f1;
+            color: #244236;
+            border: 1px solid rgba(28, 55, 43, .07);
+            font-size: 13px;
+            font-weight: 800;
+        }
+        .about-trust-cta {
+            position: relative;
+            overflow: hidden;
+            border-radius: 24px;
+            background: #123228;
+            color: #fff;
+            padding: 28px;
+            box-shadow: 0 18px 44px rgba(10, 25, 20, .16);
+        }
+        .about-trust-cta::before {
+            content: '';
+            position: absolute;
+            right: -42px;
+            top: -42px;
+            width: 130px;
+            height: 130px;
+            border-radius: 999px;
+            background: rgba(184, 138, 96, .25);
+        }
+        .about-trust-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 9px;
+            height: 48px;
+            padding: 0 18px;
+            border-radius: 14px;
+            background: #b88a60;
+            color: #fff;
+            font-weight: 800;
+        }
+
+        @media (max-width: 767px) {
+            .about-page-redesign {
+                width: 100%;
+                max-width: 100%;
+                padding: 20px 16px calc(110px + env(safe-area-inset-bottom)) !important;
+                background: #f8faf8;
+            }
+            .about-page-redesign.space-y-20 > :not([hidden]) ~ :not([hidden]) { margin-top: 0 !important; }
+            .about-section { width: 100%; max-width: 100%; }
+            .about-intro-card { display: flex; flex-direction: column; gap: 16px; align-items: stretch; }
+            .about-intro-image { order: -1; min-height: 0; border-radius: 22px; box-shadow: 0 18px 42px rgba(15, 47, 36, .11); }
+            .about-intro-title { font-size: clamp(28px, 7.5vw, 36px) !important; line-height: 1.08 !important; max-width: 95%; }
+            .about-intro-desc { font-size: 15px !important; line-height: 1.55 !important; color: rgba(68, 64, 60, .72) !important; }
+            .about-values-section { margin-top: 24px !important; }
+            .about-value-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+            .about-value-card { min-height: 118px; border-radius: 18px; padding: 14px; box-shadow: 0 10px 26px rgba(15, 23, 42, .05); }
+            .about-value-icon { width: 34px; height: 34px; border-radius: 12px; margin-bottom: 10px; }
+            .about-location-section { margin-top: 32px !important; }
+            .location-card { display: block; border-radius: 24px; }
+            .location-map { display: block; height: 230px; min-height: 230px; width: 100%; }
+            .location-content { padding: 20px; }
+            .location-title { font-size: 26px !important; line-height: 1.1 !important; }
+            .location-address p { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: 14px; line-height: 1.4; font-weight: 700; }
+            .about-cta-section { margin-top: 24px !important; }
+            .about-trust-cta { border-radius: 22px; padding: 22px; }
+            .about-trust-btn { width: 100%; }
+            main { padding-bottom: calc(110px + env(safe-area-inset-bottom)) !important; }
+        }
+
         .calculator-option-title-mobile { display: none !important; }
 
         @media (max-width: 767px) {
@@ -3666,31 +3836,66 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
             </div>
 
             <!-- 4. ABOUT COMPANY PAGE -->
-            <div x-show="page === 'about'" x-cloak class="about-page py-12 space-y-20">
-                <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 ad-safe-content">
-                    <div class="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
-                        <div class="lg:col-span-6 space-y-6">
-                            <span class="text-wood-600 font-bold uppercase tracking-widest text-sm block" x-text="t('aboutSubtitle')">Baltic Caspian Ltd</span>
-                            <h1 class="text-3xl sm:text-5xl font-black text-forest-950 leading-tight" x-text="t('aboutTitle')">2008-ci İldən Ekologiyanın Zirvəsindəyik</h1>
-                            <div class="space-y-4 text-stone-600 leading-relaxed text-sm sm:text-base">
+            <div x-show="page === 'about'" x-cloak class="about-page about-page-redesign">
+                <section class="about-section about-intro-section ad-safe-content">
+                    <div class="about-intro-card">
+                        <div class="space-y-4">
+                            <span class="about-eyebrow" x-text="t('navAbout')">Haqqımızda</span>
+                            <h1 class="about-intro-title text-4xl lg:text-5xl font-black text-forest-950 tracking-tight" x-text="lang === 'az' ? 'Taxta ev tikintisində təcrübə və etibar' : (lang === 'ru' ? 'Опыт и доверие в строительстве деревянных домов' : 'Experience and trust in wooden home construction')">Taxta ev tikintisində təcrübə və etibar</h1>
+                            <p class="about-intro-desc text-base lg:text-lg leading-8 text-stone-600" x-text="lang === 'az' ? 'Baltic Caspian fərdi layihələndirmə, keyfiyyətli material seçimi və peşəkar tikinti prosesi ilə uzunömürlü taxta evlər hazırlayır.' : (lang === 'ru' ? 'Baltic Caspian создает долговечные деревянные дома благодаря индивидуальному проектированию, качественному подбору материалов и профессиональному строительному процессу.' : 'Baltic Caspian builds long-lasting wooden homes through custom design, quality material selection and a professional construction process.')">Baltic Caspian fərdi layihələndirmə, keyfiyyətli material seçimi və peşəkar tikinti prosesi ilə uzunömürlü taxta evlər hazırlayır.</p>
+                            <div class="hidden lg:block pt-2 text-stone-600 leading-relaxed">
                                 <p class="whitespace-pre-line" x-text="lang === 'ru' ? (t('aboutTextRu') || t('aboutTextAz')) : (lang === 'en' ? (t('aboutTextEn') || t('aboutTextAz')) : t('aboutTextAz'))">BALTIC CASPIAN LTD 2008-ci ildə yaradılmışdır.</p>
                             </div>
                         </div>
-                        <div class="lg:col-span-6">
-                            <img src="https://images.unsplash.com/photo-1549692520-acc6669e2f0c?auto=format&fit=crop&q=80&w=1000" class="rounded-3xl shadow-xl w-full object-cover h-[400px]">
+                        <img src="https://images.unsplash.com/photo-1549692520-acc6669e2f0c?auto=format&fit=crop&q=80&w=1000" class="about-intro-image" alt="Baltic Caspian wooden construction workspace">
+                    </div>
+                </section>
+
+                <section class="about-section about-values-section ad-safe-content">
+                    <div class="about-value-grid">
+                        <template x-for="value in [
+                            {i:'fa-tree', title: lang === 'ru' ? 'Качественные материалы' : (lang === 'en' ? 'Quality materials' : 'Keyfiyyətli materiallar'), desc: lang === 'ru' ? 'Отборная древесина' : (lang === 'en' ? 'Selected timber' : 'Seçilmiş taxta')},
+                            {i:'fa-drafting-compass', title: lang === 'ru' ? 'Индивидуальный проект' : (lang === 'en' ? 'Custom design' : 'Fərdi layihə'), desc: lang === 'ru' ? 'Под ваши пожелания' : (lang === 'en' ? 'Tailored to you' : 'İstəyə uyğun')},
+                            {i:'fa-helmet-safety', title: lang === 'ru' ? 'Профессиональное строительство' : (lang === 'en' ? 'Professional build' : 'Peşəkar tikinti'), desc: lang === 'ru' ? 'Опытная команда' : (lang === 'en' ? 'Experienced team' : 'Təcrübəli komanda')},
+                            {i:'fa-shield-heart', title: lang === 'ru' ? 'Долговечный результат' : (lang === 'en' ? 'Long-lasting result' : 'Uzunömürlü nəticə'), desc: lang === 'ru' ? 'Надежная конструкция' : (lang === 'en' ? 'Reliable structure' : 'Etibarlı konstruksiya')}
+                        ]" :key="value.title">
+                            <article class="about-value-card">
+                                <span class="about-value-icon"><i class="fa-solid" :class="value.i"></i></span>
+                                <h3 class="text-[14px] sm:text-[15px] leading-tight font-black text-forest-950" x-text="value.title"></h3>
+                                <p class="mt-1 text-[12px] leading-snug text-stone-500" x-text="value.desc"></p>
+                            </article>
+                        </template>
+                    </div>
+                </section>
+
+                <section class="about-section about-location-section ad-safe-content">
+                    <div class="mb-4 space-y-2">
+                        <span class="about-eyebrow" x-text="t('mapLocationLabel')">Məkan</span>
+                        <h2 class="location-title text-3xl lg:text-4xl font-black text-forest-950" x-text="(t('findUsOnMap') || '').replace('📍 ', '')">Bizi xəritədə tapın</h2>
+                        <p class="max-w-xl text-[15px] leading-6 text-stone-500" x-text="t('mapRouteDesc')">Ofisimizə rahat marşrut qurmaq üçün xəritə tətbiqinizi seçin.</p>
+                    </div>
+                    <div class="location-card">
+                        <iframe class="location-map" loading="lazy" :src="`https://www.google.com/maps?q=${encodedAddress}&output=embed`" title="Baltic Caspian location map"></iframe>
+                        <div class="location-content flex flex-col justify-center gap-4">
+                            <div class="location-address">
+                                <span class="location-address-icon"><i class="fa-solid fa-location-dot"></i></span>
+                                <p class="text-stone-800" x-text="t('mapAddressLine')">Baksol küçəsi, Taxta Evlərin Tikintisi</p>
+                            </div>
+                            <button @click="openMapChoice()" class="location-primary-btn"><i class="fa-solid fa-map-location-dot"></i><span x-text="t('openInMap')">Xəritədə aç</span></button>
+                            <div class="location-app-grid">
+                                <button @click="openExternalMap(googleMapsUrl)" class="location-app-btn"><i class="fa-solid fa-map-location-dot text-forest-700"></i><span>Google Maps</span></button>
+                                <button @click="openExternalMap(wazeMapsUrl)" class="location-app-btn"><i class="fa-brands fa-waze text-forest-700"></i><span x-text="t('waze')">Waze</span></button>
+                            </div>
                         </div>
                     </div>
                 </section>
-                <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 ad-safe-content">
-                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 bg-white rounded-[2rem] border border-stone-200/70 shadow-sm p-4 sm:p-6">
-                        <div class="rounded-[1.5rem] overflow-hidden min-h-[320px] border border-stone-200"><iframe class="w-full h-full min-h-[320px]" loading="lazy" :src="`https://www.google.com/maps?q=${encodedAddress}&output=embed`"></iframe></div>
-                        <div class="p-4 sm:p-6 flex flex-col justify-center space-y-5">
-                            <span class="text-wood-600 font-bold uppercase tracking-widest text-xs" x-text="t('mapLocationLabel')">Location</span>
-                            <h2 class="text-3xl font-black text-forest-950" x-text="t('findUsOnMap')">📍 Bizi xəritədə tapın</h2>
-                            <p class="text-stone-500" x-text="t('mapRouteDesc')">Ofisimizə rahat marşrut qurmaq üçün xəritə tətbiqinizi seçin.</p>
-                            <p class="font-bold text-stone-800"><i class="fa-solid fa-location-dot text-wood-600 mr-2"></i><span x-text="t('mapAddressLine')">Baksol küçəsi, Taxta Evlərin Tikintisi</span></p>
-                            <button @click="openMapChoice()" class="bg-forest-700 hover:bg-forest-800 text-white rounded-xl px-5 py-3 font-bold shadow" x-text="t('openInMap')">Xəritədə aç</button>
-                            <div class="flex flex-wrap gap-2"><button @click="openExternalMap(googleMapsUrl)" class="px-3 py-2 rounded-lg bg-stone-100 hover:bg-forest-50 font-bold text-xs">Google Maps</button><button @click="openExternalMap(wazeMapsUrl)" class="px-3 py-2 rounded-lg bg-stone-100 hover:bg-forest-50 font-bold text-xs" x-text="t('waze')">Waze</button></div>
+
+                <section class="about-section about-cta-section ad-safe-content">
+                    <div class="about-trust-cta">
+                        <div class="relative z-10 max-w-2xl space-y-3">
+                            <h2 class="text-2xl font-black tracking-tight" x-text="lang === 'az' ? 'Layihənizi birlikdə planlayaq' : (lang === 'ru' ? 'Давайте спланируем ваш проект вместе' : 'Let’s plan your project together')">Layihənizi birlikdə planlayaq</h2>
+                            <p class="text-sm leading-6 text-white/75" x-text="lang === 'az' ? 'Ölçü, material və tikinti müddəti ilə bağlı məlumat almaq üçün bizimlə əlaqə saxlayın.' : (lang === 'ru' ? 'Свяжитесь с нами, чтобы узнать о размерах, материалах и сроках строительства.' : 'Contact us for information about size, materials and construction timeline.')">Ölçü, material və tikinti müddəti ilə bağlı məlumat almaq üçün bizimlə əlaqə saxlayın.</p>
+                            <a href="https://wa.me/994553221109" target="_blank" rel="noopener" class="about-trust-btn"><i class="fa-brands fa-whatsapp"></i><span x-text="t('contactWhatsApp')">WhatsApp ilə əlaqə</span></a>
                         </div>
                     </div>
                 </section>
