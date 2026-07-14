@@ -14,7 +14,7 @@ app.use(cors());
 app.use(express.json({ limit: '150mb' }));
 app.use(express.urlencoded({ extended: true, limit: '150mb' }));
 
-const allowedUploadBuckets = ['projects', 'gallery', 'hero', 'banners', 'home'];
+const allowedUploadBuckets = ['projects', 'gallery', 'hero', 'banners', 'home', 'works'];
 const UPLOAD_SIZE_LIMIT_BYTES = 150 * 1024 * 1024;
 const uploadRoot = path.join(__dirname, 'uploads');
 const uploadBucketFolders = Object.fromEntries(allowedUploadBuckets.map(bucket => [bucket, path.join(uploadRoot, bucket)]));
@@ -69,7 +69,62 @@ const heroIdWhere = (id) => isUuid(id) ? { id: String(id) } : null;
 const invalidHeroId = (res) => res.status(400).json({ ok: false, error: 'INVALID_HERO_ID' });
 const jsonArray = (v) => Array.isArray(v) ? v : [];
 const heroSlideSelect = { id:true, legacyId:true, titleAz:true, titleRu:true, titleEn:true, subtitleAz:true, subtitleRu:true, subtitleEn:true, mediaType:true, mediaUrl:true, image:true, buttonTextAz:true, buttonTextRu:true, buttonTextEn:true, buttonLink:true, tagAz:true, tagRu:true, tagEn:true, title1Az:true, title1Ru:true, title1En:true, title2Az:true, title2Ru:true, title2En:true, descAz:true, descRu:true, descEn:true, sortOrder:true, active:true, createdAt:true, updatedAt:true };
-const adminTabDefaultVisibility = { dashboard:true, messages:true, projects:true, gallery:true, hero:true, homeImages:true, ads:true };
+const adminTabDefaultVisibility = { dashboard:true, messages:true, projects:true, works:true, gallery:true, hero:true, homeImages:true, ads:true };
+
+const requireAdmin = (req, res, next) => {
+  if (req.headers['x-admin-auth'] === 'true' || req.query.admin === 'true') return next();
+  return res.status(401).json({ ok: false, error: 'ADMIN_AUTH_REQUIRED' });
+};
+const workCategoryMap = {
+  'Taxta Ev': { ru: 'Деревянный дом', en: 'Wooden House' },
+  'Restoran': { ru: 'Ресторан', en: 'Restaurant' },
+  'Besedka': { ru: 'Беседка', en: 'Gazebo' },
+  'Hamam & Sauna': { ru: 'Баня и сауна', en: 'Bath & Sauna' },
+  'Digər': { ru: 'Другое', en: 'Other' }
+};
+function workOut(w) { return w && { id:w.id, category:w.category, categoryRu:workCategoryMap[w.category]?.ru || w.category, categoryEn:workCategoryMap[w.category]?.en || w.category, title:w.titleAz, titleAz:w.titleAz, titleRu:w.titleRu, titleEn:w.titleEn, description:w.descriptionAz, descriptionAz:w.descriptionAz, descriptionRu:w.descriptionRu, descriptionEn:w.descriptionEn, location:w.locationAz, locationAz:w.locationAz, locationRu:w.locationRu, locationEn:w.locationEn, completionDate:w.completionDate, coverImage:w.coverImage, image:w.coverImage, images:jsonArray(w.images), sortOrder:w.sortOrder, featured:w.featured, active:w.active, createdAt:w.createdAt, updatedAt:w.updatedAt }; }
+function validateWorkBody(b = {}, existing = null) {
+  const errors = [];
+  const has = (k) => Object.prototype.hasOwnProperty.call(b, k);
+  const titleAz = String(b.titleAz || b.title || '').trim();
+  const coverImage = String(b.coverImage || b.image || '').trim();
+  const category = String(b.category || '').trim();
+  const images = has('images') ? b.images : (existing?.images || []);
+  const sortOrderRaw = has('sortOrder') ? b.sortOrder : (existing?.sortOrder ?? 0);
+  const sortOrder = Number(sortOrderRaw);
+  const active = has('active') ? b.active : (existing?.active ?? true);
+  const featured = has('featured') ? b.featured : (existing?.featured ?? false);
+  const completionDateRaw = has('completionDate') ? b.completionDate : existing?.completionDate;
+  if (!titleAz) errors.push('titleAz is required');
+  if (!coverImage) errors.push('coverImage is required');
+  if (!category) errors.push('category is required');
+  if (!Array.isArray(images)) errors.push('images must be an array');
+  if (!Number.isInteger(sortOrder) || sortOrder < 0) errors.push('sortOrder must be a non-negative integer');
+  if (typeof active !== 'boolean') errors.push('active must be a boolean');
+  if (typeof featured !== 'boolean') errors.push('featured must be a boolean');
+  let completionDate = null;
+  if (completionDateRaw) { completionDate = new Date(completionDateRaw); if (Number.isNaN(completionDate.getTime())) errors.push('completionDate must be a valid date or null'); }
+  if (errors.length) return { errors };
+  return { data: { category, titleAz, titleRu: b.titleRu || existing?.titleRu || titleAz, titleEn: b.titleEn || existing?.titleEn || titleAz, descriptionAz: b.descriptionAz || b.description || '', descriptionRu: b.descriptionRu || existing?.descriptionRu || b.descriptionAz || b.description || '', descriptionEn: b.descriptionEn || existing?.descriptionEn || b.descriptionAz || b.description || '', locationAz: b.locationAz || b.location || '', locationRu: b.locationRu || existing?.locationRu || b.locationAz || b.location || '', locationEn: b.locationEn || existing?.locationEn || b.locationAz || b.location || '', completionDate, coverImage, images, sortOrder, featured, active } };
+}
+const localWorkUploadPath = (url = '') => {
+  const value = String(url || '');
+  if (!value.startsWith('/uploads/works/')) return null;
+  const base = path.basename(value);
+  if (base !== value.split('/').pop() || base.includes('..')) return null;
+  const resolved = path.resolve(uploadBucketFolders.works, base);
+  return resolved.startsWith(path.resolve(uploadBucketFolders.works) + path.sep) ? resolved : null;
+};
+async function safeDeleteUnusedWorkFiles(urls = [], excludingId = null) {
+  for (const url of new Set(urls.filter(Boolean))) {
+    if (/^https?:\/\//i.test(url)) continue;
+    const filePath = localWorkUploadPath(url);
+    if (!filePath) continue;
+    const users = await prisma.workItem.findMany({ select:{id:true}, where:{ id: excludingId ? { not: excludingId } : undefined, OR:[{coverImage:url},{images:{ array_contains: [url] }}] } }).catch(()=>[]);
+    if (!users.length) await fs.promises.unlink(filePath).catch(()=>{});
+  }
+}
+
 const settingOut = (s) => ({ id:s.id, key:s.key, value:s.value || {}, createdAt:s.createdAt, updatedAt:s.updatedAt });
 
 const catMap = {
@@ -147,6 +202,21 @@ app.post('/api/projects/:id/view', wrap(async (req,res)=>{
   }
   res.json(projectOut(updated));
 }));
+
+
+app.get('/api/work-items', wrap(async (req, res) => {
+  const includeInactive = req.query.includeInactive === 'true';
+  if (includeInactive && req.headers['x-admin-auth'] !== 'true' && req.query.admin !== 'true') return res.status(401).json({ ok:false, error:'ADMIN_AUTH_REQUIRED' });
+  const where = { ...(includeInactive ? {} : { active:true }), ...(req.query.category ? { category:String(req.query.category) } : {}), ...(req.query.featured === 'true' ? { featured:true } : {}) };
+  res.json((await prisma.workItem.findMany({ where, orderBy:[{sortOrder:'asc'},{featured:'desc'},{createdAt:'desc'}] })).map(workOut));
+}));
+app.get('/api/work-items/:id', wrap(async (req, res) => { const item = await prisma.workItem.findUnique({ where:{ id:String(req.params.id) } }); if(!item) return res.status(404).json({ok:false,error:'WORK_ITEM_NOT_FOUND'}); if(!item.active && req.headers['x-admin-auth'] !== 'true' && req.query.admin !== 'true') return res.status(401).json({ok:false,error:'ADMIN_AUTH_REQUIRED'}); res.json(workOut(item)); }));
+app.post('/api/work-items', requireAdmin, wrap(async (req,res)=>{ const v=validateWorkBody(req.body); if(v.errors) return res.status(400).json({ok:false,errors:v.errors}); res.status(201).json(workOut(await prisma.workItem.create({data:v.data}))); }));
+app.put('/api/work-items/reorder', requireAdmin, wrap(async (req,res)=>{ await Promise.all((req.body.items||[]).map((it,i)=>prisma.workItem.update({where:{id:String(it.id)},data:{sortOrder:Number.isInteger(Number(it.sortOrder)) ? Number(it.sortOrder) : i}}))); res.json({ok:true}); }));
+app.put('/api/work-items/:id', requireAdmin, wrap(async (req,res)=>{ const existing=await prisma.workItem.findUnique({where:{id:String(req.params.id)}}); if(!existing) return res.status(404).json({ok:false,error:'WORK_ITEM_NOT_FOUND'}); const v=validateWorkBody(req.body, existing); if(v.errors) return res.status(400).json({ok:false,errors:v.errors}); res.json(workOut(await prisma.workItem.update({where:{id:existing.id},data:v.data}))); }));
+app.patch('/api/work-items/:id/status', requireAdmin, wrap(async (req,res)=>{ const w=await prisma.workItem.findUnique({where:{id:String(req.params.id)}}); if(!w) return res.status(404).json({ok:false,error:'WORK_ITEM_NOT_FOUND'}); res.json(workOut(await prisma.workItem.update({where:{id:w.id},data:{active:req.body.active ?? !w.active}}))); }));
+app.patch('/api/work-items/:id/featured', requireAdmin, wrap(async (req,res)=>{ const w=await prisma.workItem.findUnique({where:{id:String(req.params.id)}}); if(!w) return res.status(404).json({ok:false,error:'WORK_ITEM_NOT_FOUND'}); res.json(workOut(await prisma.workItem.update({where:{id:w.id},data:{featured:req.body.featured ?? !w.featured}}))); }));
+app.delete('/api/work-items/:id', requireAdmin, wrap(async (req,res)=>{ const w=await prisma.workItem.findUnique({where:{id:String(req.params.id)}}); if(w){ await prisma.workItem.delete({where:{id:w.id}}); await safeDeleteUnusedWorkFiles([w.coverImage, ...jsonArray(w.images)], w.id); } res.json({ok:true}); }));
 
 app.get('/api/gallery', wrap(async (req,res)=>res.json((await prisma.galleryItem.findMany({ where: req.query.includeArchived === 'true' ? {} : { archived:false }, orderBy:[{sortOrder:'asc'},{id:'desc'}] })).map(galleryOut))));
 app.post('/api/gallery', wrap(async (req,res)=>res.status(201).json(galleryOut(await prisma.galleryItem.create({ data:galleryIn(req.body) })))));

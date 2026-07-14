@@ -171,3 +171,27 @@ model AdminPanelSetting {
 
   @@map("admin_panel_settings")
 }
+
+model WorkItem {
+  id             String    @id @default(uuid()) @db.Uuid
+  category       String
+  titleAz        String    @map("title_az")
+  titleRu        String?   @map("title_ru")
+  titleEn        String?   @map("title_en")
+  descriptionAz  String?   @map("description_az")
+  descriptionRu  String?   @map("description_ru")
+  descriptionEn  String?   @map("description_en")
+  locationAz     String?   @map("location_az")
+  locationRu     String?   @map("location_ru")
+  locationEn     String?   @map("location_en")
+  completionDate DateTime? @map("completion_date")
+  coverImage     String    @map("cover_image")
+  images         Json?     @default("[]")
+  sortOrder      Int       @default(0) @map("sort_order")
+  featured       Boolean   @default(false)
+  active         Boolean   @default(true)
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  @@map("work_items")
+}
