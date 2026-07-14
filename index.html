@@ -2757,6 +2757,165 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                 padding-bottom: calc(110px + env(safe-area-inset-bottom)) !important;
             }
         }
+
+        @media (max-width: 768px) {
+            .projects-page {
+                width: 100%;
+                max-width: 100vw;
+                padding: 26px 14px 24px !important;
+                overflow-x: hidden;
+            }
+            .projects-page.space-y-12 > :not([hidden]) ~ :not([hidden]) {
+                --tw-space-y-reverse: 0;
+                margin-top: 18px !important;
+                margin-bottom: 0 !important;
+            }
+            .projects-page > .text-center {
+                padding: 0 4px;
+            }
+            .projects-page > .text-center.space-y-4 > :not([hidden]) ~ :not([hidden]) {
+                margin-top: 8px !important;
+            }
+            .projects-page h1 {
+                font-size: clamp(26px, 7vw, 34px) !important;
+                line-height: 1.04 !important;
+                letter-spacing: -.04em;
+            }
+            .project-filter-grid {
+                display: grid !important;
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                gap: 10px !important;
+                justify-content: stretch !important;
+                width: 100%;
+                padding: 4px 0 18px !important;
+                margin-top: 16px !important;
+                border-bottom-color: rgba(28, 55, 43, .1) !important;
+            }
+            .project-filter-button {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                width: 100%;
+                min-width: 0;
+                height: 45px;
+                padding: 0 10px !important;
+                border-radius: 14px !important;
+                border: 1px solid rgba(28, 55, 43, .1) !important;
+                background: #fff !important;
+                color: #294139 !important;
+                box-shadow: 0 8px 20px rgba(15, 23, 42, .05);
+                font-size: 14px !important;
+                font-weight: 600 !important;
+                line-height: 1.1;
+                letter-spacing: -.01em;
+                white-space: nowrap;
+                text-align: center;
+                transition: transform .2s ease, box-shadow .2s ease, background .2s ease, color .2s ease, border-color .2s ease;
+            }
+            .project-filter-button:nth-child(5) { grid-column: 1 / -1; }
+            .project-filter-button.bg-forest-700 {
+                border-color: rgba(30, 95, 61, .76) !important;
+                background: linear-gradient(135deg, #103628 0%, #1f5f3d 58%, #33734f 100%) !important;
+                color: #fff !important;
+                box-shadow: 0 12px 26px rgba(31, 95, 61, .22);
+            }
+            .project-filter-button:active {
+                transform: translateY(1px) scale(.99);
+                box-shadow: 0 6px 16px rgba(15, 23, 42, .07);
+            }
+            .project-grid {
+                display: grid !important;
+                grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+                gap: 13px !important;
+                width: 100%;
+                align-items: stretch;
+                margin-top: 14px !important;
+            }
+            .project-grid > template { display: contents; }
+            .project-card {
+                height: 100%;
+                min-width: 0;
+                border-radius: 18px !important;
+                border-color: rgba(28, 55, 43, .08) !important;
+                box-shadow: 0 14px 34px rgba(15, 23, 42, .08), 0 2px 8px rgba(15, 23, 42, .04) !important;
+            }
+            .project-card__media {
+                height: auto !important;
+                aspect-ratio: 4 / 3;
+                border-radius: 0;
+            }
+            .project-card__image { object-fit: cover; }
+            .project-card__badge {
+                top: 9px !important;
+                left: 9px !important;
+                display: inline-flex;
+                align-items: center;
+                max-width: calc(100% - 18px);
+                height: 24px;
+                padding: 0 10px !important;
+                border-radius: 999px !important;
+                background: rgba(10, 30, 22, .78) !important;
+                font-size: 11px !important;
+                line-height: 1;
+                font-weight: 700 !important;
+                text-transform: none !important;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
+            .project-card__body {
+                padding: 12px 12px 10px !important;
+            }
+            .project-card__body.space-y-4 > :not([hidden]) ~ :not([hidden]) {
+                margin-top: 5px !important;
+            }
+            .project-card__title {
+                display: -webkit-box;
+                min-height: 36px;
+                overflow: hidden;
+                -webkit-box-orient: vertical;
+                -webkit-line-clamp: 2;
+                font-size: 15px !important;
+                line-height: 1.2 !important;
+                font-weight: 600 !important;
+                letter-spacing: -.02em;
+            }
+            .project-card__desc {
+                display: -webkit-box;
+                min-height: 36px;
+                overflow: hidden;
+                -webkit-box-orient: vertical;
+                -webkit-line-clamp: 2;
+                font-size: 13px !important;
+                line-height: 1.38 !important;
+            }
+            .project-card__fallback {
+                padding: 0 12px 12px !important;
+            }
+            .project-card__fallback button {
+                height: 40px;
+                padding: 0 10px !important;
+                border-radius: 12px !important;
+                background: #eff7f1 !important;
+                color: #1f5f3d !important;
+                font-size: 13px !important;
+                font-weight: 700 !important;
+                box-shadow: inset 0 0 0 1px rgba(31, 95, 61, .08);
+                transition: transform .2s ease, background .2s ease, color .2s ease, box-shadow .2s ease;
+            }
+            .project-card__fallback button:active {
+                transform: scale(.98);
+                background: #1f5f3d !important;
+                color: #fff !important;
+            }
+            .project-card__cta { display: none !important; }
+            .project-skeleton-grid > div,
+            .project-skeleton-grid .rounded-3xl { border-radius: 18px !important; }
+            .project-skeleton-grid .h-64 {
+                height: auto !important;
+                aspect-ratio: 4 / 3;
+            }
+        }
         @media (min-width: 1280px) {
             .ad-safe-content { padding-left: 0; padding-right: 0; }
             .ad-content-grid.has-ads { grid-template-columns: 280px minmax(0, 1fr) 280px; gap: 20px; align-items: start; }
@@ -3321,15 +3480,15 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                 </div>
 
                 <!-- Filters -->
-                <div class="flex flex-wrap gap-2 justify-center border-b border-stone-200 pb-6">
-                    <button @click="filterCategory = 'all'" class="px-5 py-2.5 rounded-xl font-bold text-sm transition" :class="filterCategory === 'all' ? 'bg-forest-700 text-white shadow-md' : 'bg-white text-stone-600 hover:bg-stone-100 border border-stone-200'" x-text="lang === 'az' ? 'Bütün' : (lang === 'ru' ? 'Все' : 'All')">Bütün</button>
-                    <button @click="filterCategory = 'house'" class="px-5 py-2.5 rounded-xl font-bold text-sm transition" :class="filterCategory === 'house' ? 'bg-forest-700 text-white shadow-md' : 'bg-white text-stone-600 hover:bg-stone-100 border border-stone-200'" x-text="lang === 'az' ? 'Taxta Evlər' : (lang === 'ru' ? 'Деревянные дома' : 'Wooden Houses')">Taxta Evlər</button>
-                    <button @click="filterCategory = 'restaurant'" class="px-5 py-2.5 rounded-xl font-bold text-sm transition" :class="filterCategory === 'restaurant' ? 'bg-forest-700 text-white shadow-md' : 'bg-white text-stone-600 hover:bg-stone-100 border border-stone-200'" x-text="lang === 'az' ? 'Restoranlar' : (lang === 'ru' ? 'Рестораны' : 'Restaurants')">Restoranlar</button>
-                    <button @click="filterCategory = 'gazebo'" class="px-5 py-2.5 rounded-xl font-bold text-sm transition" :class="filterCategory === 'gazebo' ? 'bg-forest-700 text-white shadow-md' : 'bg-white text-stone-600 hover:bg-stone-100 border border-stone-200'" x-text="lang === 'az' ? 'Besedkalar' : (lang === 'ru' ? 'Беседки' : 'Gazebos')">Besedkalar</button>
-                    <button @click="filterCategory = 'bath'" class="px-5 py-2.5 rounded-xl font-bold text-sm transition" :class="filterCategory === 'bath' ? 'bg-forest-700 text-white shadow-md' : 'bg-white text-stone-600 hover:bg-stone-100 border border-stone-200'" x-text="lang === 'az' ? 'Hamam & Sauna' : (lang === 'ru' ? 'Бани & Сауны' : 'Bath & Sauna')">Hamam & Sauna</button>
+                <div class="project-filter-grid flex flex-wrap gap-2 justify-center border-b border-stone-200 pb-6">
+                    <button @click="filterCategory = 'all'" class="project-filter-button px-5 py-2.5 rounded-xl font-bold text-sm transition" :class="filterCategory === 'all' ? 'bg-forest-700 text-white shadow-md' : 'bg-white text-stone-600 hover:bg-stone-100 border border-stone-200'" x-text="lang === 'az' ? 'Bütün' : (lang === 'ru' ? 'Все' : 'All')">Bütün</button>
+                    <button @click="filterCategory = 'house'" class="project-filter-button px-5 py-2.5 rounded-xl font-bold text-sm transition" :class="filterCategory === 'house' ? 'bg-forest-700 text-white shadow-md' : 'bg-white text-stone-600 hover:bg-stone-100 border border-stone-200'" x-text="lang === 'az' ? 'Taxta Evlər' : (lang === 'ru' ? 'Деревянные дома' : 'Wooden Houses')">Taxta Evlər</button>
+                    <button @click="filterCategory = 'restaurant'" class="project-filter-button px-5 py-2.5 rounded-xl font-bold text-sm transition" :class="filterCategory === 'restaurant' ? 'bg-forest-700 text-white shadow-md' : 'bg-white text-stone-600 hover:bg-stone-100 border border-stone-200'" x-text="lang === 'az' ? 'Restoranlar' : (lang === 'ru' ? 'Рестораны' : 'Restaurants')">Restoranlar</button>
+                    <button @click="filterCategory = 'gazebo'" class="project-filter-button px-5 py-2.5 rounded-xl font-bold text-sm transition" :class="filterCategory === 'gazebo' ? 'bg-forest-700 text-white shadow-md' : 'bg-white text-stone-600 hover:bg-stone-100 border border-stone-200'" x-text="lang === 'az' ? 'Besedkalar' : (lang === 'ru' ? 'Беседки' : 'Gazebos')">Besedkalar</button>
+                    <button @click="filterCategory = 'bath'" class="project-filter-button px-5 py-2.5 rounded-xl font-bold text-sm transition" :class="filterCategory === 'bath' ? 'bg-forest-700 text-white shadow-md' : 'bg-white text-stone-600 hover:bg-stone-100 border border-stone-200'" x-text="lang === 'az' ? 'Hamam & Sauna' : (lang === 'ru' ? 'Бани & Сауны' : 'Bath & Sauna')">Hamam & Sauna</button>
                 </div>
 
-                <div x-show="!projectsLoaded" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                <div x-show="!projectsLoaded" class="project-grid project-skeleton-grid grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                     <template x-for="idx in 3" :key="`project-skeleton-${idx}`">
                         <div class="bg-white rounded-3xl overflow-hidden shadow-sm border border-stone-200/60">
                             <div class="h-64 skeleton-shimmer"></div>
@@ -3338,21 +3497,21 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                     </template>
                 </div>
                 <div x-show="projectsLoaded && !(Array.isArray(filteredProjects) && filteredProjects.filter(p => !p.archived).length)" class="empty-state projects-empty rounded-3xl border border-stone-200 bg-white p-10 text-center text-stone-500 font-bold" x-text="lang === 'az' ? 'Layihə tapılmadı.' : (lang === 'ru' ? 'Проекты не найдены.' : 'No projects found.')"></div>
-                <div x-show="projectsLoaded" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                <div x-show="projectsLoaded" class="project-grid grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                     <template x-for="(proj, index) in (Array.isArray(filteredProjects) ? filteredProjects : []).filter(p => !p.archived)" :key="proj.id">
                         <div @click="openProjectModal(proj, index)" class="project-card group cursor-pointer bg-white rounded-3xl overflow-hidden shadow-sm transition-all duration-[450ms] border border-stone-200/60 flex flex-col justify-between hover:shadow-2xl hover:shadow-forest-950/12 hover:border-wood-200">
                             <div>
-                                <div class="relative h-64 overflow-hidden">
+                                <div class="project-card__media relative h-64 overflow-hidden">
                                     <img :src="(proj.images && proj.images[0]) || proj.image" class="project-card__image w-full h-full object-cover transition-transform duration-[500ms] ease-out" :alt="proj.title">
                                     <div class="project-card__overlay absolute inset-0 bg-gradient-to-t from-forest-950/65 via-forest-950/10 to-transparent opacity-0 transition-opacity duration-[450ms]"></div>
-                                    <span class="absolute top-4 left-4 bg-forest-950/85 text-white backdrop-blur text-xs font-bold px-3 py-1 rounded-full uppercase" x-text="lang === 'en' ? proj.catNameEn : (lang === 'ru' ? proj.catNameRu : proj.catName)">Taxta Ev</span>
+                                    <span class="project-card__badge absolute top-4 left-4 bg-forest-950/85 text-white backdrop-blur text-xs font-bold px-3 py-1 rounded-full uppercase" x-text="lang === 'en' ? proj.catNameEn : (lang === 'ru' ? proj.catNameRu : proj.catName)">Taxta Ev</span>
                                     <button @click.stop="openProjectModal(proj, index)" class="project-card__cta absolute left-5 right-5 bottom-5 translate-y-4 opacity-0 rounded-xl border border-white/40 py-3 text-sm font-black text-white shadow-lg backdrop-blur transition-all duration-[450ms]">
                                         <span x-text="t('viewDetails')">Layihəyə Bax</span>
                                     </button>
                                 </div>
-                                <div class="p-6 space-y-4">
+                                <div class="project-card__body p-6 space-y-4">
                                     <h3 class="project-card__title text-xl font-bold text-stone-900 transition-all duration-[450ms]" x-text="lang === 'en' ? proj.titleEn : (lang === 'ru' ? proj.titleRu : proj.title)">Taxta Ev</h3>
-                                    <p class="text-stone-500 text-sm leading-relaxed" x-text="lang === 'en' ? proj.descEn : (lang === 'ru' ? proj.descRu : proj.desc)">Açıqlama</p>
+                                    <p class="project-card__desc text-stone-500 text-sm leading-relaxed" x-text="lang === 'en' ? proj.descEn : (lang === 'ru' ? proj.descRu : proj.desc)">Açıqlama</p>
                                 </div>
                             </div>
                             <div class="project-card__fallback p-6 pt-0">
