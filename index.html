@@ -842,6 +842,8 @@
                 },
 
                 async loadData() {
+                    this.projectsLoaded = false;
+                    this.galleryLoaded = false;
                     const cached = (key, fallback) => JSON.parse(localStorage.getItem(key) || 'null') || fallback;
                     const publicFetch = async (path) => {
                         try {
@@ -851,34 +853,43 @@
                             return { ok: false, error };
                         }
                     };
-                    const settled = await Promise.all([
-                        publicFetch('/api/projects'),
-                        publicFetch('/api/gallery'),
-                        this.safeApi('/api/banners', cached('bc_banners_list', [])),
-                        this.safeApi('/api/stats', cached('bc_stats', this.stats))
-                    ]);
-                    const [projectsResult, galleryResult, bannersResult, statsResult] = settled;
-                    const projectItems = projectsResult.ok ? this.normalizeProjects(projectsResult.data, []) : this.normalizeProjects(cached('bc_projects', defaultProjects), defaultProjects);
-                    const galleryItems = galleryResult.ok ? this.normalizeGallery(galleryResult.data, []) : this.normalizeGallery(cached('bc_gallery', defaultGallery), defaultGallery);
-                    this.projects = projectItems;
-                    this.galleryItems = galleryItems;
-                    this.projectsLoaded = true;
-                    this.galleryLoaded = true;
-                    const banners = this.normalizeBanners(bannersResult, null);
-                    this.banners = banners;
-                    this.mainBanner = this.firstActiveBanner() || banners[0] || this.normalizeBanner({}, 'both');
-                    this.stats = { ...this.stats, ...(statsResult || {}) };
-                    console.info('GET /api/projects'); console.info(`Loaded projects: ${this.projects.length}`);
-                    console.info('GET /api/gallery'); console.info(`Loaded gallery: ${this.galleryItems.length}`);
-                    console.info('GET /api/banners'); console.info(`Loaded banners: ${banners.length}`);
-                    if (this.adminLoggedIn) {
-                        this.messages = this.asArray(await this.safeApi('/api/messages', cached('bc_messages', defaultMessages)));
+                    let banners = [];
+
+                    try {
+                        const settled = await Promise.allSettled([
+                            publicFetch('/api/projects'),
+                            publicFetch('/api/gallery'),
+                            this.safeApi('/api/banners', cached('bc_banners_list', [])),
+                            this.safeApi('/api/stats', cached('bc_stats', this.stats))
+                        ]);
+                        const [projectsSettled, gallerySettled, bannersSettled, statsSettled] = settled;
+                        const projectsResult = projectsSettled.status === 'fulfilled' ? projectsSettled.value : { ok: false, error: projectsSettled.reason };
+                        const galleryResult = gallerySettled.status === 'fulfilled' ? gallerySettled.value : { ok: false, error: gallerySettled.reason };
+                        const bannersResult = bannersSettled.status === 'fulfilled' ? bannersSettled.value : cached('bc_banners_list', []);
+                        const statsResult = statsSettled.status === 'fulfilled' ? statsSettled.value : this.stats;
+                        const projectItems = projectsResult.ok ? this.normalizeProjects(projectsResult.data, []) : this.normalizeProjects(cached('bc_projects', defaultProjects), defaultProjects);
+                        const galleryItems = galleryResult.ok ? this.normalizeGallery(galleryResult.data, []) : this.normalizeGallery(cached('bc_gallery', defaultGallery), defaultGallery);
+                        this.projects = projectItems;
+                        this.galleryItems = galleryItems;
+                        this.galleryLoaded = true;
+                        banners = this.normalizeBanners(bannersResult, null);
+                        this.banners = banners;
+                        this.mainBanner = this.firstActiveBanner() || banners[0] || this.normalizeBanner({}, 'both');
+                        this.stats = { ...this.stats, ...(statsResult || {}) };
+                        console.info('GET /api/projects'); console.info(`Loaded projects: ${this.projects.length}`);
+                        console.info('GET /api/gallery'); console.info(`Loaded gallery: ${this.galleryItems.length}`);
+                        console.info('GET /api/banners'); console.info(`Loaded banners: ${banners.length}`);
+                        if (this.adminLoggedIn) {
+                            this.messages = this.asArray(await this.safeApi('/api/messages', cached('bc_messages', defaultMessages)));
+                        }
+                        console.table(this.projects.slice(0, 3));
+                        console.table(this.galleryItems.slice(0, 3));
+                        this.cacheSave();
+                        this.$nextTick(() => this.syncHeroVideoAudio());
+                        this.restartAdRotation();
+                    } finally {
+                        this.projectsLoaded = true;
                     }
-                    console.table(this.projects.slice(0, 3));
-                    console.table(this.galleryItems.slice(0, 3));
-                    this.cacheSave();
-                    this.$nextTick(() => this.syncHeroVideoAudio());
-                    this.restartAdRotation();
                 },
 
                 normalizeHomeSectionImages(payload) {
@@ -3501,16 +3512,20 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                     <button @click="filterCategory = 'bath'" class="project-filter-button px-5 py-2.5 rounded-xl font-bold text-sm transition" :class="filterCategory === 'bath' ? 'bg-forest-700 text-white shadow-md' : 'bg-white text-stone-600 hover:bg-stone-100 border border-stone-200'" x-text="lang === 'az' ? 'Hamam & Sauna' : (lang === 'ru' ? 'Бани & Сауны' : 'Bath & Sauna')">Hamam & Sauna</button>
                 </div>
 
-                <div x-show="!projectsLoaded" class="project-grid project-skeleton-grid grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                    <template x-for="idx in 3" :key="`project-skeleton-${idx}`">
-                        <div class="bg-white rounded-3xl overflow-hidden shadow-sm border border-stone-200/60">
-                            <div class="h-64 skeleton-shimmer"></div>
-                            <div class="p-6 space-y-4"><div class="h-6 w-2/3 rounded skeleton-shimmer"></div><div class="h-4 w-full rounded skeleton-shimmer"></div><div class="h-4 w-5/6 rounded skeleton-shimmer"></div></div>
-                        </div>
-                    </template>
-                </div>
-                <div x-show="projectsLoaded && !(Array.isArray(filteredProjects) && filteredProjects.filter(p => !p.archived).length)" class="empty-state projects-empty rounded-3xl border border-stone-200 bg-white p-10 text-center text-stone-500 font-bold" x-text="lang === 'az' ? 'Layihə tapılmadı.' : (lang === 'ru' ? 'Проекты не найдены.' : 'No projects found.')"></div>
-                <div x-show="projectsLoaded" class="project-grid grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                <template x-if="!projectsLoaded">
+                    <div class="project-grid project-skeleton-grid grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                        <template x-for="idx in 4" :key="`project-skeleton-${idx}`">
+                            <div class="bg-white rounded-3xl overflow-hidden shadow-sm border border-stone-200/60">
+                                <div class="h-64 skeleton-shimmer"></div>
+                                <div class="p-6 space-y-4"><div class="h-6 w-2/3 rounded skeleton-shimmer"></div><div class="h-4 w-full rounded skeleton-shimmer"></div><div class="h-4 w-5/6 rounded skeleton-shimmer"></div></div>
+                            </div>
+                        </template>
+                    </div>
+                </template>
+                <template x-if="projectsLoaded">
+                    <div>
+                        <div x-show="!(Array.isArray(filteredProjects) && filteredProjects.filter(p => !p.archived).length)" class="empty-state projects-empty rounded-3xl border border-stone-200 bg-white p-10 text-center text-stone-500 font-bold" x-text="lang === 'az' ? 'Bu kateqoriyada layihə yoxdur' : (lang === 'ru' ? 'В этой категории проектов нет.' : 'There are no projects in this category.')"></div>
+                        <div x-show="Array.isArray(filteredProjects) && filteredProjects.filter(p => !p.archived).length > 0" class="project-grid grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                     <template x-for="(proj, index) in (Array.isArray(filteredProjects) ? filteredProjects : []).filter(p => !p.archived)" :key="proj.id">
                         <div @click="openProjectModal(proj, index)" class="project-card group cursor-pointer bg-white rounded-3xl overflow-hidden shadow-sm transition-all duration-[450ms] border border-stone-200/60 flex flex-col justify-between hover:shadow-2xl hover:shadow-forest-950/12 hover:border-wood-200">
                             <div>
@@ -3534,7 +3549,9 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                             </div>
                         </div>
                     </template>
-                </div>
+                        </div>
+                    </div>
+                </template>
             </div>
 
             <!-- 3. GALLERY & MEDIA PAGE -->
