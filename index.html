@@ -2180,6 +2180,11 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                 prevWorkImage() { const n=this.currentWorkImages().length; if(n>1) this.activeWorkImageIndex=(this.activeWorkImageIndex-1+n)%n; },
                 nextWorkImage() { const n=this.currentWorkImages().length; if(n>1) this.activeWorkImageIndex=(this.activeWorkImageIndex+1)%n; },
                 workWhatsAppUrl(item) { return `https://wa.me/994553221109?text=${encodeURIComponent('Salam, '+this.localizedWorkTitle(item)+' işi ilə bağlı məlumat almaq istəyirəm.')}`; },
+                setWorkCoverFile(event) { this.workCoverFile = event.target.files?.[0] || null; },
+                workCoverPreview() { return this.workCoverFile ? URL.createObjectURL(this.workCoverFile) : this.workForm.coverImage; },
+                clearWorkCover() { this.workCoverFile = null; this.workForm.coverImage = ''; },
+                setWorkImageFiles(event) { this.workImageFiles = [...(event.target.files || [])].slice(0, Math.max(0, 20 - (this.workForm.images || []).length)); },
+                removePendingWorkImage(index) { this.workImageFiles = this.workImageFiles.filter((_, i) => i !== index); },
                 resetWorkForm() { this.editingWorkItemId = null; this.workForm = { category: 'Taxta Ev', titleAz: '', titleRu: '', titleEn: '', descriptionAz: '', descriptionRu: '', descriptionEn: '', locationAz: '', locationRu: '', locationEn: '', completionDate: '', coverImage: '', images: [], featured: false, active: true, sortOrder: (this.workItems?.length || 0) }; this.workCoverFile = null; this.workImageFiles = []; },
                 editWorkItem(item) { this.editingWorkItemId = item.id; this.workForm = { ...item, completionDate: item.completionDate ? String(item.completionDate).slice(0,10) : '' }; this.workCoverFile = null; this.workImageFiles = []; },
                 async saveWorkItem() { this.actionLoading.workSave = true; try { const cover = this.workCoverFile ? await this.uploadMedia(this.workCoverFile, 'works') : this.workForm.coverImage; const more = this.workImageFiles.length ? await Promise.all(this.workImageFiles.map(f => this.uploadMedia(f, 'works'))) : []; const body = { ...this.workForm, titleRu: this.workForm.titleRu || this.workForm.titleAz, titleEn: this.workForm.titleEn || this.workForm.titleAz, descriptionRu: this.workForm.descriptionRu || this.workForm.descriptionAz, descriptionEn: this.workForm.descriptionEn || this.workForm.descriptionAz, locationRu: this.workForm.locationRu || this.workForm.locationAz, locationEn: this.workForm.locationEn || this.workForm.locationAz, coverImage: cover, images: [...(this.workForm.images || []), ...more].filter(Boolean), sortOrder: Number(this.workForm.sortOrder) || 0, active: Boolean(this.workForm.active), featured: Boolean(this.workForm.featured), completionDate: this.workForm.completionDate || null }; await this.api(this.editingWorkItemId ? `/api/work-items/${this.editingWorkItemId}` : '/api/work-items', { method: this.editingWorkItemId ? 'PUT' : 'POST', body: JSON.stringify(body) }); await this.loadData(); this.resetWorkForm(); } finally { this.actionLoading.workSave = false; } },
@@ -2524,6 +2529,60 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
         .project-card:hover .project-card__cta { background: rgba(31, 119, 75, .95) !important; color: #fff !important; }
         .skeleton-shimmer { position: relative; overflow: hidden; background: linear-gradient(90deg, #f5f5f4 25%, #e7e5e4 37%, #f5f5f4 63%); background-size: 400% 100%; animation: skeletonShimmer 1.35s ease infinite; }
         @keyframes skeletonShimmer { 0% { background-position: 100% 0; } 100% { background-position: 0 0; } }
+
+
+        .admin-page-shell { padding-bottom: calc(110px + env(safe-area-inset-bottom)); }
+        .admin-summary-bar { width: calc(100% - 32px); margin-inline: auto; padding: 18px 20px; border-radius: 22px; display: flex; align-items: center; justify-content: space-between; gap: 14px; background: #fff; border: 1px solid rgba(214, 208, 198, .78); box-shadow: 0 18px 44px rgba(29, 53, 41, .08); }
+        .admin-summary-title { display: flex; align-items: center; min-width: 0; gap: 12px; }
+        .admin-summary-title h1 { font-size: clamp(22px, 6vw, 24px); line-height: 1.1; font-weight: 900; color: #1c3e2d; letter-spacing: -.04em; }
+        .admin-summary-icon { width: 38px; height: 38px; flex: 0 0 38px; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center; color: #33734f; background: #f1f7f3; border: 1px solid rgba(51,115,79,.14); }
+        .admin-logout-button { height: 42px; padding: 0 14px; border-radius: 14px; font-size: 13px; font-weight: 900; color: #7f3627; background: #fdf8f5; border: 1px solid rgba(189, 88, 58, .20); }
+        .admin-tab-grid { width: calc(100% - 32px); margin-inline: auto; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+        .admin-tab-button { min-height: 46px; padding: 10px 12px; border-radius: 14px; font-size: 13px; line-height: 1.15; font-weight: 900; text-align: center; color: #293d33; background: #fffdfa; border: 1px solid rgba(214, 208, 198, .88); box-shadow: 0 8px 20px rgba(29, 53, 41, .04); overflow: hidden; }
+        .admin-tab-button.is-active { background: #33734f; color: #fff; border-color: #33734f; box-shadow: 0 14px 30px rgba(51,115,79,.22); }
+        .admin-works-layout { width: calc(100% - 32px); max-width: 1180px; margin-inline: auto; display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
+        .admin-work-form-card, .admin-work-list-card { background: #fff; border: 1px solid rgba(214, 208, 198, .82); border-radius: 24px; box-shadow: 0 18px 48px rgba(29, 53, 41, .08); padding: 20px; }
+        .admin-work-card-head, .admin-work-list-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
+        .admin-work-card-head h3, .admin-work-list-head h3 { font-size: 18px; line-height: 1.15; font-weight: 900; color: #1c3e2d; }
+        .admin-reset-button { height: 38px; padding: 0 12px; border-radius: 12px; background: #f5f2ec; color: #5d554b; font-size: 12px; font-weight: 900; }
+        .admin-field { display: grid; gap: 8px; margin-bottom: 15px; }
+        .admin-field > label:first-child { font-size: 11px; font-weight: 900; letter-spacing: .05em; text-transform: uppercase; color: #6f6a62; }
+        .admin-field input:not([type=file]), .admin-field select, .admin-field textarea { width: 100%; min-width: 0; height: 46px; border-radius: 13px; padding: 0 14px; font-size: 14px; font-weight: 700; color: #292524; border: 1px solid rgba(214, 208, 198, .95); background: #fcfcfa; outline: none; transition: border-color .2s ease, box-shadow .2s ease; }
+        .admin-field textarea { min-height: 100px; padding-block: 12px; resize: vertical; line-height: 1.45; }
+        .admin-field input:focus, .admin-field select:focus, .admin-field textarea:focus { border-color: #33734f; box-shadow: 0 0 0 4px rgba(51,115,79,.12); }
+        .admin-date-sort-row { display: grid; grid-template-columns: minmax(0, 1fr) 110px; gap: 12px; align-items: end; }
+        .admin-sort-input { text-align: center; }
+        .admin-upload-card { min-height: 112px; border: 1.5px dashed rgba(51,115,79,.34); border-radius: 18px; background: linear-gradient(180deg,#fffdfa,#f8f5ee); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; text-align: center; cursor: pointer; }
+        .admin-upload-icon { width: 34px; height: 34px; border-radius: 12px; display: inline-flex; align-items: center; justify-content: center; background: #eef6f1; color: #33734f; }
+        .admin-upload-main { font-size: 14px; font-weight: 900; color: #1f3528; }
+        .admin-upload-help { font-size: 11px; font-weight: 800; color: #918879; }
+        .admin-cover-preview { position: relative; margin-top: 10px; overflow: hidden; border-radius: 18px; }
+        .admin-cover-preview img { width: 100%; height: 150px; object-fit: cover; display: block; }
+        .admin-cover-preview button, .admin-preview-tile .remove { position: absolute; top: 8px; right: 8px; min-width: 28px; height: 28px; border-radius: 999px; background: rgba(8,24,18,.78); color: #fff; font-size: 12px; font-weight: 900; }
+        .admin-preview-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 10px; }
+        .admin-preview-tile { position: relative; aspect-ratio: 1; border-radius: 14px; overflow: hidden; background: #f5f2ec; }
+        .admin-preview-tile img { width: 100%; height: 100%; object-fit: cover; }
+        .admin-preview-tile .move { position: absolute; bottom: 6px; width: 24px; height: 22px; border-radius: 8px; background: rgba(255,255,255,.88); font-size: 11px; font-weight: 900; }
+        .admin-preview-tile .left { left: 6px; } .admin-preview-tile .right { right: 6px; }
+        .admin-toggle-stack { display: grid; gap: 10px; margin: 4px 0 16px; }
+        .admin-toggle-row { min-height: 54px; padding: 10px 12px; border-radius: 16px; border: 1px solid rgba(214,208,198,.82); background: #fcfcfa; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+        .admin-toggle-row span { display: grid; gap: 2px; text-transform: none; letter-spacing: normal; } .admin-toggle-row strong { font-size: 14px; color: #292524; } .admin-toggle-row small { font-size: 11px; color: #837a6d; }
+        .admin-toggle-row input { position: absolute; opacity: 0; } .admin-toggle-row i { width: 46px; height: 26px; border-radius: 999px; background: #d9d4cb; position: relative; flex: 0 0 auto; } .admin-toggle-row i:before { content: ''; position: absolute; width: 20px; height: 20px; left: 3px; top: 3px; border-radius: 999px; background: #fff; box-shadow: 0 2px 6px rgba(0,0,0,.18); transition: transform .2s ease; } .admin-toggle-row input:checked + i { background: #33734f; } .admin-toggle-row input:checked + i:before { transform: translateX(20px); }
+        .admin-form-actions { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; }
+        .admin-primary-action, .admin-secondary-action { height: 48px; border-radius: 15px; padding: 0 16px; font-size: 14px; font-weight: 900; } .admin-primary-action { background: #33734f; color: #fff; box-shadow: 0 14px 26px rgba(51,115,79,.22); } .admin-secondary-action { background: #f2efe8; color: #5d554b; }
+        .admin-work-list-head span { min-width: 32px; height: 28px; padding: 0 10px; border-radius: 999px; background: #eef6f1; color: #33734f; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 900; }
+        .admin-empty-state { padding: 28px 20px; border-radius: 20px; background: #fcfcfa; border: 1px solid rgba(214,208,198,.76); display: grid; place-items: center; gap: 6px; text-align: center; color: #6f6a62; } .admin-empty-state i { color: #b88a60; font-size: 20px; } .admin-empty-state strong { color: #292524; font-size: 14px; } .admin-empty-state small { font-size: 12px; }
+        .admin-work-list { display: grid; gap: 10px; } .admin-work-item { display: grid; grid-template-columns: 72px minmax(0,1fr); gap: 12px; padding: 10px; border-radius: 18px; border: 1px solid rgba(214,208,198,.72); background: #fcfcfa; } .admin-work-item img { width: 72px; height: 72px; border-radius: 14px; object-fit: cover; background: #f2efe8; } .admin-work-item-body { min-width: 0; } .admin-work-item-body p { font-size: 14px; font-weight: 900; color: #292524; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } .admin-work-item-body small { color: #837a6d; font-weight: 800; } .admin-work-item-body span { display: inline-flex; margin-top: 5px; margin-right: 4px; border-radius: 999px; padding: 3px 7px; font-size: 10px; font-weight: 900; } .admin-work-item-body .ok { background:#e8f5ec;color:#287047; } .admin-work-item-body .off { background:#fff0ec;color:#9e432c; } .admin-work-item-body .featured { background:#fbeee6;color:#9e432c; }
+        .admin-work-actions { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 6px; } .admin-work-actions button { min-height: 32px; border-radius: 10px; padding: 0 9px; background: #f2efe8; color: #4c463f; font-size: 11px; font-weight: 900; } .admin-work-actions .danger { background: #fff0ec; color: #9e432c; }
+        .works-page { max-width: 1280px; margin-inline: auto; padding: 48px 0 calc(110px + env(safe-area-inset-bottom)); }
+        .works-intro { text-align: center; max-width: 740px; margin: 0 auto; padding-inline: 16px; } .works-eyebrow { display:block; margin-bottom:12px; font-size:11px; letter-spacing:.14em; text-transform:uppercase; font-weight:900; color:#bd583a; } .works-title { max-width:92%; margin-inline:auto; font-size:clamp(32px,9vw,42px); line-height:1.05; font-weight:950; letter-spacing:-.055em; color:#1c3e2d; } .works-desc { max-width:34ch; margin:14px auto 0; font-size:15px; line-height:1.5; color:#6f6a62; }
+        .works-filter-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; max-width:420px; margin:24px auto 0; padding-inline:16px; } .works-filter-button { height:44px; border-radius:13px; border:1px solid rgba(214,208,198,.88); background:#fffdfa; color:#293d33; font-size:13px; font-weight:900; box-shadow:0 8px 18px rgba(29,53,41,.04); } .works-filter-button.is-active { background:#33734f; border-color:#33734f; color:#fff; box-shadow:0 14px 28px rgba(51,115,79,.20); }
+        .works-empty-state { max-width:420px; margin:28px auto 0; padding:30px 20px; border-radius:20px; background:#fff; border:1px solid rgba(214,208,198,.82); display:grid; place-items:center; gap:7px; text-align:center; color:#837a6d; } .works-empty-state i { color:#b88a60; font-size:21px; } .works-empty-state strong { color:#292524; font-size:15px; } .works-empty-state small { font-size:13px; }
+        .work-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; padding-inline:16px; margin-top:28px; } .work-card { border-radius:18px !important; } .work-card img { aspect-ratio:4/3; height:auto !important; } .work-card h3 { display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; } .work-card p { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        @media (max-width: 340px) { .admin-date-sort-row { grid-template-columns: 1fr; } }
+        @media (max-width: 329px) { .work-grid { grid-template-columns: 1fr; } .admin-form-actions { grid-template-columns: 1fr; } }
+        @media (min-width: 768px) { .admin-page-shell { padding-bottom: 48px; } .admin-tab-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } .admin-works-layout { grid-template-columns: minmax(0, 3fr) minmax(320px, 2fr); gap: 22px; } .works-page { padding-bottom: 72px; } .works-filter-grid { display:flex; justify-content:center; max-width:900px; } .works-filter-button { padding-inline:18px; } .work-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 22px; padding-inline: 24px; } }
+
         .hero-loading-placeholder { background: radial-gradient(circle at 25% 20%, rgba(51,115,79,.45), transparent 30%), linear-gradient(135deg, #06110e 0%, #13251b 55%, #0c1813 100%); }
 
         @media (hover: hover) and (pointer: fine) {
@@ -3774,22 +3833,22 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
 
 
             <!-- 2B. COMPLETED WORK / PORTFOLIO PAGE -->
-            <section x-show="page === 'works'" x-cloak class="works-page max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-8 ad-safe-content" aria-labelledby="works-heading">
-                <div class="text-center max-w-3xl mx-auto space-y-4">
-                    <span class="text-wood-600 font-bold uppercase tracking-widest text-sm block" x-text="t('workEyebrow')">TAMAMLANMIŞ İŞLƏR</span>
-                    <h1 id="works-heading" class="text-3xl sm:text-5xl font-black text-forest-950" x-text="t('workTitle')">Gördüyümüz işlər</h1>
-                    <p class="text-stone-500 sm:text-lg" x-text="t('workDescription')"></p>
+            <section x-show="page === 'works'" x-cloak class="works-page ad-safe-content" aria-labelledby="works-heading">
+                <div class="works-intro">
+                    <span class="works-eyebrow" x-text="t('workEyebrow')">TAMAMLANMIŞ İŞLƏR</span>
+                    <h1 id="works-heading" class="works-title" x-text="t('workTitle')">Gördüyümüz işlər</h1>
+                    <p class="works-desc" x-text="t('workDescription')"></p>
                 </div>
-                <div class="flex flex-wrap justify-center gap-2">
+                <div class="works-filter-grid">
                     <template x-for="cat in workCategories()" :key="cat">
-                        <button type="button" @click="activeWorkCategory = cat" class="rounded-full border px-4 py-2 text-xs font-black uppercase tracking-wider transition" :class="activeWorkCategory === cat ? 'bg-forest-800 text-white border-forest-800 shadow-lg shadow-forest-900/15' : 'bg-white text-stone-600 border-stone-200 hover:border-wood-300'" x-text="workCategoryLabel(cat)"></button>
+                        <button type="button" @click="activeWorkCategory = cat" class="works-filter-button" :class="activeWorkCategory === cat ? 'is-active' : ''" x-text="workCategoryLabel(cat)"></button>
                     </template>
                 </div>
                 <template x-if="!workItemsLoaded"><div class="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-6"><template x-for="n in 6"><div class="h-60 rounded-[22px] skeleton-shimmer"></div></template></div></template>
                 <template x-if="workItemsLoaded">
                     <div>
-                        <div x-show="!filteredWorkItems.length" class="rounded-3xl border border-stone-200 bg-white p-10 text-center font-bold text-stone-500" x-text="lang === 'az' ? 'Hələ iş əlavə edilməyib.' : (lang === 'ru' ? 'Работы пока не добавлены.' : 'No work items yet.')"></div>
-                        <div x-show="filteredWorkItems.length" class="work-grid grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-6">
+                        <div x-show="!filteredWorkItems.length" class="works-empty-state"><i class="fa-solid fa-briefcase"></i><strong x-text="lang === 'az' ? 'Hələ iş əlavə edilməyib' : (lang === 'ru' ? 'Работы пока не добавлены' : 'No work items yet')"></strong><small x-text="lang === 'az' ? 'Tamamlanmış işlər burada göstəriləcək.' : (lang === 'ru' ? 'Завершенные работы появятся здесь.' : 'Completed works will appear here.')"></small></div>
+                        <div x-show="filteredWorkItems.length" class="work-grid">
                             <template x-for="(item, index) in filteredWorkItems" :key="item.id">
                                 <button type="button" @click="openWorkModal(item, index)" class="work-card group flex h-full flex-col overflow-hidden rounded-[20px] border border-stone-200/80 bg-white text-left shadow-sm transition hover:-translate-y-1 hover:shadow-xl hover:shadow-forest-950/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-forest-700" :aria-label="localizedWorkTitle(item)">
                                     <div class="relative aspect-[4/3] overflow-hidden bg-stone-100"><img :src="item.coverImage" :alt="localizedWorkTitle(item)" class="h-full w-full object-cover transition duration-500 group-hover:scale-105"><span class="absolute left-2 top-2 rounded-full bg-forest-950/85 px-2.5 py-1 text-[10px] font-black uppercase text-white" x-text="workCategoryLabel(item.category)"></span></div>
@@ -3957,21 +4016,19 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
             </div>
 
             <!-- 7. REAL-TIME LOCALIZED ADMIN DASHBOARD -->
-            <div x-show="page === 'admin'" x-cloak class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-8 ad-safe-content">
-                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-6 sm:p-8 rounded-3xl border border-stone-200/80 shadow-sm">
-                    <div>
-                        <h1 class="text-2xl sm:text-3xl font-black text-stone-900 flex items-center gap-2">
-                            <i @click="handleAdminTitleSecretTap()" class="fa-solid fa-gauge-high text-forest-700 select-none"></i>
-                            <span x-text="t('adminTitle')">Admin İdarəetmə Paneli</span>
-                        </h1>
+            <div x-show="page === 'admin'" x-cloak class="admin-page-shell max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-8 ad-safe-content">
+                <div class="admin-summary-bar">
+                    <div class="admin-summary-title">
+                        <button type="button" @click="handleAdminTitleSecretTap()" class="admin-summary-icon" aria-label="Admin"><i class="fa-solid fa-gauge-high"></i></button>
+                        <h1 x-text="t('adminTitle')">Admin İdarəetmə Paneli</h1>
                     </div>
-                    <button @click="handleAdminLogout()" class="px-5 py-2.5 bg-red-50 hover:bg-red-100 text-red-700 font-bold rounded-xl text-sm transition border border-red-200" x-text="t('adminExit')">Çıxış Et</button>
+                    <button @click="handleAdminLogout()" class="admin-logout-button" x-text="t('adminExit')">Çıxış Et</button>
                 </div>
 
                 <!-- Admin Tab Navigation (All Translated Instantly) -->
-                <div class="flex flex-wrap gap-2 border-b border-stone-200 pb-4 text-xs sm:text-sm font-bold">
+                <div class="admin-tab-grid">
                     <template x-for="tab in visibleAdminTabs()" :key="tab.key">
-                        <button @click="adminTab = tab.key; if (tab.key === 'hero') resetHeroForm()" class="px-4 py-2.5 rounded-xl transition" :class="adminTab === tab.key ? 'bg-forest-700 text-white shadow-sm' : 'bg-white text-stone-600 border border-stone-200'" x-text="t(tab.labelKey)"></button>
+                        <button @click="adminTab = tab.key; if (tab.key === 'hero') resetHeroForm()" class="admin-tab-button" :class="adminTab === tab.key ? 'is-active' : ''" x-text="t(tab.labelKey)"></button>
                     </template>
                 </div>
 
@@ -4164,25 +4221,26 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
 
                 <!-- SUB-TAB 4: GALLERY MANAGEMENT WITH REALTIME PREVIEWS -->
 
-                <div x-show="adminTab === 'works'" x-transition class="grid grid-cols-1 lg:grid-cols-12 gap-6 text-xs font-bold uppercase tracking-wider text-stone-500">
-                    <div class="lg:col-span-5 bg-white p-6 rounded-3xl border border-stone-200 shadow-sm space-y-4">
-                        <div class="flex items-center justify-between"><h3 class="text-lg font-black text-stone-900 tracking-normal" x-text="editingWorkItemId ? 'İşi redaktə et' : 'Yeni iş yarat'"></h3><button @click="resetWorkForm()" class="px-3 py-2 rounded-xl bg-stone-100 text-stone-700">Yeni iş yarat</button></div>
-                        <label>Kateqoriya<select x-model="workForm.category" class="w-full mt-1 px-3 py-2 rounded-lg border border-stone-200 bg-stone-50 text-stone-800"><template x-for="c in ['Taxta Ev','Restoran','Besedka','Hamam & Sauna','Digər']"><option :value="c" x-text="c"></option></template></select></label>
-                        <label>Başlıq<input x-model="workForm.titleAz" class="w-full mt-1 px-3 py-2 rounded-lg border border-stone-200 bg-stone-50 text-stone-800"></label>
-                        <label>Açıqlama<textarea x-model="workForm.descriptionAz" class="w-full mt-1 px-3 py-2 rounded-lg border border-stone-200 bg-stone-50 text-stone-800"></textarea></label>
-                        <label>Ünvan<input x-model="workForm.locationAz" class="w-full mt-1 px-3 py-2 rounded-lg border border-stone-200 bg-stone-50 text-stone-800"></label>
-                        <div class="grid grid-cols-2 gap-3"><label>Tamamlanma tarixi<input type="date" x-model="workForm.completionDate" class="w-full mt-1 px-3 py-2 rounded-lg border border-stone-200 bg-stone-50 text-stone-800"></label><label>Sıralama<input type="number" min="0" x-model.number="workForm.sortOrder" class="w-full mt-1 px-3 py-2 rounded-lg border border-stone-200 bg-stone-50 text-stone-800"></label></div>
-                        <label>Əsas şəkil<input type="file" accept="image/jpeg,image/png,image/webp" @change="workCoverFile=$event.target.files[0]" class="w-full mt-1"></label>
-                        <img x-show="workForm.coverImage" :src="workForm.coverImage" class="h-28 w-full rounded-2xl object-cover" alt="Work cover preview">
-                        <label>Əlavə şəkillər<input type="file" multiple accept="image/jpeg,image/png,image/webp" @change="workImageFiles=[...$event.target.files]" class="w-full mt-1"></label>
-                        <div class="grid grid-cols-4 gap-2"><template x-for="(img,i) in workForm.images" :key="img+i"><div class="relative"><img :src="img" class="h-16 w-full rounded-xl object-cover" alt="Work image"><button @click="removeWorkImage(i)" class="absolute right-1 top-1 bg-white rounded-full w-6 h-6">×</button><button @click="moveWorkImage(i,-1)" class="absolute left-1 bottom-1 bg-white rounded w-6 h-5">↑</button><button @click="moveWorkImage(i,1)" class="absolute right-1 bottom-1 bg-white rounded w-6 h-5">↓</button></div></template></div>
-                        <div class="flex gap-4"><label class="inline-flex items-center gap-2"><input type="checkbox" x-model="workForm.featured"> Seçilmiş iş</label><label class="inline-flex items-center gap-2"><input type="checkbox" x-model="workForm.active"> Aktiv</label></div>
-                        <div class="flex gap-2"><button @click="saveWorkItem()" :disabled="actionLoading.workSave" class="flex-1 py-3 rounded-xl bg-forest-700 text-white" x-text="editingWorkItemId ? 'Yadda saxla' : 'Yeni iş yarat'"></button><button @click="resetWorkForm()" class="px-4 rounded-xl bg-stone-200 text-stone-700">Ləğv et</button></div>
+                <div x-show="adminTab === 'works'" x-transition class="admin-works-layout">
+                    <div class="admin-work-form-card">
+                        <div class="admin-work-card-head">
+                            <h3 x-text="editingWorkItemId ? 'İşi redaktə et' : 'Yeni iş'"></h3>
+                            <button type="button" @click="resetWorkForm()" class="admin-reset-button">Formu təmizlə</button>
+                        </div>
+                        <div class="admin-field"><label>Kateqoriya</label><select x-model="workForm.category"><template x-for="c in ['Taxta Ev','Restoran','Besedka','Hamam & Sauna','Digər']"><option :value="c" x-text="c"></option></template></select></div>
+                        <div class="admin-field"><label>Başlıq</label><input x-model="workForm.titleAz"></div>
+                        <div class="admin-field"><label>Açıqlama</label><textarea x-model="workForm.descriptionAz"></textarea></div>
+                        <div class="admin-field"><label>Ünvan</label><input x-model="workForm.locationAz"></div>
+                        <div class="admin-date-sort-row"><div class="admin-field"><label>Tamamlanma tarixi</label><input type="date" x-model="workForm.completionDate"></div><div class="admin-field"><label>Sıralama</label><input type="number" min="0" x-model.number="workForm.sortOrder" class="admin-sort-input"></div></div>
+                        <div class="admin-field"><label>Əsas şəkil</label><label class="admin-upload-card"><input class="sr-only" type="file" accept="image/jpeg,image/png,image/webp" @change="setWorkCoverFile($event)"><span class="admin-upload-icon"><i class="fa-regular fa-image"></i></span><span class="admin-upload-main">Əsas şəkil seç</span><span class="admin-upload-help">JPG, PNG, WEBP</span></label><div x-show="workCoverFile || workForm.coverImage" class="admin-cover-preview"><img :src="workCoverPreview()" alt="Work cover preview"><button type="button" @click="clearWorkCover()">Sil</button></div></div>
+                        <div class="admin-field"><label>Əlavə şəkillər</label><label class="admin-upload-card"><input class="sr-only" type="file" multiple accept="image/jpeg,image/png,image/webp" @change="setWorkImageFiles($event)"><span class="admin-upload-icon"><i class="fa-solid fa-images"></i></span><span class="admin-upload-main">Əlavə şəkillər seç</span><span class="admin-upload-help" x-text="(workImageFiles.length + (workForm.images || []).length) + ' / 20'"></span></label><div class="admin-preview-grid"><template x-for="(img,i) in workForm.images" :key="img+i"><div class="admin-preview-tile"><img :src="img" alt="Work image"><button type="button" class="remove" @click="removeWorkImage(i)">×</button><button type="button" class="move left" @click="moveWorkImage(i,-1)">↑</button><button type="button" class="move right" @click="moveWorkImage(i,1)">↓</button></div></template><template x-for="(file,i) in workImageFiles" :key="file.name+i"><div class="admin-preview-tile"><img :src="URL.createObjectURL(file)" alt="Selected work image"><button type="button" class="remove" @click="removePendingWorkImage(i)">×</button></div></template></div></div>
+                        <div class="admin-toggle-stack"><label class="admin-toggle-row"><span><strong>Seçilmiş iş</strong><small>Portfolio daxilində vurğula</small></span><input type="checkbox" x-model="workForm.featured"><i></i></label><label class="admin-toggle-row"><span><strong>Aktiv</strong><small>Saytda göstərilsin</small></span><input type="checkbox" x-model="workForm.active"><i></i></label></div>
+                        <div class="admin-form-actions"><button type="button" @click="saveWorkItem()" :disabled="actionLoading.workSave" class="admin-primary-action" x-text="editingWorkItemId ? 'Yadda saxla' : 'Yeni iş yarat'"></button><button type="button" @click="resetWorkForm()" class="admin-secondary-action">Ləğv et</button></div>
                     </div>
-                    <div class="lg:col-span-7 bg-white p-6 rounded-3xl border border-stone-200 shadow-sm space-y-3">
-                        <h3 class="text-lg font-black text-stone-900 tracking-normal">Mövcud işlər</h3>
-                        <div x-show="!workItemsLoaded" class="p-6 rounded-2xl skeleton-shimmer">Yüklənir...</div><div x-show="workItemsLoaded && !workItems.length" class="p-6 rounded-2xl bg-stone-50 text-center">İş yoxdur.</div>
-                        <template x-for="item in workItems" :key="item.id"><div class="flex items-center gap-3 rounded-2xl border border-stone-100 p-3"><img :src="item.coverImage" class="h-16 w-20 rounded-xl object-cover" alt=""><div class="min-w-0 flex-1 normal-case tracking-normal"><p class="truncate font-black text-stone-900" x-text="item.titleAz"></p><p class="text-stone-500" x-text="item.category"></p><span class="mr-1 rounded-full px-2 py-0.5 text-[10px]" :class="item.active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'" x-text="item.active ? 'Aktiv' : 'Deaktiv'"></span><span x-show="item.featured" class="rounded-full bg-wood-100 text-wood-700 px-2 py-0.5 text-[10px]">Seçilmiş</span></div><div class="flex flex-wrap justify-end gap-1"><button @click="moveWorkItem(item,-1)" class="px-2 py-1 bg-stone-100 rounded">↑</button><button @click="moveWorkItem(item,1)" class="px-2 py-1 bg-stone-100 rounded">↓</button><button @click="editWorkItem(item)" class="px-2 py-1 bg-forest-50 text-forest-700 rounded">Redaktə et</button><button @click="toggleWorkStatus(item)" class="px-2 py-1 bg-stone-100 rounded" x-text="item.active ? 'Deaktiv et' : 'Aktiv et'"></button><button @click="toggleWorkFeatured(item)" class="px-2 py-1 bg-wood-50 text-wood-700 rounded" x-text="item.featured ? 'Seçilməmiş' : 'Seçilmiş'"></button><button @click="deleteWorkItem(item)" class="px-2 py-1 bg-red-50 text-red-700 rounded">Sil</button></div></div></template>
+                    <div class="admin-work-list-card">
+                        <div class="admin-work-list-head"><h3>Mövcud işlər</h3><span x-text="workItems.length"></span></div>
+                        <div x-show="!workItemsLoaded" class="p-6 rounded-2xl skeleton-shimmer">Yüklənir...</div><div x-show="workItemsLoaded && !workItems.length" class="admin-empty-state"><i class="fa-solid fa-briefcase"></i><strong>Hələ iş əlavə edilməyib</strong><small>Yuxarıdakı formdan ilk işi yaradın.</small></div>
+                        <div class="admin-work-list"><template x-for="item in workItems" :key="item.id"><div class="admin-work-item"><img :src="item.coverImage" alt=""><div class="admin-work-item-body"><p x-text="item.titleAz"></p><small x-text="item.category"></small><div><span :class="item.active ? 'ok' : 'off'" x-text="item.active ? 'Aktiv' : 'Deaktiv'"></span><span x-show="item.featured" class="featured">Seçilmiş</span></div></div><div class="admin-work-actions"><button @click="moveWorkItem(item,-1)">↑</button><button @click="moveWorkItem(item,1)">↓</button><button @click="editWorkItem(item)">Redaktə et</button><button @click="toggleWorkStatus(item)" x-text="item.active ? 'Deaktiv et' : 'Aktiv et'"></button><button @click="toggleWorkFeatured(item)" x-text="item.featured ? 'Seçilməmiş' : 'Seçilmiş'"></button><button @click="deleteWorkItem(item)" class="danger">Sil</button></div></div></template></div>
                     </div>
                 </div>
 
