@@ -2276,7 +2276,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
             -ms-overflow-style: none;
             scrollbar-width: none;
         }
-        :root { --header-height: 72px; --mobile-header-height: 72px; }
+        :root { --header-height: 72px; --mobile-header-height: 72px; --desktop-content-width: 1180px; }
 
         :root {
             --mobile-bottom-nav-height: 76px;
@@ -2308,6 +2308,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
             overflow-x: hidden;
             background: #f8faf7;
         }
+        .desktop-page-container,
         .contact-shell {
             width: min(100% - 32px, 520px);
             max-width: 520px;
@@ -2462,10 +2463,48 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
         @media (min-width: 431px) { .contact-form-top-row { grid-template-columns: 1fr 1fr; gap: 10px; } }
         @media (max-width: 430px) { .contact-form-top-row { grid-template-columns: 1fr; } }
         @media (min-width: 1024px) {
-            .contact-page { max-width: none; padding: 56px 0 0; }
-            .contact-shell { max-width: 1120px; }
-            .contact-layout { grid-template-columns: .9fr 1.1fr; gap: 32px; }
-            .contact-form-card { padding: 28px; }
+            :root { --desktop-content-width: 1180px; }
+            .desktop-page-container,
+            .header-main .max-w-7xl,
+            .contact-shell,
+            .about-section {
+                width: min(var(--desktop-content-width), calc(100% - 64px));
+                max-width: none;
+                margin-inline: auto;
+                padding-left: 0;
+                padding-right: 0;
+            }
+            .contact-page { max-width: none; padding: 54px 0 72px; }
+            .contact-intro { max-width: 720px; margin-bottom: 36px; padding-inline: 0; }
+            .contact-eyebrow { font-size: 12px; letter-spacing: .16em; }
+            .contact-title { max-width: 620px; font-size: clamp(42px, 4vw, 58px); line-height: 1.02; }
+            .contact-description { max-width: 620px; font-size: 17px; line-height: 1.65; }
+            .contact-layout { grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr); gap: 32px; align-items: stretch; }
+            .contact-left-column { display: flex; flex-direction: column; min-width: 0; }
+            .contact-consultation-card { min-height: 100%; padding: 34px; border-radius: 28px; display: flex; flex-direction: column; }
+            .contact-card-title { max-width: 390px; font-size: 30px; line-height: 1.08; }
+            .contact-card-helper { max-width: 430px; margin-top: 10px; margin-bottom: 26px; font-size: 15px; line-height: 1.55; }
+            .contact-detail-row { grid-template-columns: 46px minmax(0, 1fr); gap: 14px; padding: 15px 0; }
+            .contact-detail-icon { width: 42px; height: 42px; border-radius: 13px; }
+            .contact-detail-label { font-size: 10px; }
+            .contact-detail-value { font-size: 15px; font-weight: 650; line-height: 1.35; overflow-wrap: anywhere; word-break: normal; }
+            .contact-whatsapp-btn { height: 54px; margin-top: auto; border-radius: 15px; }
+            .contact-form-card { margin-top: 0; padding: 34px; border-radius: 28px; min-height: 100%; }
+            .contact-form-title { font-size: 29px; line-height: 1.1; }
+            .contact-form-desc { margin-top: 7px; margin-bottom: 26px; font-size: 14px; }
+            .contact-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+            .form-field-full { grid-column: 1 / -1; }
+            .contact-form-top-row { display: contents; }
+            .contact-input { height: 54px; border-radius: 14px; padding: 0 16px; font-size: 14px; }
+            textarea.contact-input { min-height: 150px; padding: 16px; }
+            .contact-submit { height: 56px; border-radius: 15px; font-size: 15px; font-weight: 700; }
+        }
+        @media (min-width: 1440px) {
+            :root { --desktop-content-width: 1240px; }
+            .desktop-page-container,
+            .header-main .max-w-7xl,
+            .contact-shell,
+            .about-section { width: min(var(--desktop-content-width), calc(100% - 96px)); }
         }
         .header-main { position: fixed; top: 0; left: 0; right: 0; z-index: 100; }
         .page-shell { padding-top: var(--header-height); }
@@ -3363,6 +3402,9 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
             border: 0;
         }
         .location-content { padding: 34px; }
+        .location-panel-eyebrow,
+        .location-panel-desc,
+        .location-content > .location-title { display: none; }
         .location-address {
             display: flex;
             gap: 12px;
@@ -3612,7 +3654,40 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
           }
         }
 
-    </style>
+            @media (min-width: 1024px) {
+            .about-page-redesign { padding: 54px 0 72px; background: #f8faf7; }
+            .about-intro-section { margin-top: 0; }
+            .about-intro-card { grid-template-columns: minmax(0, .92fr) minmax(0, 1.08fr); gap: 64px; align-items: center; }
+            .about-eyebrow { font-size: 12px; letter-spacing: .16em; color: #bd583a; }
+            .about-intro-title { max-width: 560px; font-size: clamp(42px, 4vw, 58px) !important; line-height: 1.03 !important; }
+            .about-intro-desc, .about-intro-card .whitespace-pre-line { max-width: 560px; font-size: 16px; line-height: 1.75; }
+            .about-intro-card .whitespace-pre-line { margin-top: 18px; }
+            .about-intro-image { aspect-ratio: 16 / 10; min-height: 0; border-radius: 28px; box-shadow: 0 24px 60px rgba(18, 50, 38, .12); }
+            .about-values-section { margin-top: 38px; }
+            .about-value-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
+            .about-value-card { min-height: 124px; padding: 20px; border-radius: 20px; }
+            .about-location-section { margin-top: 56px; }
+            .about-location-heading { display: none; }
+            .location-card { grid-template-columns: minmax(0, 1.55fr) minmax(320px, .85fr); min-height: 390px; border-radius: 28px; border: 1px solid rgba(19, 59, 44, .08); box-shadow: 0 24px 55px rgba(19, 44, 35, .08); }
+            .location-map { width: 100%; height: 100%; min-height: 390px; border-radius: 0; }
+            .location-content { padding: 34px; display: flex; flex-direction: column; justify-content: center; gap: 0; }
+            .location-panel-eyebrow { display: block; margin-bottom: 8px; }
+            .location-content > .location-title { display: block; }
+            .location-title { font-size: 31px !important; line-height: 1.08 !important; }
+            .location-panel-desc { margin-top: 10px; font-size: 14px; line-height: 1.55; }
+            .location-address { margin-top: 24px; padding: 14px; border-radius: 14px; background: rgba(31, 119, 75, .06); }
+            .location-primary-btn { height: 52px; margin-top: 14px; border-radius: 14px; background: #153b2e; }
+            .location-app-grid { margin-top: 10px; }
+            .location-app-btn { height: 46px; }
+            .about-cta-section { margin-top: 28px; }
+            .about-trust-cta { padding: 30px 34px; border-radius: 24px; background: linear-gradient(135deg, #10392b, #1d533e); display: flex; align-items: center; justify-content: space-between; gap: 30px; }
+            .about-trust-cta::before { display: none; }
+            .about-trust-cta .relative { display: flex; align-items: center; justify-content: space-between; gap: 30px; max-width: none; width: 100%; }
+            .about-trust-cta h2 { font-size: 26px; font-weight: 750; }
+            .about-trust-cta p { max-width: 650px; font-size: 15px; }
+            .about-trust-btn { min-width: 210px; height: 52px; background: #f0bc98; color: #143a2d; }
+        }
+</style>
 </head>
 <body class="bg-stone-50 text-stone-800 antialiased font-sans overflow-x-hidden" x-data="siteState()" x-init="initHeaderScroll(); initApp(); initAdObservers()">
 
@@ -4114,7 +4189,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
 
             <!-- 4. ABOUT COMPANY PAGE -->
             <div x-show="page === 'about'" x-cloak class="about-page about-page-redesign">
-                <section class="about-section about-intro-section ad-safe-content">
+                <section class="about-section about-intro-section desktop-page-container ad-safe-content">
                     <div class="about-intro-card">
                         <div class="space-y-4">
                             <span class="about-eyebrow" x-text="t('navAbout')">Haqqımızda</span>
@@ -4128,7 +4203,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                     </div>
                 </section>
 
-                <section class="about-section about-values-section ad-safe-content">
+                <section class="about-section about-values-section desktop-page-container ad-safe-content">
                     <div class="about-value-grid">
                         <template x-for="value in [
                             {i:'fa-tree', title: lang === 'ru' ? 'Качественные материалы' : (lang === 'en' ? 'Quality materials' : 'Keyfiyyətli materiallar'), desc: lang === 'ru' ? 'Отборная древесина' : (lang === 'en' ? 'Selected timber' : 'Seçilmiş taxta')},
@@ -4145,15 +4220,15 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                     </div>
                 </section>
 
-                <section class="about-section about-location-section ad-safe-content">
-                    <div class="mb-4 space-y-2">
+                <section class="about-section about-location-section desktop-page-container ad-safe-content">
+                    <div class="about-location-heading mb-4 space-y-2">
                         <span class="about-eyebrow" x-text="t('mapLocationLabel')">Məkan</span>
                         <h2 class="location-title text-3xl lg:text-4xl font-black text-forest-950" x-text="(t('findUsOnMap') || '').replace('📍 ', '')">Bizi xəritədə tapın</h2>
                         <p class="max-w-xl text-[15px] leading-6 text-stone-500" x-text="t('mapRouteDesc')">Ofisimizə rahat marşrut qurmaq üçün xəritə tətbiqinizi seçin.</p>
                     </div>
                     <div class="location-card">
                         <iframe class="location-map" loading="lazy" :src="`https://www.google.com/maps?q=${encodedAddress}&output=embed`" title="Baltic Caspian location map"></iframe>
-                        <div class="location-content flex flex-col justify-center gap-4">
+                        <div class="location-content flex flex-col justify-center gap-4"><span class="about-eyebrow location-panel-eyebrow">MƏKAN</span><h2 class="location-title text-3xl lg:text-4xl font-black text-forest-950" x-text="(t('findUsOnMap') || '').replace('📍 ', '')">Bizi xəritədə tapın</h2><p class="location-panel-desc text-stone-500" x-text="t('mapRouteDesc')">Ofisimizə rahat marşrut qurmaq üçün xəritə tətbiqinizi seçin.</p>
                             <div class="location-address">
                                 <span class="location-address-icon"><i class="fa-solid fa-location-dot"></i></span>
                                 <p class="text-stone-800" x-text="t('mapAddressLine')">Baksol küçəsi, Taxta Evlərin Tikintisi</p>
@@ -4167,7 +4242,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                     </div>
                 </section>
 
-                <section class="about-section about-cta-section ad-safe-content">
+                <section class="about-section about-cta-section desktop-page-container ad-safe-content">
                     <div class="about-trust-cta">
                         <div class="relative z-10 max-w-2xl space-y-3">
                             <h2 class="text-2xl font-black tracking-tight" x-text="lang === 'az' ? 'Layihənizi birlikdə planlayaq' : (lang === 'ru' ? 'Давайте спланируем ваш проект вместе' : 'Let’s plan your project together')">Layihənizi birlikdə planlayaq</h2>
@@ -4180,21 +4255,21 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
 
             <!-- 5. CONTACT & LEAD CAPTURE PAGE -->
             <div x-show="page === 'contact'" x-cloak class="contact-page ad-safe-content">
-                <div class="contact-shell">
-                    <div class="contact-layout">
+                <div class="contact-shell desktop-page-container">
+                    <div class="contact-layout contact-desktop-layout">
                         <div class="contact-left-column">
                             <div class="contact-intro">
                                 <span class="contact-eyebrow" x-text="t('navContact')">Əlaqə</span>
                                 <h1 class="contact-title" x-text="t('contactHeader')">Bizimlə Əlaqə Saxlayın</h1>
                                 <p class="contact-description" x-text="t('contactIntro')"></p>
                             </div>
-                            <section class="contact-consultation-card" :aria-label="t('contactInfoTitle')">
+                            <section class="contact-consultation-card contact-direct-card" :aria-label="t('contactInfoTitle')">
                                 <span class="contact-card-eyebrow">BİRBAŞA ƏLAQƏ</span>
                                 <h2 class="contact-card-title">Layihənizi birlikdə planlayaq</h2>
                                 <p class="contact-card-helper">Ölçü, material və tikinti müddəti barədə ilkin məlumat verək.</p>
                                 <div class="contact-detail-list">
                                     <template x-for="card in [{i:'fa-phone',t:'contactPhoneTitle',v:'(994 55) 322 11 09',href:'tel:+994553221109'},{i:'fa-envelope',t:'contactEmailTitle',v:'office@balticcaspian.com',href:'mailto:office@balticcaspian.com',email:true},{i:'fa-location-dot',t:'contactAddressTitle',v:t('addressDetail'),href:googleMapsUrl},{i:'fa-clock',t:'contactHoursTitle',v:t('workHours')}]" :key="card.t">
-                                        <a class="contact-detail-row" :href="card.href || null" :target="card.href === googleMapsUrl ? '_blank' : null" :rel="card.href === googleMapsUrl ? 'noopener' : null">
+                                        <a class="contact-detail-row contact-row" :href="card.href || null" :target="card.href === googleMapsUrl ? '_blank' : null" :rel="card.href === googleMapsUrl ? 'noopener' : null">
                                             <span class="contact-detail-icon"><i class="fa-solid" :class="card.i" aria-hidden="true"></i></span>
                                             <span class="contact-row-copy"><span class="contact-detail-label" x-text="t(card.t)"></span><span class="contact-detail-value" x-text="card.v"></span></span>
                                         </a>
@@ -4205,12 +4280,12 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                         </div>
                         <section class="contact-form-card" :aria-label="t('writeUs')">
                             <div class="contact-form-heading"><h2 class="contact-form-title" x-text="t('contactFormTitle')">Layihəniz barədə yazın</h2><p class="contact-form-desc" x-text="t('contactFormDesc')">Məlumatları göndərin, sizinlə əlaqə saxlayaq.</p></div>
-                            <form @submit.prevent="submitContactForm()" class="contact-form" novalidate>
+                            <form @submit.prevent="submitContactForm()" class="contact-form contact-form-grid" novalidate>
                                 <div class="contact-form-top-row"><div class="contact-field"><label for="contact-name" x-text="t('formName')">Ad Soyad</label><input id="contact-name" type="text" x-model="contactForm.name" @input="contactErrors.name = null" class="contact-input" :placeholder="t('formName')" autocomplete="name" aria-describedby="contact-name-error"><p id="contact-name-error" x-show="contactErrors.name" x-text="contactErrors.name" class="contact-field-error"></p></div><div class="contact-field"><label for="contact-phone" x-text="t('formPhone')">Telefon nömrəsi</label><input id="contact-phone" type="tel" x-model="contactForm.phone" @input="contactErrors.phone = null" class="contact-input" :placeholder="t('formPhone')" autocomplete="tel" aria-describedby="contact-phone-error"><p id="contact-phone-error" x-show="contactErrors.phone" x-text="contactErrors.phone" class="contact-field-error"></p></div></div>
-                                <div class="contact-field"><label for="contact-email" x-text="t('formEmail')">Email</label><input id="contact-email" type="email" x-model="contactForm.email" @input="contactErrors.email = null" class="contact-input" :placeholder="t('formEmail')" autocomplete="email" aria-describedby="contact-email-error"><p id="contact-email-error" x-show="contactErrors.email" x-text="contactErrors.email" class="contact-field-error"></p></div>
-                                <div class="contact-field"><label for="contact-message" x-text="t('formMessage')">Mesaj / layihə tələbi</label><textarea id="contact-message" x-model="contactForm.message" @input="contactErrors.message = null" class="contact-input" :placeholder="t('formMessage')" autocomplete="off" aria-describedby="contact-message-error"></textarea><p id="contact-message-error" x-show="contactErrors.message" x-text="contactErrors.message" class="contact-field-error"></p></div>
-                                <button type="submit" :disabled="actionLoading.contactSend" class="contact-submit"><span x-show="!actionLoading.contactSend" class="inline-flex items-center gap-2"><span x-text="t('formSend')">Göndər</span><i class="fa-solid fa-arrow-right" aria-hidden="true"></i></span><span x-show="actionLoading.contactSend" class="inline-flex items-center gap-2"><i class="fa-solid fa-circle-notch fa-spin" aria-hidden="true"></i><span x-text="t('formSending')">Göndərilir...</span></span></button>
-                                <p x-show="contactSuccess" x-text="contactSuccess" class="contact-success" role="status"></p>
+                                <div class="contact-field form-field-full"><label for="contact-email" x-text="t('formEmail')">Email</label><input id="contact-email" type="email" x-model="contactForm.email" @input="contactErrors.email = null" class="contact-input" :placeholder="t('formEmail')" autocomplete="email" aria-describedby="contact-email-error"><p id="contact-email-error" x-show="contactErrors.email" x-text="contactErrors.email" class="contact-field-error"></p></div>
+                                <div class="contact-field form-field-full"><label for="contact-message" x-text="t('formMessage')">Mesaj / layihə tələbi</label><textarea id="contact-message" x-model="contactForm.message" @input="contactErrors.message = null" class="contact-input" :placeholder="t('formMessage')" autocomplete="off" aria-describedby="contact-message-error"></textarea><p id="contact-message-error" x-show="contactErrors.message" x-text="contactErrors.message" class="contact-field-error"></p></div>
+                                <button type="submit" :disabled="actionLoading.contactSend" class="contact-submit form-field-full"><span x-show="!actionLoading.contactSend" class="inline-flex items-center gap-2"><span x-text="t('formSend')">Göndər</span><i class="fa-solid fa-arrow-right" aria-hidden="true"></i></span><span x-show="actionLoading.contactSend" class="inline-flex items-center gap-2"><i class="fa-solid fa-circle-notch fa-spin" aria-hidden="true"></i><span x-text="t('formSending')">Göndərilir...</span></span></button>
+                                <p x-show="contactSuccess" x-text="contactSuccess" class="contact-success form-field-full" role="status"></p>
                             </form>
                         </section>
                     </div>
