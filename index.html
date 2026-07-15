@@ -353,7 +353,7 @@
                     'v2Desc': { az: 'Hər bir müştərimizlə rəsmi müqavilə imzalayaraq tikintinin keyfiyyətinə, davamlılığına illərlə zəmanət veririk.', ru: 'Подписываем официальный договор с долгосрочной гарантией.', en: 'Formal contract providing multi-decade structural warranty.' },
                     'v3Title': { az: 'Fərdi Dizayn Azadlığı', ru: 'Свобода Индивидуального Дизайна', en: 'Custom Design Freedom' },
                     'v3Desc': { az: 'Standart layihələrlə məhdudlaşmırıq, müştərininin istədiyi istənilən xəyalındakı eskizi memarlıq komandamızla formalaşdırırıq.', ru: 'Мы воплотим любую вашу фантазию на чертеже.', en: 'Our architectural team designs custom layouts matching your vision.' },
-                    'contactHeader': { az: 'Bizimlə Əlaqə Saxlayın', ru: 'Свяжитесь с Нами', en: 'Get In Touch' },
+                    'contactHeader': { az: 'Bizimlə əlaqə saxlayın', ru: 'Свяжитесь с нами', en: 'Get in touch' },
                     'contactIntro': { az: 'Sualınız və ya layihə tələbiniz varsa, komandamız sizinlə tezliklə əlaqə saxlayacaq.', ru: 'Если у вас есть вопрос или заявка по проекту, наша команда скоро свяжется с вами.', en: 'If you have a question or project request, our team will contact you shortly.' },
                     'contactInfoTitle': { az: 'Əlaqə Məlumatları', ru: 'Контактная информация', en: 'Contact Details' },
                     'addressHeader': { az: 'Ofis / İstehsalat', ru: 'Офис / Производство', en: 'Office & Facility' },
@@ -365,8 +365,8 @@
                     'contactHoursTitle': { az: 'İş saatı', ru: 'Часы работы', en: 'Working Hours' },
                     'contactWhatsApp': { az: 'WhatsApp ilə əlaqə', ru: 'Связаться через WhatsApp', en: 'Contact via WhatsApp' },
                     'formEmail': { az: 'Email', ru: 'Email', en: 'Email' },
-                    'contactFormTitle': { az: 'Layihəniz barədə yazın', ru: 'Расскажите о проекте', en: 'Tell us about your project' },
-                    'contactFormDesc': { az: 'Məlumatları göndərin, sizinlə əlaqə saxlayaq.', ru: 'Отправьте данные, и мы свяжемся с вами.', en: 'Send the details and we will contact you.' },
+                    'contactFormTitle': { az: 'Layihə üçün müraciət', ru: 'Заявка на проект', en: 'Project consultation request' },
+                    'contactFormDesc': { az: 'Əsas məlumatları qeyd edin, sizinlə əlaqə saxlayaq.', ru: 'Укажите основные данные, и мы свяжемся с вами.', en: 'Share the key details and we will contact you.' },
                     'contactTrustNote': { az: 'Premium taxta evlər üçün ölçü, material və tikinti müddəti üzrə fərdi məsləhət veririk.', ru: 'Консультируем по размерам, материалам и срокам строительства премиальных деревянных домов.', en: 'We advise on size, materials and timelines for premium wooden homes.' },
                     'formSending': { az: 'Göndərilir...', ru: 'Отправляется...', en: 'Sending...' },
                     'formSuccess': { az: 'Mesajınız göndərildi. Tezliklə sizinlə əlaqə saxlayacağıq.', ru: 'Ваше сообщение отправлено. Мы скоро свяжемся с вами.', en: 'Your message has been sent. We will contact you shortly.' },
@@ -2278,222 +2278,183 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
         }
         :root { --header-height: 72px; --mobile-header-height: 72px; }
 
+        :root {
+            --mobile-bottom-nav-height: 76px;
+            --mobile-bottom-nav-gap: 14px;
+        }
+        html, body { min-height: 100%; }
+        body { min-height: 100svh; }
+        .site-viewport {
+            min-height: 0 !important;
+            display: block !important;
+        }
+        .app-main {
+            flex: 0 0 auto !important;
+            padding-bottom: 0;
+        }
+        .site-footer {
+            flex-shrink: 0;
+            margin-top: 48px !important;
+        }
+
         .contact-page {
             width: 100%;
-            padding: 36px 16px calc(110px + env(safe-area-inset-bottom));
+            max-width: 620px;
+            margin-inline: auto;
+            padding: 38px 16px 52px;
             overflow-x: hidden;
+            background: #f8faf7;
         }
         .contact-shell {
             width: 100%;
-            max-width: 520px;
+            max-width: 620px;
             margin-inline: auto;
         }
         .contact-intro {
             margin-bottom: 24px;
-            text-align: center;
+            padding-inline: 4px;
+            text-align: left;
         }
         .contact-eyebrow {
             display: block;
-            margin-bottom: 10px;
-            color: #a86f49;
+            color: #bd583a;
             font-size: 11px;
-            font-weight: 700;
-            letter-spacing: .14em;
+            font-weight: 750;
+            letter-spacing: .15em;
             text-transform: uppercase;
         }
         .contact-title {
-            margin: 0;
-            color: #0f2f24;
+            max-width: 11ch;
+            margin: 9px 0 0;
+            color: #103a2c;
             font-size: clamp(30px, 8vw, 38px);
             font-weight: 900;
-            line-height: 1.08;
-            letter-spacing: -.035em;
+            line-height: 1.06;
+            letter-spacing: -.04em;
         }
         .contact-description {
-            max-width: 34ch;
-            margin: 12px auto 0;
-            color: #78716c;
+            max-width: 38ch;
+            margin: 12px 0 0;
+            color: #6f6a62;
             font-size: 15px;
-            line-height: 1.5;
+            line-height: 1.55;
         }
-        .contact-layout {
-            display: grid;
-            gap: 22px;
-            align-items: start;
-        }
-        .contact-info-panel {
-            border: 1px solid rgba(15, 47, 36, .12);
+        .contact-layout { display: grid; gap: 20px; align-items: start; }
+        .contact-consultation-card {
             border-radius: 24px;
-            background: #12372b;
-            padding: 18px;
-            box-shadow: 0 18px 44px rgba(15, 47, 36, .12);
+            padding: 20px;
+            background: linear-gradient(145deg, #103a2c 0%, #194d39 100%);
+            color: #fff;
+            box-shadow: 0 22px 55px rgba(15, 52, 39, .18);
         }
-        .contact-info-grid {
+        .contact-card-eyebrow {
+            display: block;
+            color: #f0bc98;
+            font-size: 10px;
+            font-weight: 850;
+            letter-spacing: .13em;
+            text-transform: uppercase;
+        }
+        .contact-card-title {
+            margin: 8px 0 0;
+            font-size: clamp(22px, 6vw, 24px);
+            font-weight: 850;
+            line-height: 1.15;
+            letter-spacing: -.025em;
+        }
+        .contact-card-helper {
+            margin: 8px 0 10px;
+            color: rgba(255, 255, 255, .72);
+            font-size: 13px;
+            line-height: 1.45;
+        }
+        .contact-detail-row {
             display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 10px;
+            grid-template-columns: 38px minmax(0, 1fr) auto;
+            gap: 12px;
+            align-items: center;
+            min-height: 58px;
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, .12);
+            color: inherit;
         }
-        .contact-info-item {
-            min-height: 88px;
-            padding: 13px;
-            border: 1px solid rgba(255, 255, 255, .1);
-            border-radius: 15px;
-            background: rgba(255, 255, 255, .07);
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-            min-width: 0;
-        }
-        .contact-info-icon {
-            width: 34px;
-            height: 34px;
-            border-radius: 12px;
-            background: rgba(213, 154, 114, .18);
+        .contact-detail-row:last-of-type { border-bottom: 0; }
+        .contact-detail-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 11px;
+            background: rgba(255, 255, 255, .10);
             color: #f0bc98;
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            font-size: 16px;
+            font-size: 15px;
         }
-        .contact-info-label {
-            margin: 10px 0 4px;
-            color: rgba(255, 255, 255, .58);
+        .contact-detail-label {
+            margin: 0 0 3px;
+            color: rgba(255, 255, 255, .65);
             font-size: 10px;
-            font-weight: 700;
+            font-weight: 800;
             letter-spacing: .08em;
             text-transform: uppercase;
         }
-        .contact-info-value {
+        .contact-detail-value {
+            margin: 0;
             color: #fffaf3;
-            font-size: 13px;
+            font-size: 14px;
             font-weight: 650;
             line-height: 1.35;
             overflow-wrap: anywhere;
         }
-        .contact-info-value--address {
-            display: -webkit-box;
-            -webkit-line-clamp: 2;
-            -webkit-box-orient: vertical;
-            overflow: hidden;
-        }
+        .contact-detail-value--email { font-size: clamp(11.5px, 3.4vw, 13.5px); }
+        .contact-detail-arrow { color: rgba(255,255,255,.38); font-size: 12px; }
         .contact-whatsapp-btn {
             width: 100%;
             height: 50px;
-            margin-top: 12px;
+            margin-top: 15px;
             border-radius: 14px;
-            background: #23824f;
-            color: white;
+            background: rgba(255, 255, 255, .94);
+            color: #163d2f;
             display: inline-flex;
             align-items: center;
-            justify-content: center;
-            gap: 9px;
+            justify-content: space-between;
+            padding: 0 16px;
             font-size: 14px;
-            font-weight: 700;
-            box-shadow: 0 12px 28px rgba(13, 73, 42, .22);
+            font-weight: 800;
+            box-shadow: 0 14px 32px rgba(4, 18, 13, .14);
             transition: transform .18s ease, background-color .18s ease;
         }
-        .contact-whatsapp-btn:hover { background: #1d7446; }
+        .contact-whatsapp-btn:hover { background: #fff; }
         .contact-whatsapp-btn:active { transform: scale(.985); }
+        .contact-whatsapp-btn span { display: inline-flex; align-items: center; gap: 9px; }
         .contact-form-card {
             margin-top: 0;
-            border: 1px solid rgba(15, 47, 36, .10);
+            padding: 20px;
             border-radius: 24px;
             background: #fff;
-            padding: 20px;
-            box-shadow: 0 18px 50px rgba(15, 47, 36, .06);
+            border: 1px solid rgba(21, 61, 47, .09);
+            box-shadow: 0 18px 44px rgba(22, 46, 37, .07);
         }
         .contact-form-heading { margin-bottom: 16px; }
-        .contact-form-title {
-            margin: 0;
-            color: #173b2e;
-            font-size: 20px;
-            font-weight: 750;
-            line-height: 1.2;
-        }
-        .contact-form-desc {
-            margin: 6px 0 0;
-            color: #78716c;
-            font-size: 13px;
-            line-height: 1.45;
-        }
+        .contact-form-title { margin: 0; color: #173b2e; font-size: 21px; font-weight: 760; line-height: 1.2; }
+        .contact-form-desc { margin: 5px 0 0; color: #78716c; font-size: 13px; line-height: 1.45; }
         .contact-form { display: grid; gap: 12px; }
         .contact-form-top-row { display: grid; gap: 12px; }
-        .contact-field label {
-            display: block;
-            margin-bottom: 6px;
-            color: #57534e;
-            font-size: 12px;
-            font-weight: 800;
-        }
-        .contact-input {
-            width: 100%;
-            height: 48px;
-            border: 1px solid rgba(15, 47, 36, .10);
-            border-radius: 13px;
-            background: #fcfcfa;
-            padding: 0 14px;
-            color: #1c1917;
-            font-size: 14px;
-            outline: none;
-            transition: border-color .18s ease, box-shadow .18s ease;
-        }
+        .contact-field label { display: block; margin-bottom: 6px; color: #57534e; font-size: 12px; font-weight: 800; }
+        .contact-input { width: 100%; height: 48px; border: 1px solid rgba(20, 62, 46, .10); border-radius: 13px; background: #f8faf7; padding: 0 14px; color: #1c1917; font-size: 14px; outline: none; transition: border-color .18s ease, box-shadow .18s ease; }
         .contact-input::placeholder { color: #a8a29e; }
-        .contact-input:focus {
-            border-color: #1f6b50;
-            box-shadow: 0 0 0 4px rgba(31, 107, 80, .11);
-        }
-        textarea.contact-input {
-            min-height: 120px;
-            height: auto;
-            padding: 14px;
-            line-height: 1.5;
-            resize: vertical;
-        }
-        .contact-field-error {
-            margin-top: 5px;
-            color: #b4533a;
-            font-size: 12px;
-            line-height: 1.25;
-        }
-        .contact-submit {
-            width: 100%;
-            height: 50px;
-            border-radius: 14px;
-            background: #1f513f;
-            color: white;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            font-size: 15px;
-            font-weight: 750;
-            box-shadow: 0 14px 28px rgba(31, 81, 63, .18);
-            transition: transform .18s ease, background-color .18s ease, opacity .18s ease;
-        }
+        .contact-input:focus { border-color: #276548; box-shadow: 0 0 0 3px rgba(39, 101, 72, .10); }
+        textarea.contact-input { min-height: 112px; height: auto; padding: 14px; line-height: 1.45; resize: vertical; }
+        .contact-field-error { margin-top: 5px; color: #b4533a; font-size: 12px; line-height: 1.25; }
+        .contact-submit { width: 100%; height: 50px; margin-top: 4px; border-radius: 14px; background: #1f513f; color: white; display: inline-flex; align-items: center; justify-content: center; gap: 8px; font-size: 15px; font-weight: 750; box-shadow: 0 14px 28px rgba(31, 81, 63, .18); transition: transform .18s ease, background-color .18s ease, opacity .18s ease; }
         .contact-submit:hover { background: #173f31; }
         .contact-submit:active { transform: scale(.988); }
         .contact-submit:disabled { cursor: not-allowed; opacity: .72; }
-        .contact-success {
-            color: #1f6b50;
-            font-size: 13px;
-            font-weight: 700;
-            line-height: 1.4;
-        }
-        .contact-trust-note {
-            margin: 12px 2px 0;
-            color: rgba(255, 255, 255, .68);
-            font-size: 12px;
-            line-height: 1.45;
-            text-align: center;
-        }
-        @media (min-width: 390px) {
-            .contact-form-top-row { grid-template-columns: 1fr 1fr; gap: 10px; }
-        }
+        .contact-success { color: #1f6b50; font-size: 13px; font-weight: 700; line-height: 1.4; }
+        @media (min-width: 390px) { .contact-form-top-row { grid-template-columns: 1fr 1fr; gap: 10px; } }
         @media (min-width: 1024px) {
-            .contact-page { padding: 56px 24px 72px; }
+            .contact-page { max-width: 1120px; padding: 56px 24px 72px; }
             .contact-shell { max-width: 1120px; }
-            .contact-intro { text-align: left; margin-bottom: 26px; }
-            .contact-description { margin-left: 0; margin-right: 0; }
             .contact-layout { grid-template-columns: .9fr 1.1fr; gap: 32px; }
             .contact-form-card { padding: 28px; }
         }
@@ -2864,7 +2825,9 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
             .header-main a.group span:last-child { font-size: 8px; letter-spacing: .12em; white-space: nowrap; }
             .header-main a.group .w-10 { width: 2.35rem; height: 2.35rem; flex-shrink: 0; }
             :root {
-                --mobile-nav-height: 68px;
+                --mobile-bottom-nav-height: 76px;
+                --mobile-bottom-nav-gap: 14px;
+                --mobile-nav-height: var(--mobile-bottom-nav-height);
                 --mobile-nav-side-gap: 14px;
                 --mobile-nav-bottom-gap: max(8px, env(safe-area-inset-bottom));
             }
@@ -2889,13 +2852,13 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                 grid-template-columns: repeat(5, minmax(0, 1fr));
                 padding: 6px;
             }
-            main {
-                padding-bottom: calc(var(--mobile-nav-height) + max(16px, env(safe-area-inset-bottom))) !important;
+            .app-main {
+                padding-bottom: calc(var(--mobile-bottom-nav-height) + var(--mobile-bottom-nav-gap) + env(safe-area-inset-bottom)) !important;
             }
             footer,
             .site-footer {
                 margin-bottom: 0 !important;
-                padding-bottom: calc(20px + env(safe-area-inset-bottom)) !important;
+                padding-bottom: calc(var(--mobile-bottom-nav-height) + 24px + env(safe-area-inset-bottom)) !important;
                 min-height: 0 !important;
                 height: auto !important;
             }
@@ -2992,8 +2955,8 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
             :root { --mobile-header-height: 76px; --header-height: 76px; }
             html, body { min-height: 100%; overflow-x: hidden; }
             body { min-height: 100vh; min-height: 100dvh; padding-bottom: 0 !important; background: #0B1915; }
-            main {
-                flex: 1 0 auto !important;
+            .app-main {
+                flex: 0 0 auto !important;
             }
             .header-main {
                 height: 76px;
@@ -3142,8 +3105,8 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                 margin-bottom: 24px !important;
             }
             section { margin-bottom: 32px; }
-            footer {
-                margin-top: 0 !important;
+            .site-footer {
+                margin-top: 48px !important;
             }
         }
 
@@ -3461,7 +3424,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
             .about-page-redesign {
                 width: 100%;
                 max-width: 100%;
-                padding: 20px 16px calc(110px + env(safe-area-inset-bottom)) !important;
+                padding: 20px 16px 52px !important;
                 background: #f8faf8;
             }
             .about-page-redesign.space-y-20 > :not([hidden]) ~ :not([hidden]) { margin-top: 0 !important; }
@@ -3483,7 +3446,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
             .about-cta-section { margin-top: 24px !important; }
             .about-trust-cta { border-radius: 22px; padding: 22px; }
             .about-trust-btn { width: 100%; }
-            main { padding-bottom: calc(110px + env(safe-area-inset-bottom)) !important; }
+            .app-main { padding-bottom: calc(var(--mobile-bottom-nav-height) + var(--mobile-bottom-nav-gap) + env(safe-area-inset-bottom)) !important; }
         }
 
         .calculator-option-title-mobile { display: none !important; }
@@ -3714,7 +3677,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
         <div class="site-viewport flex-1 min-w-0 bg-stone-50 flex flex-col min-h-[calc(100dvh-5rem)]">
 
             <!-- 1. HOME VIEW -->
-            <main class="flex-1"><div x-show="page === 'home'" x-cloak class="page-content home-page pb-16">
+            <main class="app-main"><div x-show="page === 'home'" x-cloak class="page-content home-page pb-16">
                 
                 <!-- HERO SLIDER SECTION -->
                 <section data-home-hero class="hero-viewport relative left-1/2 w-screen max-w-[100vw] -translate-x-1/2 bg-stone-900 overflow-hidden flex items-center">
@@ -4214,14 +4177,20 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                                 <h1 class="contact-title" x-text="t('contactHeader')">Bizimlə Əlaqə Saxlayın</h1>
                                 <p class="contact-description" x-text="t('contactIntro')"></p>
                             </div>
-                            <section class="contact-info-panel" :aria-label="t('contactInfoTitle')">
-                                <div class="contact-info-grid">
-                                    <template x-for="card in [{i:'fa-phone',t:'contactPhoneTitle',v:'(994 55) 322 11 09',href:'tel:+994553221109'},{i:'fa-envelope',t:'contactEmailTitle',v:'office@balticcaspian.com',href:'mailto:office@balticcaspian.com'},{i:'fa-location-dot',t:'contactAddressTitle',v:t('addressDetail'),address:true},{i:'fa-clock',t:'contactHoursTitle',v:t('workHours')}]" :key="card.t">
-                                        <article class="contact-info-item"><div><span class="contact-info-icon"><i class="fa-solid" :class="card.i" aria-hidden="true"></i></span><p class="contact-info-label" x-text="t(card.t)"></p></div><template x-if="card.href"><a :href="card.href" class="contact-info-value" x-text="card.v"></a></template><template x-if="!card.href"><p class="contact-info-value" :class="card.address ? 'contact-info-value--address' : ''" x-text="card.v"></p></template></article>
+                            <section class="contact-consultation-card" :aria-label="t('contactInfoTitle')">
+                                <span class="contact-card-eyebrow">BİRBAŞA ƏLAQƏ</span>
+                                <h2 class="contact-card-title">Layihənizi birlikdə planlayaq</h2>
+                                <p class="contact-card-helper">Ölçü, material və tikinti müddəti barədə ilkin məlumat verək.</p>
+                                <div class="contact-detail-list">
+                                    <template x-for="card in [{i:'fa-phone',t:'contactPhoneTitle',v:'(994 55) 322 11 09',href:'tel:+994553221109'},{i:'fa-envelope',t:'contactEmailTitle',v:'office@balticcaspian.com',href:'mailto:office@balticcaspian.com',email:true},{i:'fa-location-dot',t:'contactAddressTitle',v:t('addressDetail'),href:googleMapsUrl},{i:'fa-clock',t:'contactHoursTitle',v:t('workHours')}]" :key="card.t">
+                                        <a class="contact-detail-row" :href="card.href || null" :target="card.href === googleMapsUrl ? '_blank' : null" :rel="card.href === googleMapsUrl ? 'noopener' : null">
+                                            <span class="contact-detail-icon"><i class="fa-solid" :class="card.i" aria-hidden="true"></i></span>
+                                            <span class="min-w-0"><span class="contact-detail-label" x-text="t(card.t)"></span><span class="contact-detail-value" :class="card.email ? 'contact-detail-value--email' : ''" x-text="card.v"></span></span>
+                                            <i x-show="card.href" class="fa-solid fa-arrow-up-right-from-square contact-detail-arrow" aria-hidden="true"></i>
+                                        </a>
                                     </template>
                                 </div>
-                                <a href="https://wa.me/994553221109" target="_blank" rel="noopener" class="contact-whatsapp-btn" :aria-label="t('contactWhatsApp')"><i class="fa-brands fa-whatsapp" aria-hidden="true"></i><span x-text="t('contactWhatsApp')">WhatsApp ilə əlaqə</span></a>
-                                <p class="contact-trust-note" x-text="t('contactTrustNote')"></p>
+                                <a href="https://wa.me/994553221109" target="_blank" rel="noopener" class="contact-whatsapp-btn" :aria-label="t('contactWhatsApp')"><span><i class="fa-brands fa-whatsapp" aria-hidden="true"></i><span>WhatsApp ilə yazın</span></span><i class="fa-solid fa-arrow-right" aria-hidden="true"></i></a>
                             </section>
                         </div>
                         <section class="contact-form-card" :aria-label="t('writeUs')">
@@ -4776,7 +4745,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
             </div>
 
             <!-- FOOTER -->
-            </main><footer class="relative left-1/2 w-screen max-w-[100vw] -translate-x-1/2 text-stone-100 pt-9 pb-6 border-t border-white/[.08] mt-auto" style="background: radial-gradient(circle at top right, rgba(184,138,96,.12), transparent 45%), linear-gradient(180deg, #17372F 0%, #10271F 45%, #0B1915 100%);">
+            </main><footer class="site-footer relative left-1/2 w-screen max-w-[100vw] -translate-x-1/2 text-stone-100 pt-9 pb-6 border-t border-white/[.08]" style="background: radial-gradient(circle at top right, rgba(184,138,96,.12), transparent 45%), linear-gradient(180deg, #17372F 0%, #10271F 45%, #0B1915 100%);">
                 <div class="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-7">
                     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-7 lg:gap-10">
                         <div class="space-y-4">
