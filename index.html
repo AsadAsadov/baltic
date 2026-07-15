@@ -2283,35 +2283,38 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
             --mobile-bottom-nav-gap: 14px;
         }
         html, body { min-height: 100%; }
-        body { min-height: 100svh; }
+        body { margin: 0; }
+        .site-shell,
         .site-viewport {
-            min-height: 0 !important;
-            display: block !important;
+            min-height: 100svh;
+            display: flex;
+            flex-direction: column;
         }
         .app-main {
-            flex: 0 0 auto !important;
+            width: 100%;
+            flex: 0 0 auto;
             padding-bottom: 0;
         }
         .site-footer {
-            flex-shrink: 0;
-            margin-top: 48px !important;
+            flex: 0 0 auto;
+            margin-top: 48px;
         }
 
         .contact-page {
             width: 100%;
-            max-width: 620px;
+            max-width: none;
             margin-inline: auto;
-            padding: 38px 16px 52px;
+            padding: 38px 0 0;
             overflow-x: hidden;
             background: #f8faf7;
         }
         .contact-shell {
-            width: 100%;
-            max-width: 620px;
+            width: min(100% - 32px, 520px);
+            max-width: 520px;
             margin-inline: auto;
         }
         .contact-intro {
-            margin-bottom: 24px;
+            margin-bottom: 18px;
             padding-inline: 4px;
             text-align: left;
         }
@@ -2325,7 +2328,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
         }
         .contact-title {
             max-width: 11ch;
-            margin: 9px 0 0;
+            margin: 8px 0 0;
             color: #103a2c;
             font-size: clamp(30px, 8vw, 38px);
             font-weight: 900;
@@ -2334,7 +2337,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
         }
         .contact-description {
             max-width: 38ch;
-            margin: 12px 0 0;
+            margin: 8px 0 0;
             color: #6f6a62;
             font-size: 15px;
             line-height: 1.55;
@@ -2342,8 +2345,8 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
         .contact-layout { display: grid; gap: 20px; align-items: start; }
         .contact-consultation-card {
             border-radius: 24px;
-            padding: 20px;
-            background: linear-gradient(145deg, #103a2c 0%, #194d39 100%);
+            padding: 22px;
+            background: linear-gradient(145deg, #123a2c, #20543f);
             color: #fff;
             box-shadow: 0 22px 55px rgba(15, 52, 39, .18);
         }
@@ -2363,18 +2366,17 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
             letter-spacing: -.025em;
         }
         .contact-card-helper {
-            margin: 8px 0 10px;
+            margin: 8px 0 18px;
             color: rgba(255, 255, 255, .72);
             font-size: 13px;
             line-height: 1.45;
         }
         .contact-detail-row {
             display: grid;
-            grid-template-columns: 38px minmax(0, 1fr) auto;
+            grid-template-columns: 38px minmax(0, 1fr);
             gap: 12px;
             align-items: center;
-            min-height: 58px;
-            padding: 10px 0;
+            padding: 12px 0;
             border-bottom: 1px solid rgba(255, 255, 255, .12);
             color: inherit;
         }
@@ -2390,24 +2392,29 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
             justify-content: center;
             font-size: 15px;
         }
+        .contact-row-copy {
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+            min-width: 0;
+        }
         .contact-detail-label {
-            margin: 0 0 3px;
+            margin: 0;
             color: rgba(255, 255, 255, .65);
             font-size: 10px;
             font-weight: 800;
+            line-height: 1;
             letter-spacing: .08em;
             text-transform: uppercase;
         }
         .contact-detail-value {
             margin: 0;
             color: #fffaf3;
-            font-size: 14px;
+            font-size: 13px;
             font-weight: 650;
             line-height: 1.35;
             overflow-wrap: anywhere;
         }
-        .contact-detail-value--email { font-size: clamp(11.5px, 3.4vw, 13.5px); }
-        .contact-detail-arrow { color: rgba(255,255,255,.38); font-size: 12px; }
         .contact-whatsapp-btn {
             width: 100%;
             height: 50px;
@@ -2428,7 +2435,8 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
         .contact-whatsapp-btn:active { transform: scale(.985); }
         .contact-whatsapp-btn span { display: inline-flex; align-items: center; gap: 9px; }
         .contact-form-card {
-            margin-top: 0;
+            width: 100%;
+            margin-top: 18px;
             padding: 20px;
             border-radius: 24px;
             background: #fff;
@@ -2451,9 +2459,10 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
         .contact-submit:active { transform: scale(.988); }
         .contact-submit:disabled { cursor: not-allowed; opacity: .72; }
         .contact-success { color: #1f6b50; font-size: 13px; font-weight: 700; line-height: 1.4; }
-        @media (min-width: 390px) { .contact-form-top-row { grid-template-columns: 1fr 1fr; gap: 10px; } }
+        @media (min-width: 431px) { .contact-form-top-row { grid-template-columns: 1fr 1fr; gap: 10px; } }
+        @media (max-width: 430px) { .contact-form-top-row { grid-template-columns: 1fr; } }
         @media (min-width: 1024px) {
-            .contact-page { max-width: 1120px; padding: 56px 24px 72px; }
+            .contact-page { max-width: none; padding: 56px 0 0; }
             .contact-shell { max-width: 1120px; }
             .contact-layout { grid-template-columns: .9fr 1.1fr; gap: 32px; }
             .contact-form-card { padding: 28px; }
@@ -2571,7 +2580,6 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
             to { opacity: 1; transform: translateY(0); }
         }
         @media (max-width: 767px) {
-            body { padding-bottom: 0 !important; }
             .page-shell { padding-top: var(--mobile-header-height); }
             .header-main .h-16 { height: var(--mobile-header-height); }
             .header-main .max-w-7xl { padding-left: 12px; padding-right: 12px; }
@@ -2779,7 +2787,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
         .admin-empty-state { padding: 28px 20px; border-radius: 20px; background: #fcfcfa; border: 1px solid rgba(214,208,198,.76); display: grid; place-items: center; gap: 6px; text-align: center; color: #6f6a62; } .admin-empty-state i { color: #b88a60; font-size: 20px; } .admin-empty-state strong { color: #292524; font-size: 14px; } .admin-empty-state small { font-size: 12px; }
         .admin-work-list { display: grid; gap: 10px; } .admin-work-item { display: grid; grid-template-columns: 72px minmax(0,1fr); gap: 12px; padding: 10px; border-radius: 18px; border: 1px solid rgba(214,208,198,.72); background: #fcfcfa; } .admin-work-item img { width: 72px; height: 72px; border-radius: 14px; object-fit: cover; background: #f2efe8; } .admin-work-item-body { min-width: 0; } .admin-work-item-body p { font-size: 14px; font-weight: 900; color: #292524; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } .admin-work-item-body small { color: #837a6d; font-weight: 800; } .admin-work-item-body span { display: inline-flex; margin-top: 5px; margin-right: 4px; border-radius: 999px; padding: 3px 7px; font-size: 10px; font-weight: 900; } .admin-work-item-body .ok { background:#e8f5ec;color:#287047; } .admin-work-item-body .off { background:#fff0ec;color:#9e432c; } .admin-work-item-body .featured { background:#fbeee6;color:#9e432c; }
         .admin-work-actions { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 6px; } .admin-work-actions button { min-height: 32px; border-radius: 10px; padding: 0 9px; background: #f2efe8; color: #4c463f; font-size: 11px; font-weight: 900; } .admin-work-actions .danger { background: #fff0ec; color: #9e432c; }
-        .works-page { max-width: 1280px; margin-inline: auto; padding: 48px 0 calc(110px + env(safe-area-inset-bottom)); }
+        .works-page { max-width: 1280px; margin-inline: auto; padding: 48px 0 0; }
         .works-intro { text-align: center; max-width: 740px; margin: 0 auto; padding-inline: 16px; } .works-eyebrow { display:block; margin-bottom:12px; font-size:11px; letter-spacing:.14em; text-transform:uppercase; font-weight:900; color:#bd583a; } .works-title { max-width:92%; margin-inline:auto; font-size:clamp(32px,9vw,42px); line-height:1.05; font-weight:950; letter-spacing:-.055em; color:#1c3e2d; } .works-desc { max-width:34ch; margin:14px auto 0; font-size:15px; line-height:1.5; color:#6f6a62; }
         .works-filter-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; max-width:420px; margin:24px auto 0; padding-inline:16px; } .works-filter-button { height:44px; border-radius:13px; border:1px solid rgba(214,208,198,.88); background:#fffdfa; color:#293d33; font-size:13px; font-weight:900; box-shadow:0 8px 18px rgba(29,53,41,.04); } .works-filter-button.is-active { background:#33734f; border-color:#33734f; color:#fff; box-shadow:0 14px 28px rgba(51,115,79,.20); }
         .works-empty-state { max-width:420px; margin:28px auto 0; padding:30px 20px; border-radius:20px; background:#fff; border:1px solid rgba(214,208,198,.82); display:grid; place-items:center; gap:7px; text-align:center; color:#837a6d; } .works-empty-state i { color:#b88a60; font-size:21px; } .works-empty-state strong { color:#292524; font-size:15px; } .works-empty-state small { font-size:13px; }
@@ -2833,9 +2841,9 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
             }
             .bottom-mobile-nav {
                 position: fixed !important;
-                left: var(--mobile-nav-side-gap) !important;
-                right: var(--mobile-nav-side-gap) !important;
-                bottom: var(--mobile-nav-bottom-gap) !important;
+                left: 16px !important;
+                right: 16px !important;
+                bottom: calc(10px + env(safe-area-inset-bottom)) !important;
                 width: auto !important;
                 height: var(--mobile-nav-height) !important;
                 margin: 0 !important;
@@ -2852,15 +2860,15 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                 grid-template-columns: repeat(5, minmax(0, 1fr));
                 padding: 6px;
             }
-            .app-main {
-                padding-bottom: calc(var(--mobile-bottom-nav-height) + var(--mobile-bottom-nav-gap) + env(safe-area-inset-bottom)) !important;
+            body {
+                padding-bottom: calc(92px + env(safe-area-inset-bottom));
             }
             footer,
             .site-footer {
-                margin-bottom: 0 !important;
-                padding-bottom: calc(var(--mobile-bottom-nav-height) + 24px + env(safe-area-inset-bottom)) !important;
-                min-height: 0 !important;
-                height: auto !important;
+                margin-bottom: 0;
+                padding-bottom: 0;
+                min-height: 0;
+                height: auto;
             }
             .bottom-mobile-nav__item {
                 min-width: 0;
@@ -2954,9 +2962,9 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
         @media (max-width: 767px) {
             :root { --mobile-header-height: 76px; --header-height: 76px; }
             html, body { min-height: 100%; overflow-x: hidden; }
-            body { min-height: 100vh; min-height: 100dvh; padding-bottom: 0 !important; background: #0B1915; }
+            body { background: #0B1915; }
             .app-main {
-                flex: 0 0 auto !important;
+                flex: 0 0 auto;
             }
             .header-main {
                 height: 76px;
@@ -3081,15 +3089,15 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
             [data-hero-controls] > div { height: 100%; padding: 0 24px 18px !important; align-items: flex-end !important; pointer-events: none; }
             [data-hero-controls] button { pointer-events: auto; }
             [data-hero-controls] .hero-arrow-button { width: 44px !important; height: 44px !important; background: rgba(0,0,0,.36) !important; border-color: rgba(255,255,255,.18) !important; }
-            .site-viewport,
             .page-shell,
             .page-content,
             .projects-page,
             .gallery-page,
             .about-page,
             .contact-page {
-                min-height: auto !important;
-                margin-bottom: 0 !important;
+                min-height: 0;
+                height: auto;
+                margin-bottom: 0;
             }
             .projects-page,
             .gallery-page,
@@ -3099,14 +3107,15 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
             }
             .empty-state,
             .gallery-empty,
-            .projects-empty {
-                min-height: auto !important;
-                padding: 32px 20px !important;
-                margin-bottom: 24px !important;
+            .projects-empty,
+            .works-empty-state {
+                min-height: 0;
+                height: auto;
+                padding: 28px 20px;
+                margin: 24px 0 0;
             }
-            section { margin-bottom: 32px; }
             .site-footer {
-                margin-top: 48px !important;
+                margin-top: 48px;
             }
         }
 
@@ -3181,6 +3190,9 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                 gap: 13px !important;
                 width: 100%;
                 align-items: stretch;
+                align-content: start;
+                height: auto;
+                min-height: 0;
                 margin-top: 14px !important;
             }
             .project-grid > template { display: contents; }
@@ -3446,7 +3458,6 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
             .about-cta-section { margin-top: 24px !important; }
             .about-trust-cta { border-radius: 22px; padding: 22px; }
             .about-trust-btn { width: 100%; }
-            .app-main { padding-bottom: calc(var(--mobile-bottom-nav-height) + var(--mobile-bottom-nav-gap) + env(safe-area-inset-bottom)) !important; }
         }
 
         .calculator-option-title-mobile { display: none !important; }
@@ -3603,7 +3614,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
 
     </style>
 </head>
-<body class="bg-stone-50 text-stone-800 antialiased font-sans min-h-screen flex flex-col overflow-x-hidden" x-data="siteState()" x-init="initHeaderScroll(); initApp(); initAdObservers()">
+<body class="bg-stone-50 text-stone-800 antialiased font-sans overflow-x-hidden" x-data="siteState()" x-init="initHeaderScroll(); initApp(); initAdObservers()">
 
     <div x-show="isLoading" x-cloak class="fixed inset-0 bg-stone-950/70 backdrop-blur-md z-[9999] flex flex-col items-center justify-center space-y-4" x-transition>
         <div class="w-16 h-16 border-4 border-wood-500 border-t-transparent rounded-full animate-spin"></div>
@@ -3671,13 +3682,13 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
     </header>
 
     <!-- MASTER CONTENT WRAPPER -->
-    <div class="flex max-w-full flex-1 items-stretch">
+    <div class="site-shell max-w-full">
         
         <!-- MAIN SITE VIEWPORT -->
-        <div class="site-viewport flex-1 min-w-0 bg-stone-50 flex flex-col min-h-[calc(100dvh-5rem)]">
+        <div class="site-viewport min-w-0 bg-stone-50">
 
             <!-- 1. HOME VIEW -->
-            <main class="app-main"><div x-show="page === 'home'" x-cloak class="page-content home-page pb-16">
+            <main class="app-main site-main"><div x-show="page === 'home'" x-cloak class="page-content home-page">
                 
                 <!-- HERO SLIDER SECTION -->
                 <section data-home-hero class="hero-viewport relative left-1/2 w-screen max-w-[100vw] -translate-x-1/2 bg-stone-900 overflow-hidden flex items-center">
@@ -4185,8 +4196,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                                     <template x-for="card in [{i:'fa-phone',t:'contactPhoneTitle',v:'(994 55) 322 11 09',href:'tel:+994553221109'},{i:'fa-envelope',t:'contactEmailTitle',v:'office@balticcaspian.com',href:'mailto:office@balticcaspian.com',email:true},{i:'fa-location-dot',t:'contactAddressTitle',v:t('addressDetail'),href:googleMapsUrl},{i:'fa-clock',t:'contactHoursTitle',v:t('workHours')}]" :key="card.t">
                                         <a class="contact-detail-row" :href="card.href || null" :target="card.href === googleMapsUrl ? '_blank' : null" :rel="card.href === googleMapsUrl ? 'noopener' : null">
                                             <span class="contact-detail-icon"><i class="fa-solid" :class="card.i" aria-hidden="true"></i></span>
-                                            <span class="min-w-0"><span class="contact-detail-label" x-text="t(card.t)"></span><span class="contact-detail-value" :class="card.email ? 'contact-detail-value--email' : ''" x-text="card.v"></span></span>
-                                            <i x-show="card.href" class="fa-solid fa-arrow-up-right-from-square contact-detail-arrow" aria-hidden="true"></i>
+                                            <span class="contact-row-copy"><span class="contact-detail-label" x-text="t(card.t)"></span><span class="contact-detail-value" x-text="card.v"></span></span>
                                         </a>
                                     </template>
                                 </div>
