@@ -29,6 +29,7 @@ Uploads are stored locally under these VPS folders, which the API creates automa
 - `uploads/hero`
 - `uploads/gallery`
 - `uploads/projects`
+- `uploads/works`
 
 ## Admin panel settings table
 

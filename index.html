@@ -273,6 +273,9 @@
                 // Preview images in creation
                 projectPreviewImg: '',
                 projectPreviewImages: [],
+                selectedProjectImages: [],
+                projectSortable: null,
+                projectImageInputKey: 0,
                 galleryPreviewImg: '',
                 galleryPreviewImages: [],
                 adPreviewImg: '',
@@ -1478,6 +1481,56 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                     if (targetProperty) this[targetProperty] = previewUrl;
                 },
 
+                projectImageId() { return (window.crypto?.randomUUID?.() || `project-image-${Date.now()}-${Math.random().toString(16).slice(2)}`); },
+                projectDuplicateKey(file) { return `${file.name}-${file.size}-${file.lastModified}`; },
+                projectImageName(item = {}) { return item.file?.name || String(item.url || '').split('/').pop() || 'image'; },
+                projectImagePreviewSrc(item = {}) { return item.previewFailed ? '' : (item.type === 'existing' ? item.url : item.previewUrl); },
+                projectImageFormatLabel(item = {}) { return this.isHeicImageFile(item.file) || /\.hei[cf]$/i.test(this.projectImageName(item)) ? 'HEIC' : 'Şəkil'; },
+                shortFileName(name = '') { const value = String(name || ''); return value.length > 24 ? `${value.slice(0, 12)}…${value.slice(-9)}` : value; },
+                projectImageCounterText() { return `${this.selectedProjectImages.length} / ${MAX_IMAGES_PER_ITEM} şəkil seçilib`; },
+                projectCoverHeicWarning() { const first = this.selectedProjectImages[0]; return Boolean(first && !this.projectImagePreviewSrc(first) && this.projectImageFormatLabel(first) === 'HEIC'); },
+                handleProjectPreviewError(item) { item.previewFailed = true; this.selectedProjectImages = [...this.selectedProjectImages]; },
+                syncProjectLegacyPreviewState() { this.projectPreviewImages = this.selectedProjectImages.map(item => item.type === 'existing' ? item.url : item.previewUrl).filter(Boolean); this.projectPreviewImg = this.projectPreviewImages[0] || ''; this.projectPreviewImagesFiles = this.selectedProjectImages.filter(item => item.type === 'new').map(item => item.file); this.projectPreviewImgFile = null; },
+                handleProjectImageSelect(event) {
+                    const input = event.target;
+                    const files = Array.from(input.files || []);
+                    if (!files.length) return;
+                    const accepted = [];
+                    for (const file of files) {
+                        if (!this.isAllowedImageFile(file)) { this.showToast('Format dəstəklənmir', 'SVG bloklanır; JPG, PNG, WebP, AVIF, GIF, BMP, TIFF və HEIC/HEIF dəstəklənir.'); continue; }
+                        const duplicateKey = this.projectDuplicateKey(file);
+                        if (this.selectedProjectImages.some(item => item.duplicateKey === duplicateKey)) continue;
+                        if (this.selectedProjectImages.length + accepted.length >= MAX_IMAGES_PER_ITEM) { this.showToast('Limit', 'Bir layihəyə maksimum 40 şəkil əlavə edə bilərsiniz.'); break; }
+                        accepted.push({ id: this.projectImageId(), type: 'new', file, previewUrl: this.previewFileUrl(file), duplicateKey });
+                    }
+                    if (accepted.some(item => this.isHeicImageFile(item.file))) this.showToast('HEIC şəkli seçildi', 'Önizləmə bu brauzerdə mövcud deyil, lakin fayl yüklənəcək.');
+                    this.selectedProjectImages = [...this.selectedProjectImages, ...accepted];
+                    input.value = '';
+                    this.projectImageInputKey += 1;
+                    this.syncProjectLegacyPreviewState();
+                    this.$nextTick(() => this.initProjectImageSortable());
+                },
+                removeProjectImage(id) {
+                    const item = this.selectedProjectImages.find(image => image.id === id);
+                    if (item?.type === 'new' && item.previewUrl) URL.revokeObjectURL(item.previewUrl);
+                    this.selectedProjectImages = this.selectedProjectImages.filter(image => image.id !== id);
+                    this.syncProjectLegacyPreviewState();
+                    this.$nextTick(() => this.initProjectImageSortable());
+                },
+                initProjectImageSortable() {
+                    const grid = this.$refs.projectSelectedImagesGrid;
+                    if (!grid || typeof Sortable === 'undefined') return;
+                    if (this.projectSortable) this.projectSortable.destroy();
+                    this.projectSortable = Sortable.create(grid, { animation: 150, ghostClass: 'image-sort-ghost', dragClass: 'image-sort-dragging', onEnd: () => {
+                        const ids = Array.from(grid.querySelectorAll('.project-selected-image')).map(el => el.dataset.id);
+                        const byId = new Map(this.selectedProjectImages.map(item => [item.id, item]));
+                        this.selectedProjectImages = ids.map(id => byId.get(id)).filter(Boolean);
+                        this.syncProjectLegacyPreviewState();
+                    }});
+                },
+                revokeProjectPreviewUrls() { (this.selectedProjectImages || []).forEach(item => { if (item.type === 'new' && item.previewUrl) URL.revokeObjectURL(item.previewUrl); }); },
+                resetProjectForm() { this.revokeProjectPreviewUrls(); this.selectedProjectImages = []; this.projectPreviewImg = ''; this.projectPreviewImages = []; this.projectPreviewImgFile = null; this.projectPreviewImagesFiles = []; this.newProj = { id: null, cat: 'house', titleAz: '', titleRu: '', titleEn: '', descAz: '', descRu: '', descEn: '', area: '100', stories: '1', rooms: '3', buildTimeAz: '2 ay', buildTimeRu: '2 месяца', buildTimeEn: '2 months', image: '' }; this.projectImageInputKey += 1; this.$nextTick(() => this.initProjectImageSortable()); },
+
                 handleMultiFileSelect(event, previewProperty, collectionProperty) {
                     const files = Array.from(event.target.files || []);
                     if (!files.length) return;
@@ -1701,19 +1754,21 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                 setupEditProject(proj) {
                     this.newProj = { ...proj, titleAz: proj.title, titleRu: proj.titleRu, titleEn: proj.titleEn, descAz: proj.desc, descRu: proj.descRu, descEn: proj.descEn, buildTimeAz: proj.buildTime, buildTimeRu: proj.buildTimeRu, buildTimeEn: proj.buildTimeEn };
                     this.showProjectTranslations = false;
-                    this.projectPreviewImages = proj.images || (proj.image ? [proj.image] : []);
-                    this.projectPreviewImg = this.projectPreviewImages[0] || proj.image;
+                    this.revokeProjectPreviewUrls();
+                    const existingImages = (Array.isArray(proj.images) && proj.images.length ? proj.images : (proj.image ? [proj.image] : [])).filter(Boolean);
+                    this.selectedProjectImages = existingImages.map(url => ({ id: this.projectImageId(), type: 'existing', url }));
+                    this.syncProjectLegacyPreviewState();
+                    this.$nextTick(() => this.initProjectImageSortable());
                 },
 
                 saveProject() {
                     if (this.actionLoading.projectSave) return;
                     this.triggerAction(async () => {
-                        const selectedProjectFiles = Array.isArray(this.projectPreviewImagesFiles) ? this.projectPreviewImagesFiles : [];
-                        const finalImages = selectedProjectFiles.length
-                            ? await Promise.all(selectedProjectFiles.map(file => this.uploadMedia(file, 'projects')))
-                            : ((Array.isArray(this.projectPreviewImages) ? this.projectPreviewImages : []).length ? this.projectPreviewImages : (this.projectPreviewImg ? [this.projectPreviewImg] : ['https://images.unsplash.com/photo-1510798831971-661eb04b3739?auto=format&fit=crop&q=80&w=800']));
-                        const finalImage = this.projectPreviewImgFile ? await this.uploadMedia(this.projectPreviewImgFile, 'projects') : finalImages[0];
-                        if (this.projectPreviewImgFile && !finalImages.includes(finalImage)) finalImages.unshift(finalImage);
+                        const orderedProjectImages = Array.isArray(this.selectedProjectImages) ? [...this.selectedProjectImages] : [];
+                        const finalImages = orderedProjectImages.length
+                            ? await Promise.all(orderedProjectImages.map(item => item.type === 'existing' ? item.url : this.uploadMedia(item.file, 'projects')))
+                            : ['https://images.unsplash.com/photo-1510798831971-661eb04b3739?auto=format&fit=crop&q=80&w=800'];
+                        const finalImage = finalImages[0];
                         this.ensureAutoTranslations([['newProj.titleAz','newProj.titleRu','newProj.titleEn'], ['newProj.descAz','newProj.descRu','newProj.descEn'], ['newProj.buildTimeAz','newProj.buildTimeRu','newProj.buildTimeEn']]);
                         const categoryMap = {
                             house: { az: 'Taxta Ev', ru: 'Деревянный Дом', en: 'Wooden House' },
@@ -1785,11 +1840,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                         await this.loadData();
                         this.cacheSave();
                         // Reset Form
-                        this.newProj = { id: null, cat: 'house', titleAz: '', titleRu: '', titleEn: '', descAz: '', descRu: '', descEn: '', area: '100', stories: '1', rooms: '3', buildTimeAz: '2 ay', buildTimeRu: '2 месяца', buildTimeEn: '2 months', image: '' };
-                        this.projectPreviewImg = '';
-                        this.projectPreviewImages = [];
-                        this.projectPreviewImgFile = null;
-                        this.projectPreviewImagesFiles = [];
+                        this.resetProjectForm();
                     }, false, 'projectSave');
                 },
 
@@ -2256,6 +2307,8 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                 prevWorkImage() { const n=this.currentWorkImages().length; if(n>1) this.activeWorkImageIndex=(this.activeWorkImageIndex-1+n)%n; },
                 nextWorkImage() { const n=this.currentWorkImages().length; if(n>1) this.activeWorkImageIndex=(this.activeWorkImageIndex+1)%n; },
                 workWhatsAppUrl(item) { return `https://wa.me/994553221109?text=${encodeURIComponent('Salam, '+this.localizedWorkTitle(item)+' işi ilə bağlı məlumat almaq istəyirəm.')}`; },
+                fallbackWorkImage() { return 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300"><rect width="400" height="300" fill="#f5f2ec"/><text x="200" y="150" text-anchor="middle" fill="#7c6f64" font-family="Arial" font-size="22" font-weight="700">Baltic Caspian</text></svg>`); },
+                setWorkImageFallback(event) { if (event?.target?.dataset?.fallbackApplied) return; event.target.dataset.fallbackApplied = 'true'; event.target.src = this.fallbackWorkImage(); event.target.classList.add('work-image-fallback'); },
                 setWorkCoverFile(event) { if (this.creatingWork) return; const file = event.target.files?.[0] || null; if (file && !this.isAllowedImageFile(file)) { this.showToast('Format dəstəklənmir', 'Bu şəkil formatı dəstəklənmir.'); event.target.value = ''; return; } if (file && this.isHeicImageFile(file)) this.showToast('HEIC şəkli seçildi', 'Önizləmə bu brauzerdə mövcud deyil, lakin fayl yüklənəcək.'); this.workCoverFile = file; },
                 workCoverPreview() { return this.workCoverFile ? this.previewFileUrl(this.workCoverFile) : this.workForm.coverImage; },
                 clearWorkCover() { if (this.creatingWork) return; this.workCoverFile = null; this.workForm.coverImage = ''; },
@@ -2285,10 +2338,10 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                         await this.api(this.editingWorkItemId ? `/api/work-items/${this.editingWorkItemId}` : '/api/work-items', { method: this.editingWorkItemId ? 'PUT' : 'POST', body: JSON.stringify(body) });
                         await this.loadData();
                         this.resetWorkForm(true);
-                        this.showToast('Uğurlu!', wasEditingWorkItem ? 'İş yeniləndi.' : 'Yeni iş yaradıldı.');
+                        this.showToast('Uğurlu!', wasEditingWorkItem ? 'İş yeniləndi.' : 'İş uğurla əlavə edildi.');
                     } catch (error) {
                         console.error('[saveWork:error]', error);
-                        this.showToast('API xəta', error?.message || error?.payload?.message || error?.payload?.error || 'İş saxlanılmadı.');
+                        this.showToast('API xəta', error?.message || error?.payload?.message || (String(error?.payload?.error || '').includes('UPLOAD') ? 'Şəkillərin saxlanması zamanı xəta baş verdi.' : '') || 'İş məlumatları yadda saxlanılmadı.');
                     } finally {
                         this.creatingWork = false;
                         this.workUploadProgress = '';
@@ -2316,6 +2369,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
     </script>
     
     <!-- Alpine.js script -->
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
     
     <!-- Font Awesome Icons -->
@@ -2346,6 +2400,25 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
     </script>
     <style>
         [x-cloak] { display: none !important; }
+
+        .project-image-select-button { display: inline-flex; align-items: center; gap: 8px; padding: 10px 14px; border-radius: 14px; background: #2f5d46; color: #fff; font-weight: 900; cursor: pointer; text-transform: none; }
+        .project-image-select-button:focus-visible { outline: 3px solid rgba(47,93,70,.28); outline-offset: 3px; }
+        .project-image-helper-row { display: flex; flex-wrap: wrap; gap: 8px 14px; margin-top: 10px; color: #57534e; text-transform: none; letter-spacing: normal; }
+        .project-image-helper-row span { font-weight: 900; color: #292524; } .project-image-helper-row small { font-weight: 700; }
+        .project-selected-images-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-top: 14px; }
+        .project-selected-image { position: relative; aspect-ratio: 4 / 3; border-radius: 12px; overflow: hidden; border: 1px solid var(--admin-border, rgba(214,208,198,.9)); background: #f5f5f2; cursor: grab; }
+        .project-selected-image:active { cursor: grabbing; } .project-selected-image img { width: 100%; height: 100%; object-fit: cover; display: block; }
+        .project-image-remove { position: absolute; top: 7px; right: 7px; width: 28px; height: 28px; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center; color: #fff; background: rgba(0,0,0,.72); box-shadow: 0 2px 10px rgba(0,0,0,.3); }
+        .project-image-order, .project-cover-badge { position: absolute; left: 7px; border-radius: 999px; background: rgba(255,255,255,.92); color: #1f3d2d; font-size: 10px; font-weight: 900; line-height: 1; box-shadow: 0 2px 8px rgba(0,0,0,.12); }
+        .project-image-order { top: 7px; min-width: 24px; padding: 7px 8px; text-align: center; } .project-cover-badge { bottom: 7px; padding: 7px 9px; }
+        .project-image-placeholder { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; padding: 12px; text-align: center; color: #57534e; background: linear-gradient(135deg,#f7f4ee,#e9e4da); text-transform: none; letter-spacing: normal; }
+        .project-image-placeholder strong { color: #2f5d46; font-size: 13px; } .project-image-placeholder span { max-width: 100%; font-size: 11px; overflow-wrap: anywhere; } .project-image-placeholder small { font-size: 10px; }
+        .project-heic-warning { margin-top: 10px; color: #9a3412; background: #ffedd5; border: 1px solid #fed7aa; border-radius: 12px; padding: 8px 10px; text-transform: none; letter-spacing: normal; font-weight: 800; }
+        .image-sort-ghost { opacity: .45; } .image-sort-dragging { box-shadow: 0 15px 30px rgba(0,0,0,.22); }
+        .work-image-fallback { background: linear-gradient(135deg,#f5f2ec,#e8e1d7); color:#7c6f64; display:flex; align-items:center; justify-content:center; }
+        @media (max-width: 900px) { .project-selected-images-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+        @media (max-width: 600px) { .project-selected-images-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
         .glass {
             background: rgba(255, 255, 255, 0.85);
             backdrop-filter: blur(12px);
@@ -4083,7 +4156,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                         <div x-show="filteredWorkItems.length" class="work-grid">
                             <template x-for="(item, index) in filteredWorkItems" :key="item.id">
                                 <a :href="workUrl(item)" class="work-card group flex h-full flex-col overflow-hidden rounded-[20px] border border-stone-200/80 bg-white text-left shadow-sm transition hover:-translate-y-1 hover:shadow-xl hover:shadow-forest-950/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-forest-700" :aria-label="localizedWorkTitle(item)">
-                                    <div class="relative aspect-[4/3] overflow-hidden bg-stone-100"><img :src="item.coverImage" :alt="localizedWorkTitle(item)" class="h-full w-full object-cover transition duration-500 group-hover:scale-105"><span class="absolute left-2 top-2 rounded-full bg-forest-950/85 px-2.5 py-1 text-[10px] font-black uppercase text-white" x-text="workCategoryLabel(item.category)"></span></div>
+                                    <div class="relative aspect-[4/3] overflow-hidden bg-stone-100"><img :src="item.coverImage || fallbackWorkImage()" @error="setWorkImageFallback($event)" :alt="localizedWorkTitle(item)" class="h-full w-full object-cover transition duration-500 group-hover:scale-105"><span class="absolute left-2 top-2 rounded-full bg-forest-950/85 px-2.5 py-1 text-[10px] font-black uppercase text-white" x-text="workCategoryLabel(item.category)"></span></div>
                                     <div class="flex flex-1 flex-col gap-2 p-3 sm:p-4"><h2 class="line-clamp-2 text-sm sm:text-lg font-black leading-tight text-forest-950" x-text="localizedWorkTitle(item)"></h2><p x-show="localizedWorkLocation(item)" class="truncate text-[11px] sm:text-sm font-semibold text-stone-500"><i class="fa-solid fa-location-dot text-wood-500"></i> <span x-text="localizedWorkLocation(item)"></span></p><p x-show="formatWorkDate(item.completionDate)" class="text-[11px] font-bold text-stone-400" x-text="formatWorkDate(item.completionDate)"></p><span class="mt-auto inline-flex items-center gap-1 text-xs font-black text-forest-700"><span x-text="t('workViewDetails')"></span><i class="fa-solid fa-arrow-right"></i></span></div>
                                 </a>
                             </template>
@@ -4154,7 +4227,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                         </div>
                         <aside class="space-y-4 lg:sticky lg:top-28"><div class="rounded-3xl border border-stone-200 bg-white p-6 shadow-sm"><h2 class="text-xl font-black text-forest-950">Bu layihə ilə maraqlanırsınız?</h2><p class="mt-2 text-sm leading-6 text-stone-600">Ətraflı məlumat və fərdi layihələndirmə üçün bizimlə əlaqə saxlayın.</p><a :href="detailWhatsappUrl()" target="_blank" rel="noopener noreferrer" class="mt-5 flex h-14 items-center justify-center gap-2 rounded-2xl bg-[#25D366] px-4 py-3 font-black text-white"><i class="fa-brands fa-whatsapp"></i> WhatsApp-la müraciət et</a><button type="button" @click="shareDetail()" class="mt-3 flex h-12 w-full items-center justify-center gap-2 rounded-2xl border border-forest-200 bg-white font-black text-forest-800"><i class="fa-solid fa-share-nodes"></i> Linki paylaş</button></div></aside>
                     </section>
-                    <section x-show="similarDetailItems().length" class="pt-12 sm:pt-20 space-y-5"><h2 class="text-2xl sm:text-3xl font-black text-forest-950">Oxşar layihələr</h2><div class="grid sm:grid-cols-3 gap-5"><template x-for="item in similarDetailItems()" :key="item.id"><a :href="detailType==='work'?workUrl(item):projectUrl(item)" class="group text-left rounded-3xl overflow-hidden bg-white border border-stone-200 shadow-sm hover:shadow-xl transition"><img :src="item.coverImage||item.image" class="aspect-[4/3] w-full object-cover" loading="lazy"><div class="p-5"><span class="text-xs font-black uppercase tracking-[0.14em] text-forest-700" x-text="detailType==='work'?workCategoryLabel(item.category):(item.catName||item.category)"></span><h3 class="mt-2 font-black text-forest-950 group-hover:text-forest-700" x-text="detailType==='work'?localizedWorkTitle(item):(item.title||item.titleAz)"></h3><p x-show="item.area" class="mt-2 text-sm font-bold text-stone-500" x-text="formatAreaValue(item.area)"></p></div></a></template></div></section>
+                    <section x-show="similarDetailItems().length" class="pt-12 sm:pt-20 space-y-5"><h2 class="text-2xl sm:text-3xl font-black text-forest-950">Oxşar layihələr</h2><div class="grid sm:grid-cols-3 gap-5"><template x-for="item in similarDetailItems()" :key="item.id"><a :href="detailType==='work'?workUrl(item):projectUrl(item)" class="group text-left rounded-3xl overflow-hidden bg-white border border-stone-200 shadow-sm hover:shadow-xl transition"><img :src="item.coverImage||item.image||fallbackWorkImage()" @error="setWorkImageFallback($event)" class="aspect-[4/3] w-full object-cover" loading="lazy"><div class="p-5"><span class="text-xs font-black uppercase tracking-[0.14em] text-forest-700" x-text="detailType==='work'?workCategoryLabel(item.category):(item.catName||item.category)"></span><h3 class="mt-2 font-black text-forest-950 group-hover:text-forest-700" x-text="detailType==='work'?localizedWorkTitle(item):(item.title||item.titleAz)"></h3><p x-show="item.area" class="mt-2 text-sm font-bold text-stone-500" x-text="formatAreaValue(item.area)"></p></div></a></template></div></section>
                     <div x-show="detailLightboxOpen" x-cloak class="fixed inset-0 z-[9999] bg-black/95 p-4 flex items-center justify-center" @click="detailLightboxOpen=false"><button class="absolute top-4 right-4 h-12 w-12 rounded-full bg-white/15 text-white" @click.stop="detailLightboxOpen=false" aria-label="Bağla"><i class="fa-solid fa-xmark"></i></button><button x-show="detailGalleryState.images.length > 1" class="absolute left-4 h-12 w-12 rounded-full bg-white/15 text-white" @click.stop="prevDetailImage()" aria-label="Əvvəlki şəkil"><i class="fa-solid fa-chevron-left"></i></button><img :src="detailImage()" class="max-h-full max-w-full object-contain" :alt="detailTitle()"><span class="absolute bottom-4 rounded-full bg-white/15 px-4 py-2 text-sm font-black text-white" x-text="`${detailGalleryState.activeIndex+1} / ${detailGalleryState.images.length}`"></span><button x-show="detailGalleryState.images.length > 1" class="absolute right-4 h-12 w-12 rounded-full bg-white/15 text-white" @click.stop="nextDetailImage()" aria-label="Növbəti şəkil"><i class="fa-solid fa-chevron-right"></i></button></div>
                 </article></template>
             </div>
@@ -4416,20 +4489,23 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                             </div>
                         </div>
 
-                        <!-- Local Upload Input with visual preview panel and delete "x" -->
                         <div class="p-4 bg-stone-100 rounded-2xl border border-dashed border-stone-300">
-                            <label class="block mb-2 text-stone-700" x-text="lang==='az'?'Şəkil seçin (Lokal Yaddaş / Telefon)':(lang==='ru'?'Выбрать фото':'Upload Image File')">Şəkil seçin</label>
-                            <input type="file" :accept="IMAGE_ACCEPT" multiple @change="handleMultiFileSelect($event, 'projectPreviewImg', 'projectPreviewImages')" class="w-full text-stone-600 font-medium tracking-normal text-xs">
-                            
-                            <!-- Preview Box with X clear trigger -->
-                            <template x-if="projectPreviewImg">
-                                <div class="relative mt-4 w-full h-36 rounded-xl overflow-hidden shadow">
-                                    <img :src="projectPreviewImg" class="w-full h-full object-cover">
-                                    <button @click="removeSelectedFile('projectPreviewImg')" class="absolute top-2 right-2 w-7 h-7 bg-black/60 hover:bg-black/85 text-white rounded-full flex items-center justify-center text-xs">
-                                        <i class="fa-solid fa-x"></i>
-                                    </button>
-                                </div>
-                            </template>
+                            <label class="block mb-2 text-stone-700">Şəkillər</label>
+                            <input :key="projectImageInputKey" x-ref="projectImageInput" type="file" :accept="IMAGE_ACCEPT" multiple @change="handleProjectImageSelect($event)" class="sr-only" id="project-images-input">
+                            <label for="project-images-input" class="project-image-select-button" tabindex="0" @keydown.enter.prevent="$refs.projectImageInput.click()" @keydown.space.prevent="$refs.projectImageInput.click()"><i class="fa-solid fa-images"></i><span>Şəkilləri seç</span></label>
+                            <div class="project-image-helper-row"><span x-text="projectImageCounterText()">0 / 40 şəkil seçilib</span><small>40 şəkilə qədər seçə, sıralaya və silə bilərsiniz.</small></div>
+                            <p x-show="projectCoverHeicWarning()" class="project-heic-warning">Əsas şəkil brauzerdə göstərilməyə bilər. JPG, PNG və ya WebP formatı tövsiyə olunur.</p>
+                            <div x-ref="projectSelectedImagesGrid" class="project-selected-images-grid">
+                                <template x-for="(img, index) in selectedProjectImages" :key="img.id">
+                                    <div class="project-selected-image" :data-id="img.id">
+                                        <template x-if="projectImagePreviewSrc(img)"><img :src="projectImagePreviewSrc(img)" :alt="projectImageName(img)" @error="handleProjectPreviewError(img)"></template>
+                                        <template x-if="!projectImagePreviewSrc(img)"><div class="project-image-placeholder"><strong x-text="projectImageFormatLabel(img)"></strong><span x-text="shortFileName(projectImageName(img))"></span><small>Önizləmə yoxdur</small></div></template>
+                                        <span class="project-image-order" x-text="index + 1"></span>
+                                        <span x-show="index === 0" class="project-cover-badge">Əsas şəkil</span>
+                                        <button type="button" aria-label="Şəkli sil" class="project-image-remove" @click.stop="removeProjectImage(img.id)"><i class="fa-solid fa-xmark"></i></button>
+                                    </div>
+                                </template>
+                            </div>
                         </div>
 
                         <!-- Description character-by-character synchronization -->
@@ -4480,7 +4556,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                         <div class="flex gap-2">
                             <button @click="saveProject()" :disabled="actionLoading.projectSave" class="flex-1 py-3 bg-forest-700 text-white rounded-xl font-bold uppercase tracking-wider text-xs disabled:opacity-70"><span x-show="!actionLoading.projectSave" x-text="lang==='az'?'Məlumatları Yadda Saxla':'Сохранить Layihə'">Yadda Saxla</span><span x-show="actionLoading.projectSave" class="inline-flex items-center gap-2"><i class="fa-solid fa-circle-notch fa-spin"></i>Yadda saxlanılır...</span></button>
                             <template x-if="newProj.id">
-                                <button @click="newProj = { id: null, cat: 'house', titleAz: '', titleRu: '', titleEn: '', descAz: '', descRu: '', descEn: '', area: '100', stories: '1', rooms: '3', buildTimeAz: '2 ay', buildTimeRu: '2 месяца', buildTimeEn: '2 months', image: '' }; projectPreviewImg = ''" class="py-3 px-4 bg-stone-300 text-stone-700 rounded-xl font-bold" x-text="lang==='az'?'Ləğv':'Отмена'">Ləğv</button>
+                                <button @click="resetProjectForm()" class="py-3 px-4 bg-stone-300 text-stone-700 rounded-xl font-bold" x-text="lang==='az'?'Ləğv':'Отмена'">Ləğv</button>
                             </template>
                         </div>
                     </div>
@@ -4532,7 +4608,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                     <div class="admin-work-list-card">
                         <div class="admin-work-list-head"><h3>Mövcud işlər</h3><span x-text="workItems.length"></span></div>
                         <div x-show="!workItemsLoaded" class="p-6 rounded-2xl skeleton-shimmer">Yüklənir...</div><div x-show="workItemsLoaded && !workItems.length" class="admin-empty-state"><i class="fa-solid fa-briefcase"></i><strong>Hələ iş əlavə edilməyib</strong><small>Yuxarıdakı formdan ilk işi yaradın.</small></div>
-                        <div class="admin-work-list"><template x-for="item in workItems" :key="item.id"><div class="admin-work-item"><img :src="item.coverImage" alt=""><div class="admin-work-item-body"><p x-text="item.titleAz"></p><small x-text="item.category"></small><div><span :class="item.active ? 'ok' : 'off'" x-text="item.active ? 'Aktiv' : 'Deaktiv'"></span><span x-show="item.featured" class="featured">Seçilmiş</span></div></div><div class="admin-work-actions"><button @click="moveWorkItem(item,-1)">↑</button><button @click="moveWorkItem(item,1)">↓</button><button @click="editWorkItem(item)" :disabled="creatingWork">Redaktə et</button><button @click="toggleWorkStatus(item)" x-text="item.active ? 'Deaktiv et' : 'Aktiv et'"></button><button @click="toggleWorkFeatured(item)" x-text="item.featured ? 'Seçilməmiş' : 'Seçilmiş'"></button><button @click="deleteWorkItem(item)" class="danger">Sil</button></div></div></template></div>
+                        <div class="admin-work-list"><template x-for="item in workItems" :key="item.id"><div class="admin-work-item"><img :src="item.coverImage || fallbackWorkImage()" @error="setWorkImageFallback($event)" alt=""><div class="admin-work-item-body"><p x-text="item.titleAz"></p><small x-text="item.category"></small><div><span :class="item.active ? 'ok' : 'off'" x-text="item.active ? 'Aktiv' : 'Deaktiv'"></span><span x-show="item.featured" class="featured">Seçilmiş</span></div></div><div class="admin-work-actions"><button @click="moveWorkItem(item,-1)">↑</button><button @click="moveWorkItem(item,1)">↓</button><button @click="editWorkItem(item)" :disabled="creatingWork">Redaktə et</button><button @click="toggleWorkStatus(item)" x-text="item.active ? 'Deaktiv et' : 'Aktiv et'"></button><button @click="toggleWorkFeatured(item)" x-text="item.featured ? 'Seçilməmiş' : 'Seçilmiş'"></button><button @click="deleteWorkItem(item)" class="danger">Sil</button></div></div></template></div>
                     </div>
                 </div>
 

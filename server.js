@@ -19,6 +19,7 @@ const allowedUploadBuckets = ['projects', 'gallery', 'hero', 'banners', 'home', 
 const UPLOAD_SIZE_LIMIT_BYTES = 150 * 1024 * 1024;
 const uploadRoot = path.join(__dirname, 'uploads');
 const uploadBucketFolders = Object.fromEntries(allowedUploadBuckets.map(bucket => [bucket, path.join(uploadRoot, bucket)]));
+for (const folder of Object.values(uploadBucketFolders)) fs.mkdirSync(folder, { recursive: true });
 const STANDARD_IMAGE_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/avif', 'image/gif', 'image/bmp', 'image/tiff']);
 const HEIC_MIME_TYPES = new Set(['image/heic', 'image/heif', 'image/heic-sequence', 'image/heif-sequence']);
 const STANDARD_IMAGE_EXTENSIONS = new Set(['.jpg', '.jpeg', '.png', '.webp', '.avif', '.gif', '.bmp', '.tif', '.tiff']);
@@ -262,7 +263,7 @@ app.post('/api/projects/:id/view', wrap(async (req,res)=>{
 }));
 
 
-app.get('/api/work-items', wrap(async (req, res) => {
+app.get(['/api/work-items', '/api/works'], wrap(async (req, res) => {
   const includeInactive = req.query.includeInactive === 'true';
   if (includeInactive && req.headers['x-admin-auth'] !== 'true' && req.query.admin !== 'true') return res.status(401).json({ ok:false, error:'ADMIN_AUTH_REQUIRED' });
   const where = { ...(includeInactive ? {} : { active:true }), ...(req.query.category ? { category:String(req.query.category) } : {}), ...(req.query.featured === 'true' ? { featured:true } : {}) };
@@ -270,7 +271,21 @@ app.get('/api/work-items', wrap(async (req, res) => {
 }));
 app.get(['/api/work-items/slug/:slug','/api/works/slug/:slug'], wrap(async (req,res)=>{ const item=await findWorkBySlug(req.params.slug); if(!item) return res.status(404).json({ok:false,error:'WORK_ITEM_NOT_FOUND'}); res.set('Cache-Control','public, max-age=60, stale-while-revalidate=300'); res.json(workOut(item)); }));
 app.get('/api/work-items/:id', wrap(async (req, res) => { const item = await prisma.workItem.findUnique({ where:{ id:String(req.params.id) } }); if(!item) return res.status(404).json({ok:false,error:'WORK_ITEM_NOT_FOUND'}); if(!item.active && req.headers['x-admin-auth'] !== 'true' && req.query.admin !== 'true') return res.status(401).json({ok:false,error:'ADMIN_AUTH_REQUIRED'}); res.json(workOut(item)); }));
-app.post('/api/work-items', requireAdmin, wrap(async (req,res)=>{ const v=validateWorkBody(req.body); if(v.errors) return res.status(400).json({ok:false,errors:v.errors}); v.data.slug = await uniqueSlug('workItem', v.data.titleAz, v.data.slug); res.status(201).json(workOut(await prisma.workItem.create({data:v.data}))); }));
+app.post(['/api/work-items', '/api/works'], requireAdmin, wrap(async (req,res)=>{
+  const uploadCount = [req.body?.coverImage, ...(Array.isArray(req.body?.images) ? req.body.images : [])].filter(Boolean).length;
+  console.info('[works:create:start]', { endpoint:req.originalUrl, recordType:'workItem', uploadCount, destinationDir:uploadBucketFolders.works });
+  const v=validateWorkBody(req.body);
+  if(v.errors) return res.status(400).json({ok:false,errors:v.errors,message:'İş məlumatları yadda saxlanılmadı.'});
+  try {
+    v.data.slug = await uniqueSlug('workItem', v.data.titleAz, v.data.slug);
+    const created = await prisma.workItem.create({data:v.data});
+    console.info('[works:create:success]', { id:created.id, slug:created.slug, active:created.active, uploadCount });
+    res.status(201).json(workOut(created));
+  } catch (err) {
+    console.error('[works:create:error]', { endpoint:req.originalUrl, recordType:'workItem', uploadCount, destinationDir:uploadBucketFolders.works, code:err?.code, message:err?.message });
+    res.status(isDbError(err) ? 503 : 500).json({ ok:false, error:'WORK_CREATE_FAILED', message:'İş məlumatları yadda saxlanılmadı.', code:err?.code });
+  }
+}));
 app.put('/api/work-items/reorder', requireAdmin, wrap(async (req,res)=>{ await Promise.all((req.body.items||[]).map((it,i)=>prisma.workItem.update({where:{id:String(it.id)},data:{sortOrder:Number.isInteger(Number(it.sortOrder)) ? Number(it.sortOrder) : i}}))); res.json({ok:true}); }));
 app.put('/api/work-items/:id', requireAdmin, wrap(async (req,res)=>{ const existing=await prisma.workItem.findUnique({where:{id:String(req.params.id)}}); if(!existing) return res.status(404).json({ok:false,error:'WORK_ITEM_NOT_FOUND'}); const v=validateWorkBody(req.body, existing); if(v.errors) return res.status(400).json({ok:false,errors:v.errors}); res.json(workOut(await prisma.workItem.update({where:{id:existing.id},data:v.data}))); }));
 app.patch('/api/work-items/:id/status', requireAdmin, wrap(async (req,res)=>{ const w=await prisma.workItem.findUnique({where:{id:String(req.params.id)}}); if(!w) return res.status(404).json({ok:false,error:'WORK_ITEM_NOT_FOUND'}); res.json(workOut(await prisma.workItem.update({where:{id:w.id},data:{active:req.body.active ?? !w.active}}))); }));
