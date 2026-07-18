@@ -21,8 +21,7 @@
     <meta name="twitter:description" content="__META_DESCRIPTION__">
     <meta name="twitter:image" content="__META_IMAGE__">
     <script type="application/ld+json">__JSON_LD__</script>
-    <!-- Tailwind CSS CDN -->
-    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="/assets/css/tailwind.css?v=20260718">
     
     <!-- Alpine.js State Controller & Dictionary -->
     <script>
@@ -823,6 +822,26 @@
                 normalizeImageList(images = []) {
                     return (Array.isArray(images) ? images : []).map(image => this.normalizeImageUrl(image)).filter(Boolean);
                 },
+                imageVariant(url = '', variant = 'medium') {
+                    const value = this.normalizeImageUrl(url);
+                    if (!value || !value.startsWith('/uploads/') || !/\.(jpe?g|png|webp|avif|tiff?|bmp)(?:[?#].*)?$/i.test(value)) return value;
+                    const clean = value.split(/[?#]/)[0];
+                    return clean.replace(/\.[^.\/]+$/, `-${variant}.webp`);
+                },
+                responsiveImageSrc(item = {}, preferred = 'medium') {
+                    const variants = item.imageVariants || {};
+                    return variants[preferred] || item.coverImage || item.image || item.src || item.mediaUrl || this.imageVariant(item.originalImage || item.originalMediaUrl || item.coverImage || item.image || item.src || item.mediaUrl, preferred);
+                },
+                responsiveImageSrcset(item = {}) {
+                    const variants = item.imageVariants || {};
+                    const original = item.originalImage || item.originalMediaUrl || item.coverImage || item.image || item.src || item.mediaUrl || '';
+                    const thumb = variants.thumb || this.imageVariant(original, 'thumb');
+                    const medium = variants.medium || this.imageVariant(original, 'medium');
+                    const large = variants.large || this.imageVariant(original, 'large');
+                    return [thumb && `${thumb} 480w`, medium && `${medium} 960w`, large && `${large} 1600w`].filter(Boolean).join(', ');
+                },
+                imageLoading(index = 0, eagerCount = 2) { return Number(index) < eagerCount ? 'eager' : 'lazy'; },
+                imageFetchPriority(index = 0, eagerCount = 2) { return Number(index) < eagerCount ? 'high' : 'low'; },
                 normalizeProject(project = {}) {
                     const images = this.normalizeImageList(project.images);
                     const image = this.normalizeImageUrl(project.image || project.coverImage || project.cover || images[0] || '');
@@ -1147,20 +1166,21 @@
 
                 retryAdminInitialization() { this.initializeAdminPanel(); },
 
-                cacheEntry(key) { return this.bcCache[key] || (this.bcCache[key] = { data: null, loadedAt: 0, promise: null }); },
-                rememberCacheData(key, data) { const entry = this.cacheEntry(key); entry.data = data; entry.loadedAt = Date.now(); entry.promise = null; return data; },
+                cacheEntry(key) { return this.bcCache[key] || (this.bcCache[key] = { data: null, loadedAt: 0, expiresAt: 0, promise: null }); },
+                rememberCacheData(key, data, ttlMs = 180000) { const entry = this.cacheEntry(key); entry.data = data; entry.loadedAt = Date.now(); entry.expiresAt = Date.now() + ttlMs; entry.promise = null; return data; },
                 cachedFetch(key, path, normalizer, fallback, assign, options = {}) {
                     const adminInitial = !!options.adminInitial;
                     const force = !!options.force;
                     const cacheKey = adminInitial ? `admin:${key}` : key;
                     const entry = this.cacheEntry(cacheKey);
                     const persistedKey = key === 'banners' ? 'bc_banners_list' : `bc_${key}`;
-                    const localFallback = () => adminInitial ? fallback : (JSON.parse(localStorage.getItem(persistedKey) || 'null') || fallback);
-                    if (!force && entry.data) { assign(entry.data); return Promise.resolve(entry.data); }
+                    const localFallback = () => { if (adminInitial) return fallback; try { const cached = JSON.parse(localStorage.getItem(persistedKey) || 'null'); if (cached?.expiresAt && cached.expiresAt > Date.now()) return cached.data || fallback; if (Array.isArray(cached)) return cached; } catch (error) { localStorage.removeItem(persistedKey); } return fallback; };
+                    if (!force && entry.data) { assign(entry.data); if (entry.expiresAt > Date.now()) return Promise.resolve(entry.data); }
                     if (!force && entry.promise) return entry.promise.then(value => { assign(value); return value; });
                     const promise = this.api(path, adminInitial ? { cache: 'no-store' } : {}).then(data => {
                         const value = normalizer(data, fallback);
                         this.rememberCacheData(cacheKey, value);
+                        if (!adminInitial) { try { localStorage.setItem(persistedKey, JSON.stringify({ version: 2, data: value, loadedAt: Date.now(), expiresAt: Date.now() + 180000 })); } catch (error) {} }
                         assign(value);
                         return value;
                     }).catch(error => {
@@ -4534,7 +4554,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                         <a :href="projectUrl(proj)" class="project-card group bg-white rounded-3xl overflow-hidden shadow-sm transition-all duration-[450ms] border border-stone-200/60 flex flex-col hover:shadow-2xl hover:shadow-forest-950/12 hover:border-wood-200">
                             <div class="project-card__main flex flex-col flex-1">
                                 <div class="project-card__media relative h-64 overflow-hidden">
-                                    <img :src="(proj.images && proj.images[0]) || proj.image" class="project-card__image w-full h-full object-cover transition-transform duration-[500ms] ease-out" loading="lazy" decoding="async" :alt="proj.title">
+                                    <img :src="responsiveImageSrc(proj, 'medium')" :srcset="responsiveImageSrcset(proj)" sizes="(min-width: 1024px) 33vw, (min-width: 768px) 50vw, 100vw" class="project-card__image w-full h-full object-cover transition-transform duration-[500ms] ease-out" :loading="imageLoading(index, 3)" decoding="async" :fetchpriority="imageFetchPriority(index, 3)" width="960" height="600" @error="setWorkImageFallback($event)" :alt="proj.title">
                                     <div class="project-card__overlay absolute inset-0 bg-gradient-to-t from-forest-950/65 via-forest-950/10 to-transparent opacity-0 transition-opacity duration-[450ms]"></div>
                                     <span class="project-card__badge absolute top-4 left-4 bg-forest-950/85 text-white backdrop-blur text-xs font-bold px-3 py-1 rounded-full uppercase" x-text="lang === 'en' ? proj.catNameEn : (lang === 'ru' ? proj.catNameRu : proj.catName)">Taxta Ev</span>
                                     <span class="project-card__cta absolute left-5 right-5 bottom-5 translate-y-4 opacity-0 rounded-xl border border-white/40 py-3 text-sm font-black text-white shadow-lg backdrop-blur transition-all duration-[450ms]">
@@ -4578,7 +4598,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                         <div x-show="filteredWorkItems.length" class="work-grid">
                             <template x-for="(item, index) in filteredWorkItems" :key="item.id">
                                 <a :href="workUrl(item)" class="work-card group flex h-full flex-col overflow-hidden rounded-[20px] border border-stone-200/80 bg-white text-left shadow-sm transition hover:-translate-y-1 hover:shadow-xl hover:shadow-forest-950/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-forest-700" :aria-label="localizedWorkTitle(item)">
-                                    <div class="relative aspect-[4/3] overflow-hidden bg-stone-100"><img :src="item.coverImage || fallbackWorkImage()" @error="setWorkImageFallback($event)" :alt="localizedWorkTitle(item)" class="h-full w-full object-cover transition duration-500 group-hover:scale-105" loading="lazy" decoding="async"><span class="absolute left-2 top-2 rounded-full bg-forest-950/85 px-2.5 py-1 text-[10px] font-black uppercase text-white" x-text="workCategoryLabel(item.category)"></span></div>
+                                    <div class="relative aspect-[4/3] overflow-hidden bg-stone-100"><img :src="responsiveImageSrc(item, 'medium') || fallbackWorkImage()" :srcset="responsiveImageSrcset(item)" sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw" @error="setWorkImageFallback($event)" :alt="localizedWorkTitle(item)" class="h-full w-full object-cover transition duration-500 group-hover:scale-105" :loading="imageLoading(index, 4)" decoding="async" :fetchpriority="imageFetchPriority(index, 4)" width="960" height="720"><span class="absolute left-2 top-2 rounded-full bg-forest-950/85 px-2.5 py-1 text-[10px] font-black uppercase text-white" x-text="workCategoryLabel(item.category)"></span></div>
                                     <div class="flex flex-1 flex-col gap-2 p-3 sm:p-4"><h2 class="line-clamp-2 text-sm sm:text-lg font-black leading-tight text-forest-950" x-text="localizedWorkTitle(item)"></h2><p x-show="localizedWorkLocation(item)" class="truncate text-[11px] sm:text-sm font-semibold text-stone-500"><i class="fa-solid fa-location-dot text-wood-500"></i> <span x-text="localizedWorkLocation(item)"></span></p><p x-show="formatWorkDate(item.completionDate)" class="text-[11px] font-bold text-stone-400" x-text="formatWorkDate(item.completionDate)"></p><span class="mt-auto inline-flex items-center gap-1 text-xs font-black text-forest-700"><span x-text="t('workViewDetails')"></span><i class="fa-solid fa-arrow-right"></i></span></div>
                                 </a>
                             </template>
@@ -4611,7 +4631,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                                 </div>
                             </template>
                             <template x-if="img.type === 'image'">
-                                <img :src="(img.images && img.images[0]) || img.src" class="w-full h-full object-cover group-hover:scale-105 transition duration-500" loading="lazy" decoding="async" :alt="img.title">
+                                <img :src="responsiveImageSrc(img, 'medium')" :srcset="responsiveImageSrcset(img)" sizes="(min-width: 1024px) 25vw, (min-width: 640px) 50vw, 100vw" class="w-full h-full object-cover group-hover:scale-105 transition duration-500" :loading="imageLoading(idx, 8)" decoding="async" :fetchpriority="imageFetchPriority(idx, 8)" width="960" height="960" @error="setWorkImageFallback($event)" :alt="img.title">
                             </template>
                             <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition duration-300 flex items-center justify-center z-20">
                                 <p class="text-white font-bold text-sm uppercase tracking-wider text-center px-2" x-text="lang === 'en' ? img.titleEn : (lang === 'ru' ? img.titleRu : img.title)">Görüntü</p>
