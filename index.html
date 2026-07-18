@@ -234,6 +234,11 @@
                 // Dynamic App State DB
                 projects: [],
                 projectsLoaded: false,
+                projectAdminSearch: '',
+                projectAdminCategoryFilter: 'all',
+                projectAdminStatusFilter: 'all',
+                projectSaveStage: '',
+                projectUploadProgress: { done: 0, total: 0 },
                 workItems: [],
                 workItemsLoaded: false,
                 activeWorkCategory: 'all',
@@ -1941,28 +1946,37 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                     this.$nextTick(() => this.initProjectImageSortable());
                 },
 
-                saveProject() {
+                async saveProject() {
                     if (this.actionLoading.projectSave) return;
-                    this.triggerAction(async () => {
+                    this.actionLoading.projectSave = true;
+                    this.projectSaveStage = 'validating';
+                    this.projectUploadProgress = { done: 0, total: 0 };
+                    try {
                         const isEditMode = Boolean(this.newProj.id);
                         const orderedProjectImages = Array.isArray(this.selectedProjectImages) ? [...this.selectedProjectImages] : [];
                         const finalImages = orderedProjectImages.length
-                            ? await Promise.all(orderedProjectImages.map(item => item.type === 'existing' ? item.url : this.uploadMedia(item.file, 'projects')))
+                            ? await this.resolveProjectImagesForSave(orderedProjectImages)
                             : ['https://images.unsplash.com/photo-1510798831971-661eb04b3739?auto=format&fit=crop&q=80&w=800'];
                         const finalImage = finalImages[0];
                         this.ensureAutoTranslations([['newProj.titleAz','newProj.titleRu','newProj.titleEn'], ['newProj.descAz','newProj.descRu','newProj.descEn'], ['newProj.buildTimeAz','newProj.buildTimeRu','newProj.buildTimeEn']]);
                         const endpoint = isEditMode ? `/api/projects/${this.newProj.id}` : '/api/projects';
                         const method = isEditMode ? 'PUT' : 'POST';
-                        await this.api(endpoint, { method, body: JSON.stringify({ ...this.newProj, image: finalImage, images: finalImages }) });
-                        await this.loadData();
-                        this.cacheSave();
-                        if (isEditMode) {
-                            this.showToast('Uğurlu', 'Layihə uğurla yeniləndi!');
-                        } else {
-                            this.showToast('Uğurlu', 'Layihə uğurla əlavə edildi!');
-                            this.resetProjectCreateForm();
-                        }
-                    }, false, 'projectSave');
+                        this.projectSaveStage = 'saving';
+                        const saved = await this.api(endpoint, { method, body: JSON.stringify({ ...this.newProj, image: finalImage, images: finalImages }) });
+                        this.projectSaveStage = 'refreshing';
+                        this.upsertProjectInList(saved?.project || saved);
+                        this.projectSaveStage = 'done';
+                        this.showToast('Uğurlu', isEditMode ? 'Layihə uğurla yeniləndi!' : 'Layihə uğurla əlavə edildi!');
+                        if (!isEditMode) this.resetProjectCreateForm();
+                    } catch (error) {
+                        const status = error?.status || error?.payload?.status;
+                        if (status === 401) return this.handleAdminSessionExpired();
+                        const message = status === 413 ? 'Şəkillərin ümumi ölçüsü çox böyükdür.' : (error?.message || 'Layihə yadda saxlanılarkən xəta baş verdi.');
+                        this.showToast('Xəta', message);
+                    } finally {
+                        setTimeout(() => { this.projectSaveStage = ''; }, 700);
+                        this.actionLoading.projectSave = false;
+                    }
                 },
 
                 deleteProject(id) {
@@ -1978,9 +1992,8 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                 toggleArchiveProject(proj) {
                     this.triggerAction(async () => {
                         const updated = await this.api(`/api/projects/${proj.id}/archive`, { method: 'PATCH' });
-                        proj.archived = updated.archived;
-                        this.cacheSave();
-                        this.showToast('Arxiv Statusu', proj.archived ? 'Layihə arxivə göndərildi.' : 'Layihə arxivdən çıxarıldı.');
+                        this.upsertProjectInList(updated);
+                        this.showToast('Arxiv Statusu', updated.archived ? 'Layihə arxivə göndərildi.' : 'Layihə arxivdən çıxarıldı.');
                     });
                 },
 
@@ -2414,6 +2427,74 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                     return aliases[key] || key;
                 },
                 workCategories() { return this.projectCategories(); },
+                projectCategoryLabel(category) { return this.workCategoryLabel(category); },
+                projectStatusLabel(project = {}) { return project.archived ? 'Arxivdə' : 'Aktiv'; },
+                projectAdminCover(project = {}) { return (Array.isArray(project.images) && project.images[0]) || project.image || project.coverImage || ''; },
+                projectAdminTitle(project = {}) { return (this.lang === 'ru' ? project.titleRu : (this.lang === 'en' ? project.titleEn : project.title)) || project.titleAz || 'Başlıqsız layihə'; },
+                filteredAdminProjects() {
+                    const search = String(this.projectAdminSearch || '').trim().toLowerCase();
+                    return (Array.isArray(this.projects) ? this.projects : []).filter(project => {
+                        const categoryOk = this.projectAdminCategoryFilter === 'all' || project.category === this.projectAdminCategoryFilter || project.cat === this.projectAdminCategoryFilter;
+                        const statusOk = this.projectAdminStatusFilter === 'all' || (this.projectAdminStatusFilter === 'archived' ? project.archived : !project.archived);
+                        const haystack = [project.title, project.titleAz, project.titleRu, project.titleEn].filter(Boolean).join(' ').toLowerCase();
+                        return categoryOk && statusOk && (!search || haystack.includes(search));
+                    });
+                },
+                projectSaveButtonText() {
+                    if (!this.actionLoading.projectSave) return this.lang==='az'?'Məlumatları Yadda Saxla':'Сохранить Layihə';
+                    if (this.projectSaveStage === 'uploading') return `Şəkillər yüklənir ${this.projectUploadProgress.done}/${this.projectUploadProgress.total}`;
+                    if (this.projectSaveStage === 'saving') return 'Layihə yadda saxlanılır';
+                    if (this.projectSaveStage === 'refreshing') return 'Siyahı yenilənir';
+                    if (this.projectSaveStage === 'done') return 'Yadda saxlanıldı';
+                    return 'Form yoxlanılır';
+                },
+                projectUploadPercent() {
+                    const total = Number(this.projectUploadProgress.total) || 0;
+                    return total ? Math.round((Number(this.projectUploadProgress.done) || 0) * 100 / total) : 0;
+                },
+                async runWithConcurrency(items, limit, worker) {
+                    const results = new Array(items.length);
+                    let cursor = 0;
+                    const runners = Array.from({ length: Math.min(limit, items.length) }, async () => {
+                        while (cursor < items.length) {
+                            const index = cursor++;
+                            results[index] = await worker(items[index], index);
+                        }
+                    });
+                    await Promise.all(runners);
+                    return results;
+                },
+                async resolveProjectImagesForSave(orderedProjectImages) {
+                    const finalImages = new Array(orderedProjectImages.length);
+                    const uploads = [];
+                    orderedProjectImages.forEach((item, index) => {
+                        if (item.type === 'existing') finalImages[index] = item.url;
+                        else uploads.push({ item, index });
+                    });
+                    this.projectUploadProgress = { done: 0, total: uploads.length };
+                    if (uploads.length) {
+                        this.projectSaveStage = 'uploading';
+                        await this.runWithConcurrency(uploads, 4, async ({ item, index }) => {
+                            try {
+                                finalImages[index] = await this.uploadMedia(item.file, 'projects');
+                                this.projectUploadProgress.done += 1;
+                            } catch (error) {
+                                const name = item?.file?.name || `Şəkil ${index + 1}`;
+                                throw new Error(`${name} yüklənmədi: ${error.message || error}`);
+                            }
+                        });
+                    }
+                    return finalImages.filter(Boolean);
+                },
+                upsertProjectInList(project) {
+                    const normalized = this.normalizeProject(project);
+                    const list = Array.isArray(this.projects) ? [...this.projects] : [];
+                    const index = list.findIndex(item => item.id === normalized.id);
+                    if (index >= 0) list.splice(index, 1, normalized); else list.unshift(normalized);
+                    this.projects = list;
+                    this.cacheSave();
+                    return normalized;
+                },
                 workCategoryLabel(category) {
                     const normalized = category === 'all' ? 'all' : this.normalizeCategory(category);
                     if (normalized === 'all') return this.lang === 'az' ? 'Bütün' : (this.lang === 'ru' ? 'Все' : 'All');
@@ -2531,6 +2612,46 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
     <style>
         [x-cloak] { display: none !important; }
 
+
+        .admin-projects-layout { width: calc(100% - 32px); max-width: 1240px; margin-inline: auto; display: grid; gap: 24px; }
+        .admin-project-form-card, .admin-project-list-section { background: #fff; border: 1px solid rgba(214, 208, 198, .82); border-radius: 26px; box-shadow: 0 18px 48px rgba(29, 53, 41, .08); padding: 22px; }
+        .admin-project-form-card { max-width: 760px; width: 100%; margin-inline: auto; }
+        .admin-project-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+        .admin-project-field-full { grid-column: 1 / -1; }
+        .admin-project-input { width: 100%; margin-top: 6px; border: 1px solid #e2ddd3; border-radius: 14px; background: #faf9f6; color: #292524; padding: 11px 12px; font-weight: 800; letter-spacing: normal; text-transform: none; }
+        textarea.admin-project-input { min-height: 110px; resize: vertical; }
+        .admin-project-save-meta { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 14px; color: #a06238; text-transform: none; }
+        .admin-project-save-meta button { color: #2f5d46; font-weight: 900; text-decoration: underline; }
+        .admin-project-save-row { display: flex; gap: 10px; margin-top: 14px; }
+        .admin-project-save-button, .admin-project-cancel-button { min-height: 46px; border-radius: 16px; font-weight: 950; letter-spacing: .08em; text-transform: uppercase; display: inline-flex; align-items: center; justify-content: center; gap: 9px; }
+        .admin-project-save-button { flex: 1; background: #2f5d46; color: #fff; min-width: 260px; }
+        .admin-project-save-button:disabled { opacity: .78; cursor: wait; }
+        .admin-project-cancel-button { padding-inline: 18px; background: #e7e1d7; color: #4c463f; }
+        .admin-project-progress { margin-top: 10px; height: 8px; border-radius: 999px; background: #ebe7df; overflow: hidden; }
+        .admin-project-progress span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #2f5d46, #c98649); transition: width .25s ease; }
+        .admin-project-list-head { display:flex; justify-content:space-between; align-items:flex-end; gap:14px; margin-bottom:14px; }
+        .admin-project-list-head h3 { font-size: 20px; line-height:1.2; color:#1c3e2d; font-weight:950; letter-spacing:normal; }
+        .admin-project-list-head h3 span, .admin-project-list-head p { color:#837a6d; font-size:12px; font-weight:800; text-transform:none; }
+        .admin-project-toolbar { display:grid; grid-template-columns: minmax(220px, 1fr) 220px 160px; gap: 12px; margin-bottom: 18px; }
+        .admin-project-grid { display:grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap:18px; }
+        .admin-project-card { overflow:hidden; border:1px solid rgba(214,208,198,.78); border-radius:22px; background:linear-gradient(180deg,#fff,#fbfaf7); box-shadow:0 10px 30px rgba(29,53,41,.07); transition:transform .18s ease, box-shadow .18s ease; }
+        .admin-project-card:hover { transform: translateY(-2px); box-shadow:0 16px 38px rgba(29,53,41,.11); }
+        .admin-project-cover { position:relative; aspect-ratio:16/10; overflow:hidden; background:linear-gradient(135deg,#eef3ed,#e3d8c8); }
+        .admin-project-cover img { width:100%; height:100%; object-fit:cover; display:block; }
+        .admin-project-placeholder { width:100%; height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; color:#6f7b68; font-weight:900; }
+        .admin-project-status { position:absolute; top:12px; right:12px; border-radius:999px; padding:6px 10px; font-size:10px; font-weight:950; color:#fff; box-shadow:0 8px 18px rgba(0,0,0,.15); }
+        .admin-project-status.is-active { background:#2f7d4f; } .admin-project-status.is-archived { background:#c57a2d; }
+        .admin-project-body { padding:16px; }
+        .admin-project-category { display:inline-flex; border-radius:999px; background:#eef6f1; color:#2f5d46; padding:5px 9px; font-size:10px; font-weight:950; }
+        .admin-project-body h4 { margin-top:10px; min-height:44px; color:#1c3e2d; font-size:17px; line-height:1.28; font-weight:950; letter-spacing:normal; text-transform:none; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+        .admin-project-specs { display:grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap:8px; margin-top:14px; }
+        .admin-project-specs span { min-width:0; border-radius:12px; background:#f5f2ec; color:#6b6257; padding:8px; display:flex; align-items:center; gap:6px; text-transform:none; }
+        .admin-project-specs b { color:#292524; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+        .admin-project-actions { display:grid; grid-template-columns: 1fr 1fr 1fr; gap:8px; padding:0 16px 16px; }
+        .admin-project-actions button { min-height:44px; border-radius:14px; font-weight:950; font-size:11px; display:inline-flex; align-items:center; justify-content:center; gap:7px; }
+        .admin-project-actions .edit { background:#eaf3ff; color:#1f5f99; } .admin-project-actions .archive { background:#fff3dc; color:#a46114; } .admin-project-actions .delete { background:#fff0ec; color:#a23422; }
+        @media (max-width: 1199px) { .admin-project-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .admin-project-toolbar { grid-template-columns: 1fr 1fr; } }
+        @media (max-width: 767px) { .admin-projects-layout { width:100%; } .admin-project-form-card, .admin-project-list-section { padding:16px; border-radius:22px; } .admin-project-form-grid, .admin-project-toolbar, .admin-project-grid, .admin-project-actions { grid-template-columns: 1fr; } .admin-project-save-row { flex-direction:column; } .admin-project-save-button { min-width:0; width:100%; } }
         .project-image-select-button { display: inline-flex; align-items: center; gap: 8px; padding: 10px 14px; border-radius: 14px; background: #2f5d46; color: #fff; font-weight: 900; cursor: pointer; text-transform: none; }
         .project-image-select-button:focus-visible { outline: 3px solid rgba(47,93,70,.28); outline-offset: 3px; }
         .project-image-helper-row { display: flex; flex-wrap: wrap; gap: 8px 14px; margin-top: 10px; color: #57534e; text-transform: none; letter-spacing: normal; }
@@ -4624,140 +4745,32 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                 </div>
 
                 <!-- SUB-TAB 3: PROJECTS -->
-                <div x-show="adminTab === 'projects'" x-transition class="grid grid-cols-1 lg:grid-cols-12 gap-8 text-xs font-bold uppercase tracking-wider text-stone-500">
-                    <div class="lg:col-span-5 bg-white p-6 rounded-3xl border border-stone-200/80 shadow-sm space-y-4">
+                <div x-show="adminTab === 'projects'" x-transition class="admin-projects-layout text-xs font-bold uppercase tracking-wider text-stone-500">
+                    <div class="admin-project-form-card">
                         <h3 class="text-lg font-black text-stone-900 tracking-normal mb-4" x-text="newProj.id ? (lang==='az'?'Layihəni Redaktə Et':'Редактировать') : (lang==='az'?'Yeni Layihə Əlavə Et':'Добавить Проект')">Yeni Layihə</h3>
-                        
-                        <div class="grid grid-cols-2 gap-3">
-                            <div>
-                                <label x-text="lang==='az'?'Kateqoriya':(lang==='ru'?'Категория':'Category')">Kateqoriya</label>
-                                <select x-ref="projectCreateCategory" x-model="newProj.cat" class="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg text-stone-800 mt-1 font-medium tracking-normal">
-                                    <option value="house">Taxta Evlər</option>
-                                    <option value="restaurant">Restoranlar</option>
-                                    <option value="gazebo">Besedkalar</option>
-                                    <option value="sauna">Hamam & Sauna</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label x-text="lang==='az'?'Sahə (m²)':(lang==='ru'?'Площадь (м²)':'Area (sqm)')">Sahə (m²)</label>
-                                <input type="number" x-model="newProj.area" class="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg text-stone-800 mt-1 font-medium tracking-normal">
-                            </div>
+                        <div class="admin-project-form-grid">
+                            <div><label x-text="lang==='az'?'Kateqoriya':(lang==='ru'?'Категория':'Category')">Kateqoriya</label><select x-ref="projectCreateCategory" x-model="newProj.cat" class="admin-project-input"><option value="house">Taxta Evlər</option><option value="restaurant">Restoranlar</option><option value="gazebo">Besedkalar</option><option value="sauna">Hamam & Sauna</option></select></div>
+                            <div><label x-text="lang==='az'?'Sahə (m²)':(lang==='ru'?'Площадь (м²)':'Area (sqm)')">Sahə (m²)</label><input type="number" x-model="newProj.area" class="admin-project-input"></div>
+                            <div class="admin-project-field-full"><label class="flex justify-between"><span x-text="lang==='az'?'Başlıq':(lang==='ru'?'Название (АЗ)':'Title (AZ)')">Başlıq</span><span class="text-wood-600 font-normal lowercase tracking-normal" x-text="lang==='az'?'(Lüğətdə varsa avtomatik tərcümə edilir)':'(Авто-заполнение других языков)'"></span></label><input type="text" x-model="newProj.titleAz" @input="autocompleteFields('title')" class="admin-project-input"></div>
+                            <div x-show="showProjectTranslations" x-transition><label>Başlıq (RU)</label><input type="text" x-model="newProj.titleRu" @input="markManualTranslation('newProj.titleRu')" class="admin-project-input"></div>
+                            <div x-show="showProjectTranslations" x-transition><label>Başlıq (EN)</label><input type="text" x-model="newProj.titleEn" @input="markManualTranslation('newProj.titleEn')" class="admin-project-input"></div>
+                            <div class="admin-project-field-full p-4 bg-stone-100 rounded-2xl border border-dashed border-stone-300"><label class="block mb-2 text-stone-700">Şəkillər</label><input :key="projectImageInputKey" x-ref="projectImageInput" type="file" :accept="IMAGE_ACCEPT" multiple @change="handleProjectImageSelect($event)" class="sr-only" id="project-images-input"><label for="project-images-input" class="project-image-select-button" tabindex="0" @keydown.enter.prevent="$refs.projectImageInput.click()" @keydown.space.prevent="$refs.projectImageInput.click()"><i class="fa-solid fa-images"></i><span>Şəkilləri seç</span></label><div class="project-image-helper-row"><span x-text="projectImageCounterText()">0 / 40 şəkil seçilib</span><small>40 şəkilə qədər seçə, sıralaya və silə bilərsiniz.</small></div><p x-show="projectCoverHeicWarning()" class="project-heic-warning">Əsas şəkil brauzerdə göstərilməyə bilər. JPG, PNG və ya WebP formatı tövsiyə olunur.</p><div x-ref="projectSelectedImagesGrid" class="project-selected-images-grid"><template x-for="(img, index) in selectedProjectImages" :key="img.id"><div class="project-selected-image" :data-id="img.id"><template x-if="projectImagePreviewSrc(img)"><img :src="projectImagePreviewSrc(img)" :alt="projectImageName(img)" @error="handleProjectPreviewError(img)"></template><template x-if="!projectImagePreviewSrc(img)"><div class="project-image-placeholder"><strong x-text="projectImageFormatLabel(img)"></strong><span x-text="shortFileName(projectImageName(img))"></span><small>Önizləmə yoxdur</small></div></template><span class="project-image-order" x-text="index + 1"></span><span x-show="index === 0" class="project-cover-badge">Əsas şəkil</span><button type="button" aria-label="Şəkli sil" class="project-image-remove" @click.stop="removeProjectImage(img.id)"><i class="fa-solid fa-xmark"></i></button></div></template></div></div>
+                            <div class="admin-project-field-full"><label>Təsvir</label><textarea x-model="newProj.descAz" @input="autocompleteFields('desc')" class="admin-project-input"></textarea></div>
+                            <div x-show="showProjectTranslations" x-transition><label>Təsvir (RU)</label><textarea x-model="newProj.descRu" @input="markManualTranslation('newProj.descRu')" class="admin-project-input"></textarea></div>
+                            <div x-show="showProjectTranslations" x-transition><label>Təsvir (EN)</label><textarea x-model="newProj.descEn" @input="markManualTranslation('newProj.descEn')" class="admin-project-input"></textarea></div>
+                            <div><label>Mərtəbə</label><input type="number" x-model="newProj.stories" class="admin-project-input"></div><div><label>Otaq</label><input type="number" x-model="newProj.rooms" class="admin-project-input"></div>
+                            <div class="admin-project-field-full"><label>Tikinti müddəti</label><input type="text" x-model="newProj.buildTimeAz" @input="autocompleteFields('buildTime')" class="admin-project-input"></div>
+                            <div x-show="showProjectTranslations" x-transition><label>Tikinti müddəti (RU)</label><input type="text" x-model="newProj.buildTimeRu" @input="markManualTranslation('newProj.buildTimeRu')" class="admin-project-input"></div><div x-show="showProjectTranslations" x-transition><label>Tikinti müddəti (EN)</label><input type="text" x-model="newProj.buildTimeEn" @input="markManualTranslation('newProj.buildTimeEn')" class="admin-project-input"></div>
                         </div>
-
-                        <!-- Real-time dynamic mirror language synchronization AZ -> RU / EN -->
-                        <div>
-                            <label class="flex justify-between">
-                                <span x-text="lang==='az'?'Başlıq':(lang==='ru'?'Название (АЗ)':'Title (AZ)')">Başlıq</span>
-                                <span class="text-wood-600 font-normal lowercase tracking-normal" x-text="lang==='az'?'(Lüğətdə varsa avtomatik tərcümə edilir)':'(Авто-заполнение других языков)'"></span>
-                            </label>
-                            <input type="text" x-model="newProj.titleAz" @input="autocompleteFields('title')" class="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg text-stone-800 mt-1 font-medium tracking-normal">
-                        </div>
-                        <div x-show="showProjectTranslations" x-transition class="grid grid-cols-2 gap-3">
-                            <div>
-                                <label x-text="lang==='az'?'Başlıq (RU)':(lang==='ru'?'Название (РУ)':'Title (RU)')">Başlıq (RU)</label>
-                                <input type="text" x-model="newProj.titleRu" @input="markManualTranslation('newProj.titleRu')" class="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg text-stone-800 mt-1 font-medium tracking-normal">
-                            </div>
-                            <div>
-                                <label x-text="lang==='az'?'Başlıq (EN)':(lang==='ru'?'Название (АНГ)':'Title (EN)')">Başlıq (EN)</label>
-                                <input type="text" x-model="newProj.titleEn" @input="markManualTranslation('newProj.titleEn')" class="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg text-stone-800 mt-1 font-medium tracking-normal">
-                            </div>
-                        </div>
-
-                        <div class="p-4 bg-stone-100 rounded-2xl border border-dashed border-stone-300">
-                            <label class="block mb-2 text-stone-700">Şəkillər</label>
-                            <input :key="projectImageInputKey" x-ref="projectImageInput" type="file" :accept="IMAGE_ACCEPT" multiple @change="handleProjectImageSelect($event)" class="sr-only" id="project-images-input">
-                            <label for="project-images-input" class="project-image-select-button" tabindex="0" @keydown.enter.prevent="$refs.projectImageInput.click()" @keydown.space.prevent="$refs.projectImageInput.click()"><i class="fa-solid fa-images"></i><span>Şəkilləri seç</span></label>
-                            <div class="project-image-helper-row"><span x-text="projectImageCounterText()">0 / 40 şəkil seçilib</span><small>40 şəkilə qədər seçə, sıralaya və silə bilərsiniz.</small></div>
-                            <p x-show="projectCoverHeicWarning()" class="project-heic-warning">Əsas şəkil brauzerdə göstərilməyə bilər. JPG, PNG və ya WebP formatı tövsiyə olunur.</p>
-                            <div x-ref="projectSelectedImagesGrid" class="project-selected-images-grid">
-                                <template x-for="(img, index) in selectedProjectImages" :key="img.id">
-                                    <div class="project-selected-image" :data-id="img.id">
-                                        <template x-if="projectImagePreviewSrc(img)"><img :src="projectImagePreviewSrc(img)" :alt="projectImageName(img)" @error="handleProjectPreviewError(img)"></template>
-                                        <template x-if="!projectImagePreviewSrc(img)"><div class="project-image-placeholder"><strong x-text="projectImageFormatLabel(img)"></strong><span x-text="shortFileName(projectImageName(img))"></span><small>Önizləmə yoxdur</small></div></template>
-                                        <span class="project-image-order" x-text="index + 1"></span>
-                                        <span x-show="index === 0" class="project-cover-badge">Əsas şəkil</span>
-                                        <button type="button" aria-label="Şəkli sil" class="project-image-remove" @click.stop="removeProjectImage(img.id)"><i class="fa-solid fa-xmark"></i></button>
-                                    </div>
-                                </template>
-                            </div>
-                        </div>
-
-                        <!-- Description character-by-character synchronization -->
-                        <div>
-                            <label x-text="lang==='az'?'Təsvir':(lang==='ru'?'Описание (АЗ)':'Description (AZ)')">Təsvir</label>
-                            <textarea x-model="newProj.descAz" @input="autocompleteFields('desc')" class="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg text-stone-800 mt-1 font-medium tracking-normal"></textarea>
-                        </div>
-                        <div x-show="showProjectTranslations" x-transition class="grid grid-cols-2 gap-3">
-                            <div>
-                                <label x-text="lang==='az'?'Təsvir (RU)':(lang==='ru'?'Описание (РУ)':'Description (RU)')">Təsvir (RU)</label>
-                                <textarea x-model="newProj.descRu" @input="markManualTranslation('newProj.descRu')" class="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg text-stone-800 mt-1 font-medium tracking-normal"></textarea>
-                            </div>
-                            <div>
-                                <label x-text="lang==='az'?'Təsvir (EN)':(lang==='ru'?'Описание (АНГ)':'Description (EN)')">Təsvir (EN)</label>
-                                <textarea x-model="newProj.descEn" @input="markManualTranslation('newProj.descEn')" class="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg text-stone-800 mt-1 font-medium tracking-normal"></textarea>
-                            </div>
-                        </div>
-
-                        <div class="grid grid-cols-2 gap-3">
-                            <div>
-                                <label x-text="lang==='az'?'Mərtəbə':(lang==='ru'?'Этажность':'Stories')">Mərtəbə</label>
-                                <input type="number" x-model="newProj.stories" class="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg text-stone-800 mt-1 font-medium tracking-normal">
-                            </div>
-                            <div>
-                                <label x-text="lang==='az'?'Otaq':(lang==='ru'?'Комнат':'Rooms')">Otaq</label>
-                                <input type="number" x-model="newProj.rooms" class="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg text-stone-800 mt-1 font-medium tracking-normal">
-                            </div>
-                        </div>
-
-                        <div class="grid grid-cols-1 gap-3">
-                            <div>
-                                <label x-text="lang==='az'?'Tikinti müddəti':(lang==='ru'?'Срок':'Build time')">Tikinti müddəti</label>
-                                <input type="text" x-model="newProj.buildTimeAz" @input="autocompleteFields('buildTime')" class="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg text-stone-800 mt-1 font-medium tracking-normal">
-                            </div>
-                            <div x-show="showProjectTranslations" x-transition>
-                                <label x-text="lang==='az'?'Tikinti müddəti (RU)':(lang==='ru'?'Срок (РУ)':'Build time (RU)')">Tikinti müddəti (RU)</label>
-                                <input type="text" x-model="newProj.buildTimeRu" @input="markManualTranslation('newProj.buildTimeRu')" class="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg text-stone-800 mt-1 font-medium tracking-normal">
-                            </div>
-                            <div x-show="showProjectTranslations" x-transition>
-                                <label x-text="lang==='az'?'Tikinti müddəti (EN)':(lang==='ru'?'Срок (EN)':'Build time (EN)')">Tikinti müddəti (EN)</label>
-                                <input type="text" x-model="newProj.buildTimeEn" @input="markManualTranslation('newProj.buildTimeEn')" class="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg text-stone-800 mt-1 font-medium tracking-normal">
-                            </div>
-                        </div>
-
-                        <p class="text-[10px] text-wood-600 normal-case">RU/EN avtomatik hazırlanacaq</p>
-                        <button type="button" @click="showProjectTranslations = !showProjectTranslations" class="text-[11px] text-forest-700 font-black normal-case underline" x-text="showProjectTranslations ? 'Tərcümələri gizlət' : 'Tərcümələri göstər'"></button>
-
-                        <div class="flex gap-2">
-                            <button @click="saveProject()" :disabled="actionLoading.projectSave" class="flex-1 py-3 bg-forest-700 text-white rounded-xl font-bold uppercase tracking-wider text-xs disabled:opacity-70"><span x-show="!actionLoading.projectSave" x-text="lang==='az'?'Məlumatları Yadda Saxla':'Сохранить Layihə'">Yadda Saxla</span><span x-show="actionLoading.projectSave" class="inline-flex items-center gap-2"><i class="fa-solid fa-circle-notch fa-spin"></i>Yadda saxlanılır...</span></button>
-                            <template x-if="newProj.id">
-                                <button @click="resetProjectForm()" class="py-3 px-4 bg-stone-300 text-stone-700 rounded-xl font-bold" x-text="lang==='az'?'Ləğv':'Отмена'">Ləğv</button>
-                            </template>
-                        </div>
+                        <div class="admin-project-save-meta"><p>RU/EN avtomatik hazırlanacaq</p><button type="button" @click="showProjectTranslations = !showProjectTranslations" x-text="showProjectTranslations ? 'Tərcümələri gizlət' : 'Tərcümələri göstər'"></button></div>
+                        <div class="admin-project-save-row"><button type="button" @click="saveProject()" :disabled="actionLoading.projectSave" :aria-busy="actionLoading.projectSave" class="admin-project-save-button"><span x-show="actionLoading.projectSave" class="work-submit-spinner" aria-hidden="true"></span><span x-text="projectSaveButtonText()"></span></button><template x-if="newProj.id"><button type="button" @click="resetProjectForm()" class="admin-project-cancel-button">Ləğv</button></template></div>
+                        <div x-show="actionLoading.projectSave && projectUploadProgress.total" class="admin-project-progress"><span :style="`width:${projectUploadPercent()}%`"></span></div>
                     </div>
-
-                    <div class="lg:col-span-7 bg-white p-6 rounded-3xl border border-stone-200/80 shadow-sm space-y-4">
-                        <h3 class="text-lg font-black text-stone-900 tracking-normal" x-text="lang==='az'?'Mövcud Layihələr':(lang==='ru'?'Существующие проекты':'Current Catalog')">Mövcud Layihələr</h3>
-                        <div class="space-y-3 max-h-[70vh] overflow-y-auto">
-                            <template x-for="proj in (Array.isArray(projects) ? projects : [])" :key="proj.id">
-                                <div class="p-3 bg-stone-50 rounded-2xl border border-stone-200/60 flex items-center justify-between gap-3">
-                                    <div class="flex items-center gap-3">
-                                        <img :src="(proj.images && proj.images[0]) || proj.image" class="w-14 h-14 object-cover rounded-xl shadow">
-                                        <div>
-                                            <h4 class="font-extrabold text-stone-900 text-sm tracking-normal" x-text="lang==='az'?proj.title:(lang==='ru'?proj.titleRu:proj.titleEn)">Başlıq</h4>
-                                            <div class="flex gap-2 mt-1">
-                                                <span class="text-[9px] bg-forest-100 text-forest-700 px-1.5 py-0.5 rounded font-bold" x-text="proj.cat">Kateqoriya</span>
-                                                <span x-show="proj.archived" class="text-[9px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded font-bold" x-text="lang==='az'?'Arxivdə':'В архиве'">Arxiv</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class="flex gap-1">
-                                        <button @click="setupEditProject(proj)" class="w-8 h-8 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-lg flex items-center justify-center transition" title="Redaktə"><i class="fa-solid fa-pen-to-square"></i></button>
-                                        <button @click="toggleArchiveProject(proj)" class="w-8 h-8 bg-yellow-50 text-yellow-600 hover:bg-yellow-100 rounded-lg flex items-center justify-center transition" :title="proj.archived ? 'Arxivdən Çıxar' : 'Arxivlə'"><i class="fa-solid" :class="proj.archived ? 'fa-box-open' : 'fa-box'"></i></button>
-                                        <button @click="deleteProject(proj.id)" class="w-8 h-8 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg flex items-center justify-center transition" title="Sil"><i class="fa-regular fa-trash-can"></i></button>
-                                    </div>
-                                </div>
-                            </template>
-                        </div>
+                    <div class="admin-project-list-section">
+                        <div class="admin-project-list-head"><div><h3>Mövcud Layihələr <span x-text="`— ${filteredAdminProjects().length} layihə`"></span></h3><p>Axtarış və filterlər yüklənmiş data üzərində işləyir.</p></div></div>
+                        <div class="admin-project-toolbar"><input type="search" x-model.debounce.150ms="projectAdminSearch" placeholder="Layihə adına görə axtar" class="admin-project-input"><select x-model="projectAdminCategoryFilter" class="admin-project-input"><option value="all">Bütün kateqoriyalar</option><template x-for="cat in projectCategories().filter(c => c !== 'all')" :key="cat"><option :value="cat" x-text="projectCategoryLabel(cat)"></option></template></select><select x-model="projectAdminStatusFilter" class="admin-project-input"><option value="all">Hamısı</option><option value="active">Aktiv</option><option value="archived">Arxiv</option></select></div>
+                        <div x-show="projectsLoaded && !filteredAdminProjects().length" class="admin-empty-state"><i class="fa-solid fa-folder-open"></i><strong>Layihə tapılmadı</strong><small>Filterləri dəyişərək yenidən yoxlayın.</small></div>
+                        <div class="admin-project-grid"><template x-for="proj in filteredAdminProjects()" :key="proj.id"><article class="admin-project-card"><div class="admin-project-cover"><template x-if="projectAdminCover(proj)"><img :src="projectAdminCover(proj)" @error="setWorkImageFallback($event)" alt=""></template><template x-if="!projectAdminCover(proj)"><div class="admin-project-placeholder"><i class="fa-regular fa-image"></i><span>Şəkil yoxdur</span></div></template><span class="admin-project-status" :class="proj.archived ? 'is-archived' : 'is-active'" x-text="projectStatusLabel(proj)"></span></div><div class="admin-project-body"><span class="admin-project-category" x-text="projectCategoryLabel(proj.category || proj.cat)"></span><h4 x-text="projectAdminTitle(proj)"></h4><div class="admin-project-specs"><span><i class="fa-solid fa-ruler-combined"></i><b x-text="formatAreaValue(proj.area)"></b></span><span><i class="fa-solid fa-layer-group"></i><b x-text="proj.stories || '—'"></b></span><span><i class="fa-solid fa-door-open"></i><b x-text="proj.rooms || '—'"></b></span><span><i class="fa-solid fa-calendar-check"></i><b x-text="formatBuildTimeValue(proj.buildTime || proj.buildTimeAz)"></b></span></div></div><div class="admin-project-actions"><button type="button" class="edit" @click="setupEditProject(proj)"><i class="fa-solid fa-pen-to-square"></i>Redaktə et</button><button type="button" class="archive" @click="toggleArchiveProject(proj)" x-text="proj.archived ? 'Aktiv et' : 'Arxivlə'"></button><button type="button" class="delete" @click="deleteProject(proj.id)"><i class="fa-regular fa-trash-can"></i>Sil</button></div></article></template></div>
                     </div>
                 </div>
 
