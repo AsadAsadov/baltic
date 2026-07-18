@@ -289,7 +289,7 @@
                 detailType: '',
                 detailSlug: '',
                 detailItem: null,
-                detailImageIndex: 0,
+                detailGalleryState: { images: [], activeIndex: 0 },
                 detailLightboxOpen: false,
                 contactForm: { name: '', phone: '', email: '', message: '' },
                 contactErrors: {},
@@ -540,7 +540,7 @@
                     this.detailType = '';
                     this.detailSlug = '';
                     this.detailItem = null;
-                    this.detailImageIndex = 0;
+                    this.detailGalleryState = { images: [], activeIndex: 0 };
                     this.detailLightboxOpen = false;
                     this.page = newPage;
                     this.adminLoginError = '';
@@ -614,7 +614,7 @@
                     const clean = String(pathname || '/').replace(/\/+$/, '') || '/';
                     const match = clean.match(/^\/(layiheler|islerimiz)\/([^/?#]+)$/);
                     if (match) {
-                        this.page = 'detail'; this.detailType = match[1] === 'layiheler' ? 'project' : 'work'; this.detailSlug = decodeURIComponent(match[2]); this.detailImageIndex = 0; this.resolveDetailFromRoute();
+                        this.page = 'detail'; this.detailType = match[1] === 'layiheler' ? 'project' : 'work'; this.detailSlug = decodeURIComponent(match[2]); this.detailGalleryState = { images: [], activeIndex: 0 }; this.resolveDetailFromRoute();
                     } else {
                         const page = clean === '/' ? 'home' : clean.slice(1);
                         if (['home','projects','works','gallery','about','contact','admin'].includes(page)) this.page = page;
@@ -631,16 +631,25 @@
                         try { item = this.detailType === 'project' ? this.normalizeProject(await this.api(`/api/projects/slug/${encodeURIComponent(this.detailSlug)}`)) : this.normalizeWorkItem(await this.api(`/api/works/slug/${encodeURIComponent(this.detailSlug)}`)); } catch (e) { console.warn('Detail route not found', e); }
                     }
                     this.detailItem = item || null;
+                    this.syncDetailGalleryState();
                     this.updateMeta();
                 },
-                openDetail(item, type = 'project') { if (!item?.id) return; this.page = 'detail'; this.detailType = type; this.detailItem = item; this.detailSlug = this.itemSlug(item); this.detailImageIndex = 0; history.pushState({}, '', type === 'project' ? this.projectUrl(item) : this.workUrl(item)); this.updateMeta(); window.scrollTo({top:0, behavior:'smooth'}); },
+                openDetail(item, type = 'project') { if (!item?.id) return; this.page = 'detail'; this.detailType = type; this.detailItem = item; this.detailSlug = this.itemSlug(item); this.syncDetailGalleryState(); history.pushState({}, '', type === 'project' ? this.projectUrl(item) : this.workUrl(item)); this.updateMeta(); window.scrollTo({top:0, behavior:'smooth'}); },
                 detailTitle(item = this.detailItem) { if (!item) return ''; return this.detailType === 'work' ? this.localizedWorkTitle(item) : (this.lang === 'en' ? (item.titleEn || item.title) : (this.lang === 'ru' ? (item.titleRu || item.title) : item.title)); },
                 detailDescription(item = this.detailItem) { if (!item) return ''; return this.detailType === 'work' ? this.localizedWorkDescription(item) : (this.lang === 'en' ? (item.descriptionEn || item.descEn || item.desc) : (this.lang === 'ru' ? (item.descriptionRu || item.descRu || item.desc) : (item.descriptionAz || item.descAz || item.desc))); },
                 detailImages(item = this.detailItem) { const images = Array.isArray(item?.images) && item.images.length ? item.images : [item?.coverImage || item?.image].filter(Boolean); return images.filter(Boolean); },
-                detailImage() { const images = this.detailImages(); return images[this.detailImageIndex] || images[0] || ''; },
-                selectDetailImage(index) { const n = this.detailImages().length; if (n) this.detailImageIndex = Math.max(0, Math.min(Number(index)||0, n-1)); },
-                nextDetailImage() { const n = this.detailImages().length; if (n > 1) this.detailImageIndex = (this.detailImageIndex + 1) % n; },
-                prevDetailImage() { const n = this.detailImages().length; if (n > 1) this.detailImageIndex = (this.detailImageIndex - 1 + n) % n; },
+                syncDetailGalleryState() { this.detailGalleryState = { images: this.detailImages(this.detailItem), activeIndex: 0 }; },
+                detailImage() { const images = this.detailGalleryState.images?.length ? this.detailGalleryState.images : this.detailImages(); return images[this.detailGalleryState.activeIndex] || images[0] || ''; },
+                setActiveDetailImage(index) { const n = (this.detailGalleryState.images || []).length; if (n) this.detailGalleryState.activeIndex = Math.max(0, Math.min(Number(index)||0, n-1)); },
+                selectDetailImage(index) { this.setActiveDetailImage(index); },
+                nextDetailImage() { const n = (this.detailGalleryState.images || []).length; if (n > 1) this.detailGalleryState.activeIndex = (this.detailGalleryState.activeIndex + 1) % n; },
+                prevDetailImage() { const n = (this.detailGalleryState.images || []).length; if (n > 1) this.detailGalleryState.activeIndex = (this.detailGalleryState.activeIndex - 1 + n) % n; },
+                hasMeaningfulDetailValue(value) { const text = String(value ?? '').trim(); return Boolean(text) && !['0','null','undefined'].includes(text.toLowerCase()); },
+                formatAreaValue(value) { const text = String(value ?? '').trim(); if (!this.hasMeaningfulDetailValue(text)) return ''; return /m²|m2|кв|sqm|sq\.?\s*m/i.test(text) ? text : `${text} m²`; },
+                formatBuildTimeValue(value) { const text = String(value ?? '').trim(); return this.hasMeaningfulDetailValue(text) ? text : ''; },
+                detailSpecs() { const item = this.detailItem || {}; const buildTime = this.lang === 'en' ? (item.buildTimeEn || item.buildTime) : (this.lang === 'ru' ? (item.buildTimeRu || item.buildTime) : (item.buildTimeAz || item.buildTime)); return [ { label:'Sahə', value:this.formatAreaValue(item.area), icon:'fa-ruler-combined' }, { label:'Mərtəbə', value:this.hasMeaningfulDetailValue(item.stories) ? String(item.stories) : '', icon:'fa-layer-group' }, { label:'Otaq', value:this.hasMeaningfulDetailValue(item.rooms) ? String(item.rooms) : '', icon:'fa-door-open' }, { label:'Tikinti müddəti', value:this.formatBuildTimeValue(buildTime), icon:'fa-calendar-check' } ].filter(spec => this.hasMeaningfulDetailValue(spec.value)); },
+                detailCategoryLabel(item = this.detailItem) { return this.detailType==='work' ? this.workCategoryLabel(item?.category) : (this.lang==='en' ? (item?.catNameEn || item?.catName) : (this.lang==='ru' ? (item?.catNameRu || item?.catName) : (item?.catName || item?.category))); },
+                detailShortDescription() { const full = this.detailDescription() || ''; const short = this.detailItem?.shortDescription || this.detailItem?.shortDescriptionAz || ''; return short || (full.length > 220 ? `${full.slice(0, 220).trim()}…` : full); },
                 similarDetailItems() { const list = this.detailType === 'work' ? this.workItems : this.projects; const item = this.detailItem || {}; return (Array.isArray(list) ? list : []).filter(x => x.id !== item.id && !x.archived && ((x.category && x.category === item.category) || (x.cat && x.cat === item.cat))).slice(0,3); },
                 detailWhatsappUrl() { const message = `Salam. “${this.detailTitle()}” ilə maraqlanıram: ${location.href}`; return `https://wa.me/994553221109?text=${encodeURIComponent(message)}`; },
                 async shareDetail() { const data = { title: this.detailTitle(), text: this.detailDescription(), url: location.href }; try { if (navigator.share) await navigator.share(data); else if (navigator.clipboard) { await navigator.clipboard.writeText(location.href); this.showToast?.('Link kopyalandı', location.href); } else { const input = document.createElement('input'); input.value = location.href; document.body.appendChild(input); input.select(); document.execCommand('copy'); input.remove(); this.showToast?.('Link kopyalandı', location.href); } } catch (e) { if (e?.name !== 'AbortError') console.warn('Share failed', e); } },
@@ -707,18 +716,19 @@
                         titleRu: project.titleRu || project.title || '',
                         titleEn: project.titleEn || project.title || '',
                         desc: project.desc || project.description || project.descriptionAz || project.descAz || '',
-                        description: project.description || project.desc || project.descriptionAz || '',
+                        description: project.description || project.desc || project.descriptionAz || project.descAz || '',
+                        shortDescription: project.shortDescription || project.shortDescriptionAz || project.excerpt || '',
                         descriptionAz: project.descriptionAz || project.descAz || project.description || project.desc || '',
                         descAz: project.descAz || project.descriptionAz || project.desc || '',
                         descRu: project.descRu || project.descriptionRu || project.desc || '',
                         descEn: project.descEn || project.descriptionEn || project.desc || '',
-                        area: String(project.area || ''),
-                        stories: Number(project.stories) || 1,
-                        rooms: Number(project.rooms) || 1,
-                        buildTime: project.buildTime || project.buildTimeAz || '',
-                        buildTimeAz: project.buildTimeAz || project.buildTime || '',
-                        buildTimeRu: project.buildTimeRu || project.buildTime || '',
-                        buildTimeEn: project.buildTimeEn || project.buildTime || '',
+                        area: String(project.area || project.areaAz || ''),
+                        stories: project.stories ?? project.floorCount ?? project.floors ?? '',
+                        rooms: project.rooms ?? project.roomCount ?? '',
+                        buildTime: project.buildTime || project.build_time || project.buildTimeAz || project.build_time_az || '',
+                        buildTimeAz: project.buildTimeAz || project.build_time_az || project.buildTime || project.build_time || '',
+                        buildTimeRu: project.buildTimeRu || project.build_time_ru || project.buildTime || project.build_time || '',
+                        buildTimeEn: project.buildTimeEn || project.build_time_en || project.buildTime || project.build_time || '',
                         image,
                         cover: project.cover || image,
                         coverImage: project.coverImage || image,
@@ -4118,13 +4128,34 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
 
             <!-- SEO DETAIL PAGE -->
             <div x-show="page === 'detail'" x-cloak class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 ad-safe-content" @keydown.arrow-right.window="nextDetailImage()" @keydown.arrow-left.window="prevDetailImage()" @keydown.escape.window="detailLightboxOpen=false">
-                <template x-if="!detailItem"><div class="space-y-6"><div class="h-72 rounded-[2rem] skeleton-shimmer"></div><div class="h-8 w-2/3 rounded skeleton-shimmer"></div><div class="h-24 rounded skeleton-shimmer"></div></div></template>
+                <template x-if="!detailItem"><div class="space-y-6"><div class="h-8 w-52 rounded skeleton-shimmer"></div><div class="h-12 w-2/3 rounded skeleton-shimmer"></div><div class="h-32 rounded-3xl skeleton-shimmer"></div><div class="h-96 rounded-[2rem] skeleton-shimmer"></div></div></template>
                 <template x-if="detailItem"><article class="space-y-10">
                     <nav class="text-sm font-bold text-stone-500"><a href="/" @click.prevent="navigateTo('home')">Ana səhifə</a><span class="mx-2">/</span><a :href="detailType==='project'?'/projects':'/works'" @click.prevent="navigateTo(detailType==='project'?'projects':'works')" x-text="detailType==='project'?t('navProjects'):t('navWorks')"></a><span class="mx-2">/</span><span class="text-forest-800" x-text="detailTitle()"></span></nav>
-                    <section class="relative overflow-hidden rounded-[2rem] min-h-[42vh] flex items-end bg-stone-900"><img :src="detailImage()" :alt="detailTitle()" class="absolute inset-0 h-full w-full object-cover opacity-70" loading="eager"><div class="relative z-10 max-w-3xl p-6 sm:p-10 text-white"><span class="inline-flex rounded-full bg-white/15 px-4 py-2 text-xs font-black uppercase backdrop-blur" x-text="detailType==='work'?workCategoryLabel(detailItem.category):(detailItem.catName||detailItem.category)"></span><h1 class="mt-4 text-4xl sm:text-6xl font-black" x-text="detailTitle()"></h1><p class="mt-4 text-white/85 leading-8" x-text="detailDescription()"></p></div></section>
-                    <section class="grid gap-6 lg:grid-cols-[minmax(0,1fr)_300px]"><div class="min-h-[70vh] rounded-[2rem] bg-stone-950 p-3 sm:p-4"><button class="block h-[70vh] w-full" @click="detailLightboxOpen=true"><img :src="detailImage()" :alt="detailTitle()" class="h-full w-full object-contain" loading="eager"></button></div><aside class="space-y-4"><div class="rounded-[2rem] border bg-white p-4 shadow-sm"><div class="mb-3 flex items-center justify-between font-black"><span>Qalereya</span><span x-text="`${detailImageIndex+1} / ${detailImages().length}`"></span></div><div class="max-h-[70vh] grid grid-cols-3 gap-2 overflow-y-auto pr-1"><template x-for="(src,index) in detailImages()" :key="src+index"><button @click="selectDetailImage(index)" class="aspect-square overflow-hidden rounded-xl border-2 transition" :class="detailImageIndex===index?'border-forest-700':'border-transparent'"><img :src="src" class="h-full w-full object-cover" loading="lazy" alt="Thumbnail"></button></template></div></div><a :href="detailWhatsappUrl()" target="_blank" rel="noopener noreferrer" class="flex h-14 items-center justify-center gap-2 rounded-2xl bg-[#25D366] font-black text-white shadow-lg"><i class="fa-brands fa-whatsapp"></i> <span x-text="detailType==='work'?'WhatsApp-la müraciət et':'Layihə üçün müraciət et'"></span></a><button type="button" @click="shareDetail()" class="flex h-12 w-full items-center justify-center gap-2 rounded-2xl border border-forest-200 bg-white font-black text-forest-800"><i class="fa-solid fa-share-nodes"></i> Linki paylaş</button></aside></section>
-                    <section x-show="similarDetailItems().length" class="space-y-4"><h2 class="text-2xl font-black text-forest-950">Oxşar layihələr</h2><div class="grid sm:grid-cols-3 gap-4"><template x-for="item in similarDetailItems()" :key="item.id"><a :href="detailType==='work'?workUrl(item):projectUrl(item)" class="text-left rounded-2xl overflow-hidden bg-white border shadow-sm hover:shadow-xl transition"><img :src="item.coverImage||item.image" class="h-40 w-full object-cover" loading="lazy"><div class="p-4 font-black" x-text="detailType==='work'?localizedWorkTitle(item):(item.title||item.titleAz)"></div></a></template></div></section>
-                    <div x-show="detailLightboxOpen" x-cloak class="fixed inset-0 z-[9999] bg-black/95 p-4 flex items-center justify-center" @click="detailLightboxOpen=false"><button class="absolute top-4 right-4 h-12 w-12 rounded-full bg-white/15 text-white" @click.stop="detailLightboxOpen=false"><i class="fa-solid fa-xmark"></i></button><button class="absolute left-4 h-12 w-12 rounded-full bg-white/15 text-white" @click.stop="prevDetailImage()"><i class="fa-solid fa-chevron-left"></i></button><img :src="detailImage()" class="max-h-full max-w-full object-contain" :alt="detailTitle()"><button class="absolute right-4 h-12 w-12 rounded-full bg-white/15 text-white" @click.stop="nextDetailImage()"><i class="fa-solid fa-chevron-right"></i></button></div>
+                    <section class="detail-intro space-y-4">
+                        <span class="inline-flex rounded-full border border-forest-200 bg-forest-50 px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-forest-800" x-text="detailCategoryLabel()"></span>
+                        <h1 class="max-w-[850px] text-[clamp(32px,4vw,56px)] leading-[1.05] font-black tracking-tight text-forest-950" x-text="detailTitle()"></h1>
+                        <p class="max-w-3xl text-[17px] sm:text-[18px] leading-8 text-stone-600 whitespace-pre-line" x-text="detailShortDescription()"></p>
+                    </section>
+                    <section x-show="detailSpecs().length" class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                        <template x-for="spec in detailSpecs()" :key="spec.label"><div class="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm"><div class="flex items-center gap-2 text-xs font-black uppercase tracking-[0.14em] text-stone-500"><i class="fa-solid text-forest-700" :class="spec.icon"></i><span x-text="spec.label"></span></div><strong class="mt-3 block text-2xl font-black text-forest-950" x-text="spec.value"></strong></div></template>
+                    </section>
+                    <section class="grid gap-8 lg:grid-cols-[minmax(0,1fr)_320px] items-start">
+                        <div class="min-w-0 space-y-8">
+                            <div class="relative rounded-[22px] border border-stone-200 bg-[#f5f5f2] overflow-hidden min-h-[320px] sm:min-h-[480px] max-h-[760px] flex items-center justify-center">
+                                <button type="button" class="block h-full min-h-[320px] sm:min-h-[480px] w-full cursor-zoom-in" @click="detailLightboxOpen=true" aria-label="Şəkli böyüt"><img :src="detailImage()" :alt="detailTitle()" class="h-full w-full max-h-[760px] object-contain" loading="eager"></button>
+                                <template x-if="detailGalleryState.images.length > 1"><button type="button" class="absolute left-3 top-1/2 -translate-y-1/2 h-11 w-11 rounded-full bg-white/85 text-forest-900 shadow" @click.stop="prevDetailImage()" aria-label="Əvvəlki şəkil"><i class="fa-solid fa-chevron-left"></i></button></template>
+                                <template x-if="detailGalleryState.images.length > 1"><button type="button" class="absolute right-3 top-1/2 -translate-y-1/2 h-11 w-11 rounded-full bg-white/85 text-forest-900 shadow" @click.stop="nextDetailImage()" aria-label="Növbəti şəkil"><i class="fa-solid fa-chevron-right"></i></button></template>
+                                <span x-show="detailGalleryState.images.length > 1" class="absolute bottom-3 right-3 rounded-full bg-white/90 px-3 py-1 text-xs font-black text-forest-900" x-text="`${detailGalleryState.activeIndex+1} / ${detailGalleryState.images.length}`"></span>
+                            </div>
+                            <div x-show="detailGalleryState.images.length > 1" class="grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-7 gap-2 sm:gap-3">
+                                <template x-for="(src,index) in detailGalleryState.images" :key="src+index"><button type="button" @click.prevent="setActiveDetailImage(index)" class="aspect-[4/3] min-h-16 overflow-hidden rounded-xl border-2 bg-stone-100 transition" :class="detailGalleryState.activeIndex===index?'border-forest-700 ring-2 ring-forest-700/20':'border-transparent hover:border-stone-300'" :aria-label="`${index+1}. şəkli göstər`"><img :src="src" class="h-full w-full object-cover" loading="lazy" alt="Thumbnail"></button></template>
+                            </div>
+                            <section class="rounded-3xl border border-stone-200 bg-white p-6 sm:p-8"><h2 class="text-2xl font-black text-forest-950">Layihə haqqında</h2><p class="mt-4 whitespace-pre-line text-[17px] leading-8 text-stone-600" x-text="detailDescription()"></p></section>
+                        </div>
+                        <aside class="space-y-4 lg:sticky lg:top-28"><div class="rounded-3xl border border-stone-200 bg-white p-6 shadow-sm"><h2 class="text-xl font-black text-forest-950">Bu layihə ilə maraqlanırsınız?</h2><p class="mt-2 text-sm leading-6 text-stone-600">Ətraflı məlumat və fərdi layihələndirmə üçün bizimlə əlaqə saxlayın.</p><a :href="detailWhatsappUrl()" target="_blank" rel="noopener noreferrer" class="mt-5 flex h-14 items-center justify-center gap-2 rounded-2xl bg-[#25D366] px-4 py-3 font-black text-white"><i class="fa-brands fa-whatsapp"></i> WhatsApp-la müraciət et</a><button type="button" @click="shareDetail()" class="mt-3 flex h-12 w-full items-center justify-center gap-2 rounded-2xl border border-forest-200 bg-white font-black text-forest-800"><i class="fa-solid fa-share-nodes"></i> Linki paylaş</button></div></aside>
+                    </section>
+                    <section x-show="similarDetailItems().length" class="pt-12 sm:pt-20 space-y-5"><h2 class="text-2xl sm:text-3xl font-black text-forest-950">Oxşar layihələr</h2><div class="grid sm:grid-cols-3 gap-5"><template x-for="item in similarDetailItems()" :key="item.id"><a :href="detailType==='work'?workUrl(item):projectUrl(item)" class="group text-left rounded-3xl overflow-hidden bg-white border border-stone-200 shadow-sm hover:shadow-xl transition"><img :src="item.coverImage||item.image" class="aspect-[4/3] w-full object-cover" loading="lazy"><div class="p-5"><span class="text-xs font-black uppercase tracking-[0.14em] text-forest-700" x-text="detailType==='work'?workCategoryLabel(item.category):(item.catName||item.category)"></span><h3 class="mt-2 font-black text-forest-950 group-hover:text-forest-700" x-text="detailType==='work'?localizedWorkTitle(item):(item.title||item.titleAz)"></h3><p x-show="item.area" class="mt-2 text-sm font-bold text-stone-500" x-text="formatAreaValue(item.area)"></p></div></a></template></div></section>
+                    <div x-show="detailLightboxOpen" x-cloak class="fixed inset-0 z-[9999] bg-black/95 p-4 flex items-center justify-center" @click="detailLightboxOpen=false"><button class="absolute top-4 right-4 h-12 w-12 rounded-full bg-white/15 text-white" @click.stop="detailLightboxOpen=false" aria-label="Bağla"><i class="fa-solid fa-xmark"></i></button><button x-show="detailGalleryState.images.length > 1" class="absolute left-4 h-12 w-12 rounded-full bg-white/15 text-white" @click.stop="prevDetailImage()" aria-label="Əvvəlki şəkil"><i class="fa-solid fa-chevron-left"></i></button><img :src="detailImage()" class="max-h-full max-w-full object-contain" :alt="detailTitle()"><span class="absolute bottom-4 rounded-full bg-white/15 px-4 py-2 text-sm font-black text-white" x-text="`${detailGalleryState.activeIndex+1} / ${detailGalleryState.images.length}`"></span><button x-show="detailGalleryState.images.length > 1" class="absolute right-4 h-12 w-12 rounded-full bg-white/15 text-white" @click.stop="nextDetailImage()" aria-label="Növbəti şəkil"><i class="fa-solid fa-chevron-right"></i></button></div>
                 </article></template>
             </div>
 
