@@ -564,6 +564,18 @@
                     this.updateMeta();
                 },
 
+                siteTitle: 'Baltic Caspian LTD',
+                pageTitleConfig: {
+                    home: { label: '', description: 'Premium taxta evlərin layihələndirilməsi və tikintisi.' },
+                    projects: { label: 'Layihələr', description: 'Baltic Caspian LTD taxta ev layihələri və fərdi memarlıq həlləri.' },
+                    works: { label: 'İşlərimiz', description: 'Baltic Caspian LTD tərəfindən tamamlanmış taxta ev işləri.' },
+                    gallery: { label: 'Qalereya', description: 'Taxta evlər, tikinti prosesi və tamamlanmış layihələrin qalereyası.' },
+                    about: { label: 'Haqqımızda', description: 'Baltic Caspian LTD komandası, dəyərləri və taxta ev tikintisi təcrübəsi.' },
+                    contact: { label: 'Əlaqə', description: 'Baltic Caspian LTD ilə əlaqə saxlayın və taxta ev layihənizi planlayın.' },
+                    login: { label: 'İdarəetmə Paneli', description: 'Baltic Caspian LTD idarəetmə panelinə giriş.' },
+                    admin: { label: 'İdarəetmə Paneli', description: 'Baltic Caspian LTD idarəetmə paneli.' },
+                    notFound: { label: 'Səhifə tapılmadı', description: 'Axtardığınız səhifə tapılmadı.' }
+                },
                 publicRoutes: { home: '/', projects: '/layiheler', works: '/islerimiz', gallery: '/qalereya', about: '/haqqimizda', contact: '/elaqe' },
                 publicRouteMap: { '/': 'home', '/layiheler': 'projects', '/islerimiz': 'works', '/qalereya': 'gallery', '/haqqimizda': 'about', '/elaqe': 'contact' },
                 navItems() { return [{p:'home',k:'navHome'},{p:'projects',k:'navProjects'},{p:'works',k:'navWorks'},{p:'gallery',k:'navGallery'},{p:'about',k:'navAbout'},{p:'contact',k:'navContact'}]; },
@@ -772,7 +784,27 @@
                 similarDetailItems() { const list = this.detailType === 'work' ? this.workItems : this.projects; const item = this.detailItem || {}; return (Array.isArray(list) ? list : []).filter(x => x.id !== item.id && !x.archived && x.active !== false && ((x.category && x.category === item.category) || (x.cat && x.cat === item.cat))).slice(0,3); },
                 detailWhatsappUrl() { const message = `Salam. “${this.detailTitle()}” ilə maraqlanıram: ${location.href}`; return `https://wa.me/994553221109?text=${encodeURIComponent(message)}`; },
                 async shareDetail() { const data = { title: this.detailTitle(), text: this.detailDescription(), url: location.href }; try { if (navigator.share) await navigator.share(data); else if (navigator.clipboard) { await navigator.clipboard.writeText(location.href); this.showToast?.('Link kopyalandı', location.href); } else { const input = document.createElement('input'); input.value = location.href; document.body.appendChild(input); input.select(); document.execCommand('copy'); input.remove(); this.showToast?.('Link kopyalandı', location.href); } } catch (e) { if (e?.name !== 'AbortError') console.warn('Share failed', e); } },
-                updateMeta() { const staticMeta = { home:['Baltic Caspian LTD | Taxta Evlərin Tikintisi','Premium taxta evlərin layihələndirilməsi və tikintisi.'], projects:['Taxta Ev Layihələri | Baltic Caspian LTD','Baltic Caspian LTD taxta ev layihələri və fərdi memarlıq həlləri.'], works:['İşlərimiz | Baltic Caspian LTD','Baltic Caspian LTD tərəfindən tamamlanmış taxta ev işləri.'], gallery:['Qalereya | Baltic Caspian LTD','Taxta evlər, tikinti prosesi və tamamlanmış layihələrin qalereyası.'], about:['Haqqımızda | Baltic Caspian LTD','Baltic Caspian LTD komandası, dəyərləri və taxta ev tikintisi təcrübəsi.'], contact:['Əlaqə | Baltic Caspian LTD','Baltic Caspian LTD ilə əlaqə saxlayın və taxta ev layihənizi planlayın.'], notFound:['Səhifə tapılmadı | Baltic Caspian LTD','Axtardığınız səhifə tapılmadı.'] }; const title = this.detailItem ? `${this.detailTitle()} | Baltic Caspian LTD` : (staticMeta[this.page]?.[0] || staticMeta.notFound[0]); const desc = (this.detailItem ? (this.detailDescription() || 'Baltic Caspian LTD layihə detalları.') : (staticMeta[this.page]?.[1] || staticMeta.notFound[1])).slice(0,155); document.title = title; document.querySelector('meta[name="description"]')?.setAttribute('content', desc); document.querySelector('meta[name="robots"]')?.setAttribute('content', 'index,follow'); document.querySelector('link[rel="canonical"]')?.setAttribute('href', location.origin + this.normalizePathname(location.pathname)); document.querySelector('meta[property="og:title"]')?.setAttribute('content', title); document.querySelector('meta[property="og:description"]')?.setAttribute('content', desc); document.querySelector('meta[property="og:url"]')?.setAttribute('content', location.href); document.querySelector('meta[property="og:image"]')?.setAttribute('content', this.detailImage() || '/uploads/hero'); },
+                formatPageTitle(label = '') { return label ? `${label} | ${this.siteTitle}` : this.siteTitle; },
+                pageMeta(pageName = this.page) {
+                    const key = Object.prototype.hasOwnProperty.call(this.pageTitleConfig, pageName) ? pageName : 'notFound';
+                    const config = this.pageTitleConfig[key];
+                    return { title: this.formatPageTitle(config.label), description: config.description };
+                },
+                updateMeta() {
+                    const fallbackDetailDescription = 'Baltic Caspian LTD layihə detalları.';
+                    const meta = this.detailItem
+                        ? { title: this.formatPageTitle(this.detailTitle() || 'Detal'), description: this.detailDescription() || fallbackDetailDescription }
+                        : this.pageMeta(this.page);
+                    const desc = String(meta.description || '').slice(0, 155);
+                    document.title = meta.title;
+                    document.querySelector('meta[name="description"]')?.setAttribute('content', desc);
+                    document.querySelector('meta[name="robots"]')?.setAttribute('content', 'index,follow');
+                    document.querySelector('link[rel="canonical"]')?.setAttribute('href', location.origin + this.normalizePathname(location.pathname));
+                    document.querySelector('meta[property="og:title"]')?.setAttribute('content', meta.title);
+                    document.querySelector('meta[property="og:description"]')?.setAttribute('content', desc);
+                    document.querySelector('meta[property="og:url"]')?.setAttribute('content', location.href);
+                    document.querySelector('meta[property="og:image"]')?.setAttribute('content', this.detailImage() || '/uploads/hero');
+                },
 
                 async api(path, options = {}) {
                     const headers = options.body instanceof FormData ? { ...(options.headers || {}) } : { 'Content-Type': 'application/json', ...(options.headers || {}) };
@@ -2006,7 +2038,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                     this.adminInitializationError = '';
                     this.adminInitializing = true;
                     this.adminLoginError = 'Sessiyanın vaxtı bitib. Yenidən daxil olun.';
-                    if (this.normalizePathname(location.pathname) === '/admin') this.page = 'login';
+                    if (this.normalizePathname(location.pathname) === '/admin') { this.page = 'login'; this.updateMeta(); }
                 },
 
                 async handleAdminLogin() {

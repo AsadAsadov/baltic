@@ -768,15 +768,22 @@ app.get('/sitemap.xml', wrap(async (req,res)=>{
   const urls = ['/', '/layiheler', '/islerimiz', '/qalereya', '/haqqimizda', '/elaqe', ...projects.map(p=>`/layiheler/${p.slug}`), ...works.map(w=>`/islerimiz/${w.slug}`)];
   res.type('application/xml').send(`<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${urls.map(u=>`<url><loc>${escapeHtml(publicOrigin()+u)}</loc></url>`).join('')}</urlset>`);
 }));
-const STATIC_PUBLIC_META = {
-  '/': { title: 'Baltic Caspian LTD | Taxta Evlərin Tikintisi', description: 'Premium taxta evlərin layihələndirilməsi və tikintisi.' },
-  '/layiheler': { title: 'Taxta Ev Layihələri | Baltic Caspian LTD', description: 'Baltic Caspian LTD taxta ev layihələri və fərdi memarlıq həlləri.' },
-  '/islerimiz': { title: 'İşlərimiz | Baltic Caspian LTD', description: 'Baltic Caspian LTD tərəfindən tamamlanmış taxta ev işləri.' },
-  '/qalereya': { title: 'Qalereya | Baltic Caspian LTD', description: 'Taxta evlər, tikinti prosesi və tamamlanmış layihələrin qalereyası.' },
-  '/haqqimizda': { title: 'Haqqımızda | Baltic Caspian LTD', description: 'Baltic Caspian LTD komandası, dəyərləri və taxta ev tikintisi təcrübəsi.' },
-  '/elaqe': { title: 'Əlaqə | Baltic Caspian LTD', description: 'Baltic Caspian LTD ilə əlaqə saxlayın və taxta ev layihənizi planlayın.' },
-  '/admin': { title: 'Admin | Baltic Caspian LTD', description: 'Baltic Caspian LTD admin paneli.' }
+const SITE_TITLE = 'Baltic Caspian LTD';
+const formatPageTitle = (label = '') => label ? `${label} | ${SITE_TITLE}` : SITE_TITLE;
+const PAGE_META = {
+  '/': { label: '', description: 'Premium taxta evlərin layihələndirilməsi və tikintisi.' },
+  '/layiheler': { label: 'Layihələr', description: 'Baltic Caspian LTD taxta ev layihələri və fərdi memarlıq həlləri.' },
+  '/islerimiz': { label: 'İşlərimiz', description: 'Baltic Caspian LTD tərəfindən tamamlanmış taxta ev işləri.' },
+  '/qalereya': { label: 'Qalereya', description: 'Taxta evlər, tikinti prosesi və tamamlanmış layihələrin qalereyası.' },
+  '/haqqimizda': { label: 'Haqqımızda', description: 'Baltic Caspian LTD komandası, dəyərləri və taxta ev tikintisi təcrübəsi.' },
+  '/elaqe': { label: 'Əlaqə', description: 'Baltic Caspian LTD ilə əlaqə saxlayın və taxta ev layihənizi planlayın.' },
+  '/admin': { label: 'İdarəetmə Paneli', description: 'Baltic Caspian LTD idarəetmə panelinə giriş.' }
 };
+const pageMetaForPath = pathValue => {
+  const config = PAGE_META[pathValue] || { label: 'Səhifə tapılmadı', description: 'Axtardığınız səhifə tapılmadı.' };
+  return { title: formatPageTitle(config.label), description: config.description };
+};
+const STATIC_PUBLIC_META = Object.fromEntries(Object.entries(PAGE_META).map(([route]) => [route, pageMetaForPath(route)]));
 const normalizePublicPath = value => {
   let clean = String(value || '/').split('?')[0].split('#')[0].replace(/\/+/g, '/');
   clean = clean.replace(/\/+$/, '') || '/';
@@ -794,7 +801,7 @@ app.get(Object.keys(STATIC_PUBLIC_META), (req,res)=>{
   sendShellWithMeta(req, res, STATIC_PUBLIC_META[clean] || STATIC_PUBLIC_META['/']);
 });
 app.get('*', (req,res)=>{
-  sendShellWithMeta(req, res, { title:'Səhifə tapılmadı | Baltic Caspian LTD', description:'Axtardığınız səhifə tapılmadı.' }, 404);
+  sendShellWithMeta(req, res, pageMetaForPath('__404__'), 404);
 });
 
 const PORT = process.env.PORT || 3000;
