@@ -427,7 +427,7 @@ const buildJsonLd = (view, isProject, url, image) => JSON.stringify({
     { '@type': 'CreativeWork', name: view?.titleAz || 'Baltic Caspian', description: view?.descriptionAz || view?.desc || '', url, image: image ? [image] : undefined },
     { '@type': 'BreadcrumbList', itemListElement: [
       { '@type':'ListItem', position:1, name:'Ana səhifə', item: publicOrigin() + '/' },
-      { '@type':'ListItem', position:2, name:isProject ? 'Layihələr' : 'İşlərimiz', item: publicOrigin() + (isProject ? '/projects' : '/works') },
+      { '@type':'ListItem', position:2, name:isProject ? 'Layihələr' : 'İşlərimiz', item: publicOrigin() + (isProject ? '/layiheler' : '/islerimiz') },
       { '@type':'ListItem', position:3, name:view?.titleAz || 'Detal', item:url }
     ] }
   ]
@@ -463,11 +463,34 @@ app.get(['/layiheler/:slug', '/islerimiz/:slug'], wrap(async (req, res) => {
 }));
 app.get('/sitemap.xml', wrap(async (req,res)=>{
   const [projects, works] = await Promise.all([prisma.project.findMany({where:{archived:false},select:{slug:true,updatedAt:true}}), prisma.workItem.findMany({where:{active:true},select:{slug:true,updatedAt:true}})]);
-  const urls = ['/', '/projects', '/works', ...projects.map(p=>`/layiheler/${p.slug}`), ...works.map(w=>`/islerimiz/${w.slug}`)];
+  const urls = ['/', '/layiheler', '/islerimiz', '/qalereya', '/haqqimizda', '/elaqe', ...projects.map(p=>`/layiheler/${p.slug}`), ...works.map(w=>`/islerimiz/${w.slug}`)];
   res.type('application/xml').send(`<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${urls.map(u=>`<url><loc>${escapeHtml(publicOrigin()+u)}</loc></url>`).join('')}</urlset>`);
 }));
+const STATIC_PUBLIC_META = {
+  '/': { title: 'Baltic Caspian | Taxta Evlərin Tikintisi', description: 'Premium taxta evlərin layihələndirilməsi və tikintisi.' },
+  '/layiheler': { title: 'Taxta Ev Layihələri | Baltic Caspian', description: 'Baltic Caspian taxta ev layihələri və fərdi memarlıq həlləri.' },
+  '/islerimiz': { title: 'İşlərimiz | Baltic Caspian', description: 'Baltic Caspian tərəfindən tamamlanmış taxta ev işləri.' },
+  '/qalereya': { title: 'Qalereya | Baltic Caspian', description: 'Taxta evlər, tikinti prosesi və tamamlanmış layihələrin qalereyası.' },
+  '/haqqimizda': { title: 'Haqqımızda | Baltic Caspian', description: 'Baltic Caspian komandası, dəyərləri və taxta ev tikintisi təcrübəsi.' },
+  '/elaqe': { title: 'Əlaqə | Baltic Caspian', description: 'Baltic Caspian ilə əlaqə saxlayın və taxta ev layihənizi planlayın.' },
+  '/admin': { title: 'Admin | Baltic Caspian', description: 'Baltic Caspian admin paneli.' }
+};
+const normalizePublicPath = value => {
+  let clean = String(value || '/').split('?')[0].split('#')[0].replace(/\/+/g, '/');
+  clean = clean.replace(/\/+$/, '') || '/';
+  return clean;
+};
+const sendShellWithMeta = (req, res, meta, status = 200) => {
+  fs.promises.readFile(path.join(__dirname,'index.html'), 'utf8')
+    .then(html => res.status(status).send(injectMeta(html, { title: meta.title, description: meta.description, url: `${publicOrigin()}${normalizePublicPath(req.path)}`, image:absoluteUrl(req, '/uploads/hero'), jsonLd:'{}' })))
+    .catch(() => res.status(status).sendFile(path.join(__dirname,'index.html')));
+};
+app.get(Object.keys(STATIC_PUBLIC_META), (req,res)=>{
+  const clean = normalizePublicPath(req.path);
+  sendShellWithMeta(req, res, STATIC_PUBLIC_META[clean] || STATIC_PUBLIC_META['/']);
+});
 app.get('*', (req,res)=>{
-  fs.promises.readFile(path.join(__dirname,'index.html'), 'utf8').then(html => res.send(injectMeta(html, { title:'Baltic Caspian | Premium Taxta Evlər', description:'Premium taxta evlər, tamamlanmış işlər və layihələr.', url:absoluteUrl(req, req.originalUrl), image:absoluteUrl(req, '/uploads/hero'), jsonLd:'{}' }))).catch(() => res.sendFile(path.join(__dirname,'index.html')));
+  sendShellWithMeta(req, res, { title:'Səhifə tapılmadı | Baltic Caspian', description:'Axtardığınız səhifə tapılmadı.' }, 404);
 });
 
 const PORT = process.env.PORT || 3000;
