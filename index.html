@@ -2395,16 +2395,18 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
 
         .contact-page {
             width: 100%;
-            max-width: none;
             margin-inline: auto;
-            padding: 38px 0 0;
-            overflow-x: hidden;
+            padding: 40px 0 88px;
             background: #f8faf7;
         }
-        .desktop-page-container,
-        .contact-shell {
+        .desktop-page-container {
             width: min(100% - 32px, 520px);
             max-width: 520px;
+            margin-inline: auto;
+        }
+        .contact-shell {
+            max-width: 1240px;
+            width: calc(100% - 48px);
             margin-inline: auto;
         }
         .contact-intro {
@@ -2436,7 +2438,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
             font-size: 15px;
             line-height: 1.55;
         }
-        .contact-layout { display: grid; gap: 20px; align-items: start; }
+        .contact-layout { display: grid; grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr); gap: 32px; align-items: start; }
         .contact-consultation-card {
             border-radius: 24px;
             padding: 22px;
@@ -2559,7 +2561,6 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
             :root { --desktop-content-width: 1180px; }
             .desktop-page-container,
             .header-main .max-w-7xl,
-            .contact-shell,
             .about-section {
                 width: min(var(--desktop-content-width), calc(100% - 64px));
                 max-width: none;
@@ -2567,22 +2568,23 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                 padding-left: 0;
                 padding-right: 0;
             }
-            .contact-page { max-width: none; padding: 54px 0 72px; }
-            .contact-intro { max-width: 720px; margin-bottom: 36px; padding-inline: 0; }
+            .contact-shell { max-width: 1240px; width: calc(100% - 48px); margin-inline: auto; padding-left: 0; padding-right: 0; }
+            .contact-page { max-width: none; padding: 40px 0 88px; }
+            .contact-intro { max-width: 720px; margin-bottom: 34px; padding-inline: 0; }
             .contact-eyebrow { font-size: 12px; letter-spacing: .16em; }
             .contact-title { max-width: 620px; font-size: clamp(42px, 4vw, 58px); line-height: 1.02; }
             .contact-description { max-width: 620px; font-size: 17px; line-height: 1.65; }
-            .contact-layout { grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr); gap: 32px; align-items: stretch; }
-            .contact-left-column { display: flex; flex-direction: column; min-width: 0; }
-            .contact-consultation-card { min-height: 100%; padding: 34px; border-radius: 28px; display: flex; flex-direction: column; }
+            .contact-layout { grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr); gap: 32px; align-items: start; }
+            .contact-left-column { min-width: 0; }
+            .contact-consultation-card { padding: 32px; border-radius: 24px; }
             .contact-card-title { max-width: 390px; font-size: 30px; line-height: 1.08; }
             .contact-card-helper { max-width: 430px; margin-top: 10px; margin-bottom: 26px; font-size: 15px; line-height: 1.55; }
             .contact-detail-row { grid-template-columns: 46px minmax(0, 1fr); gap: 14px; padding: 15px 0; }
             .contact-detail-icon { width: 42px; height: 42px; border-radius: 13px; }
             .contact-detail-label { font-size: 10px; }
             .contact-detail-value { font-size: 15px; font-weight: 650; line-height: 1.35; overflow-wrap: anywhere; word-break: normal; }
-            .contact-whatsapp-btn { height: 54px; margin-top: auto; border-radius: 15px; }
-            .contact-form-card { margin-top: 0; padding: 34px; border-radius: 28px; min-height: 100%; }
+            .contact-whatsapp-btn { height: 54px; margin-top: 18px; border-radius: 15px; }
+            .contact-form-card { margin-top: 0; padding: 32px; border-radius: 24px; }
             .contact-form-title { font-size: 29px; line-height: 1.1; }
             .contact-form-desc { margin-top: 7px; margin-bottom: 26px; font-size: 14px; }
             .contact-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
@@ -2596,8 +2598,8 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
             :root { --desktop-content-width: 1240px; }
             .desktop-page-container,
             .header-main .max-w-7xl,
-            .contact-shell,
             .about-section { width: min(var(--desktop-content-width), calc(100% - 96px)); }
+            .contact-shell { width: calc(100% - 48px); }
         }
         .header-main { position: fixed; top: 0; left: 0; right: 0; z-index: 100; }
         .page-shell { padding-top: var(--header-height); }
@@ -3231,16 +3233,14 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
             .page-content,
             .projects-page,
             .gallery-page,
-            .about-page,
-            .contact-page {
+            .about-page {
                 min-height: 0;
                 height: auto;
                 margin-bottom: 0;
             }
             .projects-page,
             .gallery-page,
-            .about-page,
-            .contact-page {
+            .about-page {
                 padding-top: 32px !important;
             }
             .empty-state,
@@ -4353,15 +4353,15 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
             </div>
 
             <!-- 5. CONTACT & LEAD CAPTURE PAGE -->
-            <div x-show="page === 'contact'" x-cloak class="contact-page ad-safe-content">
+            <section x-show="page === 'contact'" x-cloak class="contact-page ad-safe-content">
                 <div class="contact-shell desktop-page-container">
+                    <div class="contact-intro">
+                        <span class="contact-eyebrow" x-text="t('navContact')">Əlaqə</span>
+                        <h1 class="contact-title" x-text="t('contactHeader')">Bizimlə Əlaqə Saxlayın</h1>
+                        <p class="contact-description" x-text="t('contactIntro')"></p>
+                    </div>
                     <div class="contact-layout contact-desktop-layout">
                         <div class="contact-left-column">
-                            <div class="contact-intro">
-                                <span class="contact-eyebrow" x-text="t('navContact')">Əlaqə</span>
-                                <h1 class="contact-title" x-text="t('contactHeader')">Bizimlə Əlaqə Saxlayın</h1>
-                                <p class="contact-description" x-text="t('contactIntro')"></p>
-                            </div>
                             <section class="contact-consultation-card contact-direct-card" :aria-label="t('contactInfoTitle')">
                                 <span class="contact-card-eyebrow">BİRBAŞA ƏLAQƏ</span>
                                 <h2 class="contact-card-title">Layihənizi birlikdə planlayaq</h2>
@@ -4389,7 +4389,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                         </section>
                     </div>
                 </div>
-            </div>
+            </section>
 
 
             <div x-show="['sea-breeze','announcements','mortgage','vacancy'].includes(page)" x-cloak class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12 ad-safe-content">
