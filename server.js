@@ -41,14 +41,25 @@ const safeUploadFilename = (name = 'upload') => {
   const ext = parsed.ext.toLowerCase().replace(/[^a-z0-9.]/g, '');
   return `${base}${ext}`;
 };
-const allowedImageExt = new Set(['.jpg', '.jpeg', '.png', '.webp', '.avif']);
+const MAX_IMAGES_PER_ITEM = 40;
+const ALLOWED_IMAGE_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/avif', 'image/gif', 'image/bmp', 'image/tiff', 'image/heic', 'image/heif']);
+const REJECTED_UNSANITIZED_IMAGE_MIME_TYPES = new Set(['image/svg+xml']);
+const allowedImageExt = new Set(['.jpg', '.jpeg', '.png', '.webp', '.avif', '.gif', '.bmp', '.tif', '.tiff', '.heic', '.heif']);
+const rejectedUnsanitizedImageExt = new Set(['.svg']);
 const allowedVideoExt = new Set(['.mp4', '.webm', '.mov']);
 const isAllowedUploadFile = (file, bucket) => {
-  const ext = path.extname(file?.originalname || '').toLowerCase();
-  const type = file?.mimetype || '';
-  const isImage = allowedImageExt.has(ext) && type.startsWith('image/');
+  const ext = path.extname(safeUploadFilename(file?.originalname || '')).toLowerCase();
+  const type = String(file?.mimetype || '').toLowerCase();
+  if (rejectedUnsanitizedImageExt.has(ext) || REJECTED_UNSANITIZED_IMAGE_MIME_TYPES.has(type)) return false;
+  const isHeifOctetStream = ['.heic', '.heif'].includes(ext) && type === 'application/octet-stream';
+  const isImage = allowedImageExt.has(ext) && (ALLOWED_IMAGE_MIME_TYPES.has(type) || isHeifOctetStream);
   const isVideo = allowedVideoExt.has(ext) && (type.startsWith('video/') || type === 'application/octet-stream' || type === 'video/quicktime');
   return isImage || isVideo;
+};
+const limitImageArray = (images, label = 'images') => {
+  if (!Array.isArray(images)) return { errors: [`${label} must be an array`] };
+  if (images.length > MAX_IMAGES_PER_ITEM) return { errors: [`${label} cannot contain more than ${MAX_IMAGES_PER_ITEM} images`] };
+  return { images };
 };
 
 const isDbError = (err) => ['PrismaClientInitializationError', 'PrismaClientUnknownRequestError', 'PrismaClientRustPanicError'].includes(err?.name) || ['P1000', 'P1001', 'P1002', 'P1003', 'P1010', 'P1011', 'P1012', 'P1013', 'P1014', 'P1015', 'P1017', 'P2024'].includes(err?.code);
@@ -98,7 +109,8 @@ function validateWorkBody(b = {}, existing = null) {
   if (!titleAz) errors.push('titleAz is required');
   if (!coverImage) errors.push('coverImage is required');
   if (!category) errors.push('category is required');
-  if (!Array.isArray(images)) errors.push('images must be an array');
+  const imageLimit = limitImageArray(images);
+  if (imageLimit.errors) errors.push(...imageLimit.errors);
   if (!Number.isInteger(sortOrder) || sortOrder < 0) errors.push('sortOrder must be a non-negative integer');
   if (typeof active !== 'boolean') errors.push('active must be a boolean');
   if (typeof featured !== 'boolean') errors.push('featured must be a boolean');
@@ -137,9 +149,9 @@ const catMap = {
 function projectOut(p) {
   return { id: p.id, legacyId: p.legacyId, cat: p.category, catName: p.categoryNameAz || catMap[p.category]?.az || p.category, catNameRu: p.categoryNameRu || catMap[p.category]?.ru || p.category, catNameEn: p.categoryNameEn || catMap[p.category]?.en || p.category, title: p.titleAz, titleAz: p.titleAz, titleRu: p.titleRu, titleEn: p.titleEn, desc: p.descriptionAz, descriptionAz: p.descriptionAz, descRu: p.descriptionRu, descEn: p.descriptionEn, area: p.area, stories: p.stories, rooms: p.rooms, buildTime: p.buildTimeAz, buildTimeAz: p.buildTimeAz, buildTimeRu: p.buildTimeRu, buildTimeEn: p.buildTimeEn, image: p.coverImage, coverImage: p.coverImage, images: jsonArray(p.images), views: p.views, archived: p.archived };
 }
-function projectIn(b) { const c = b.cat || b.category || 'house'; return { category: c, categoryNameAz: b.catName || b.categoryNameAz || catMap[c]?.az, categoryNameRu: b.catNameRu || b.categoryNameRu || catMap[c]?.ru, categoryNameEn: b.catNameEn || b.categoryNameEn || catMap[c]?.en, titleAz: b.titleAz || b.title || '', titleRu: b.titleRu, titleEn: b.titleEn, descriptionAz: b.descAz || b.desc || b.descriptionAz, descriptionRu: b.descRu || b.descriptionRu, descriptionEn: b.descEn || b.descriptionEn, area: String(b.area || ''), stories: Number(b.stories) || 1, rooms: Number(b.rooms) || 1, buildTimeAz: b.buildTimeAz || b.buildTime, buildTimeRu: b.buildTimeRu, buildTimeEn: b.buildTimeEn, coverImage: b.image || b.coverImage || (b.images || [])[0], images: b.images || (b.image ? [b.image] : []) }; }
+function projectIn(b) { const c = b.cat || b.category || 'house'; const images = b.images || (b.image ? [b.image] : []); const limited = limitImageArray(images); if (limited.errors) return { errors: limited.errors }; return { category: c, categoryNameAz: b.catName || b.categoryNameAz || catMap[c]?.az, categoryNameRu: b.catNameRu || b.categoryNameRu || catMap[c]?.ru, categoryNameEn: b.catNameEn || b.categoryNameEn || catMap[c]?.en, titleAz: b.titleAz || b.title || '', titleRu: b.titleRu, titleEn: b.titleEn, descriptionAz: b.descAz || b.desc || b.descriptionAz, descriptionRu: b.descRu || b.descriptionRu, descriptionEn: b.descEn || b.descriptionEn, area: String(b.area || ''), stories: Number(b.stories) || 1, rooms: Number(b.rooms) || 1, buildTimeAz: b.buildTimeAz || b.buildTime, buildTimeRu: b.buildTimeRu, buildTimeEn: b.buildTimeEn, coverImage: b.image || b.coverImage || images[0], images }; }
 function galleryOut(g) { return { id: g.id, src: g.mediaUrl, mediaUrl: g.mediaUrl, images: jsonArray(g.images), title: g.titleAz, titleAz: g.titleAz, titleRu: g.titleRu, titleEn: g.titleEn, type: g.type, archived: g.archived, sortOrder: g.sortOrder }; }
-function galleryIn(b) { return { mediaUrl: b.src || b.mediaUrl || '', images: b.images || (b.src ? [b.src] : []), titleAz: b.titleAz || b.title || '', titleRu: b.titleRu, titleEn: b.titleEn, type: b.type || 'image', sortOrder: Number(b.sortOrder) || 0 }; }
+function galleryIn(b) { const images = b.images || (b.src ? [b.src] : []); const limited = limitImageArray(images); if (limited.errors) return { errors: limited.errors }; return { mediaUrl: b.src || b.mediaUrl || '', images, titleAz: b.titleAz || b.title || '', titleRu: b.titleRu, titleEn: b.titleEn, type: b.type || 'image', sortOrder: Number(b.sortOrder) || 0 }; }
 function getYouTubeId(url = '') { const value = String(url || '').trim(); const patterns = [/[?&]v=([^&]+)/i, /youtu\.be\/([^?&#/]+)/i, /youtube\.com\/embed\/([^?&#/]+)/i, /youtube\.com\/shorts\/([^?&#/]+)/i]; for (const pattern of patterns) { const match = value.match(pattern); if (match?.[1]) return decodeURIComponent(match[1]).replace(/[^a-zA-Z0-9_-]/g, ''); } return ''; }
 function isYouTubeUrl(url = '') { return Boolean(getYouTubeId(url)); }
 function isVideoUrl(url = '') { return isYouTubeUrl(url) || /\.(mp4|webm|mov)(?:[?#].*)?$/i.test(String(url)); }
@@ -189,8 +201,8 @@ app.get('/api/health/db', async (req, res) => {
 
 app.get('/api/projects', wrap(async (req,res)=>res.json((await prisma.project.findMany({ where: req.query.includeArchived === 'true' ? {} : { archived:false }, orderBy:{ id:'desc' }})).map(projectOut))));
 app.get('/api/projects/:id', wrap(async (req,res)=>{ const p=await prisma.project.findFirst({ where:idWhere(req.params.id) }); if(!p) return res.status(404).json({ok:false,error:'PROJECT_NOT_FOUND'}); res.json(projectOut(p)); }));
-app.post('/api/projects', wrap(async (req,res)=>res.status(201).json(projectOut(await prisma.project.create({ data:projectIn(req.body) })))));
-app.put('/api/projects/:id', wrap(async (req,res)=>{ const p=await prisma.project.findFirst({ where:idWhere(req.params.id) }); if(!p) return res.status(404).json({ok:false,error:'PROJECT_NOT_FOUND'}); res.json(projectOut(await prisma.project.update({ where:{ id:p.id }, data:projectIn(req.body) }))); }));
+app.post('/api/projects', wrap(async (req,res)=>{ const data = projectIn(req.body); if (data.errors) return res.status(400).json({ok:false,errors:data.errors}); res.status(201).json(projectOut(await prisma.project.create({ data }))); }));
+app.put('/api/projects/:id', wrap(async (req,res)=>{ const p=await prisma.project.findFirst({ where:idWhere(req.params.id) }); if(!p) return res.status(404).json({ok:false,error:'PROJECT_NOT_FOUND'}); { const data = projectIn(req.body); if (data.errors) return res.status(400).json({ok:false,errors:data.errors}); res.json(projectOut(await prisma.project.update({ where:{ id:p.id }, data }))); }; }));
 app.delete('/api/projects/:id', wrap(async (req,res)=>{ const p=await prisma.project.findFirst({ where:idWhere(req.params.id) }); if (p) await prisma.project.delete({ where:{ id:p.id }}); res.json({ ok:true }); }));
 app.patch('/api/projects/:id/archive', wrap(async (req,res)=>{ const p=await prisma.project.findFirst({ where:idWhere(req.params.id) }); if(!p) return res.status(404).json({ok:false,error:'PROJECT_NOT_FOUND'}); res.json(projectOut(await prisma.project.update({ where:{ id:p.id }, data:{ archived: req.body.archived ?? !p.archived }}))); }));
 app.post('/api/projects/:id/view', wrap(async (req,res)=>{
@@ -219,9 +231,9 @@ app.patch('/api/work-items/:id/featured', requireAdmin, wrap(async (req,res)=>{ 
 app.delete('/api/work-items/:id', requireAdmin, wrap(async (req,res)=>{ const w=await prisma.workItem.findUnique({where:{id:String(req.params.id)}}); if(w){ await prisma.workItem.delete({where:{id:w.id}}); await safeDeleteUnusedWorkFiles([w.coverImage, ...jsonArray(w.images)], w.id); } res.json({ok:true}); }));
 
 app.get('/api/gallery', wrap(async (req,res)=>res.json((await prisma.galleryItem.findMany({ where: req.query.includeArchived === 'true' ? {} : { archived:false }, orderBy:[{sortOrder:'asc'},{id:'desc'}] })).map(galleryOut))));
-app.post('/api/gallery', wrap(async (req,res)=>res.status(201).json(galleryOut(await prisma.galleryItem.create({ data:galleryIn(req.body) })))));
+app.post('/api/gallery', wrap(async (req,res)=>{ const data = galleryIn(req.body); if (data.errors) return res.status(400).json({ok:false,errors:data.errors}); res.status(201).json(galleryOut(await prisma.galleryItem.create({ data }))); }));
 app.put('/api/gallery/reorder', wrap(async (req,res)=>{ await Promise.all((req.body.items||[]).map((it,i)=>prisma.galleryItem.update({where:{id:Number(it.id)},data:{sortOrder:Number(it.sortOrder ?? i)}}))); res.json({ok:true}); }));
-app.put('/api/gallery/:id', wrap(async (req,res)=>res.json(galleryOut(await prisma.galleryItem.update({ where:{id:intId(req)}, data:galleryIn(req.body)})))));
+app.put('/api/gallery/:id', wrap(async (req,res)=>{ const data = galleryIn(req.body); if (data.errors) return res.status(400).json({ok:false,errors:data.errors}); res.json(galleryOut(await prisma.galleryItem.update({ where:{id:intId(req)}, data}))); }));
 app.delete('/api/gallery/:id', wrap(async (req,res)=>{ await prisma.galleryItem.delete({where:{id:intId(req)}}); res.json({ok:true}); }));
 app.patch('/api/gallery/:id/archive', wrap(async (req,res)=>{ const g=await prisma.galleryItem.findUniqueOrThrow({where:{id:intId(req)}}); res.json(galleryOut(await prisma.galleryItem.update({where:{id:g.id},data:{archived:req.body.archived ?? !g.archived}}))); }));
 
@@ -309,7 +321,7 @@ app.post('/api/uploads', upload.single('file'), wrap(async (req, res) => {
     return res.status(400).json({ ok: false, error: 'INVALID_BUCKET', buckets: allowedUploadBuckets });
   }
   if (!req.file) return res.status(400).json({ ok: false, error: 'FILE_REQUIRED' });
-  if (!isAllowedUploadFile(req.file, bucket)) return res.status(400).json({ ok: false, error: 'UNSUPPORTED_FILE_TYPE', message: 'Uploads support jpg, jpeg, png, webp, avif, mp4, webm, and mov.' });
+  if (!isAllowedUploadFile(req.file, bucket)) return res.status(400).json({ ok: false, error: 'UNSUPPORTED_FILE_TYPE', message: 'Uploads support jpg, jpeg, png, webp, avif, gif, bmp, tif, tiff, heic, heif, mp4, webm, and mov. SVG uploads are rejected until sanitization is available.' });
 
   const bucketFolder = await ensureUploadBucketFolder(bucket);
   const filename = `${Date.now()}-${crypto.randomUUID()}-${safeUploadFilename(req.file.originalname)}`;
