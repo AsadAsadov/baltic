@@ -217,31 +217,99 @@ function validateCategory(value, label = 'category') {
 }
 const workCategoryMap = Object.fromEntries(Object.entries(CATEGORY_LABELS).map(([key, labels]) => [key, { ru: labels.ru, en: labels.en }]))
 function workOut(w) { return w && { id:w.id, slug:w.slug, type:'work', category:w.category, categoryNameAz:CATEGORY_LABELS[w.category]?.az || w.category, categoryRu:CATEGORY_LABELS[w.category]?.ru || w.category, categoryEn:CATEGORY_LABELS[w.category]?.en || w.category, title:w.titleAz, titleAz:w.titleAz, titleRu:w.titleRu, titleEn:w.titleEn, description:w.descriptionAz, descriptionAz:w.descriptionAz, descriptionRu:w.descriptionRu, descriptionEn:w.descriptionEn, location:w.locationAz, locationAz:w.locationAz, locationRu:w.locationRu, locationEn:w.locationEn, area:w.area, stories:w.stories, rooms:w.rooms, buildTime:w.buildTimeAz, buildTimeAz:w.buildTimeAz, buildTimeRu:w.buildTimeRu, buildTimeEn:w.buildTimeEn, completionDate:w.completionDate, coverImage:w.coverImage, image:w.coverImage, images:jsonArray(w.images), sortOrder:w.sortOrder, archived:w.archived, featured:w.featured, active:w.active, createdAt:w.createdAt, updatedAt:w.updatedAt }; }
+const hasOwn = (obj, key) => Object.prototype.hasOwnProperty.call(obj || {}, key);
+const firstPresent = (body, keys, fallback = undefined) => {
+  for (const key of keys) if (hasOwn(body, key)) return body[key];
+  return fallback;
+};
+const cleanString = (value, fallback = '') => value == null ? fallback : String(value).trim();
+const optionalString = (body, keys, fallback = '') => cleanString(firstPresent(body, keys, fallback), fallback);
+const intField = (body, key, fallback = null) => {
+  if (!hasOwn(body, key)) return fallback;
+  if (body[key] === '' || body[key] == null) return null;
+  const value = Number(body[key]);
+  return Number.isInteger(value) ? value : NaN;
+};
+const boolField = (body, key, fallback = false) => hasOwn(body, key) ? body[key] === true || body[key] === 'true' || body[key] === 1 || body[key] === '1' : fallback;
+const imageArrayField = (body, existing = null) => {
+  if (hasOwn(body, 'images')) return Array.isArray(body.images) ? body.images.filter(Boolean) : [];
+  if (hasOwn(body, 'image') || hasOwn(body, 'coverImage')) return [body.image || body.coverImage].filter(Boolean);
+  return jsonArray(existing?.images);
+};
 function validateWorkBody(b = {}, existing = null) {
   const errors = [];
-  const has = (k) => Object.prototype.hasOwnProperty.call(b, k);
-  const titleAz = String(b.titleAz || b.title || '').trim();
-  const coverImage = String(b.coverImage || b.image || '').trim();
-  const categoryCheck = validateCategory(b.category || existing?.category || 'house');
+  const categoryCheck = validateCategory(firstPresent(b, ['category'], existing?.category || 'house'));
   const category = categoryCheck.category;
-  const images = has('images') ? b.images : (existing?.images || []);
-  const sortOrderRaw = has('sortOrder') ? b.sortOrder : (existing?.sortOrder ?? 0);
-  const sortOrder = Number(sortOrderRaw);
-  const active = has('active') ? b.active : (existing?.active ?? true);
-  const featured = has('featured') ? b.featured : (existing?.featured ?? false);
-  const completionDateRaw = has('completionDate') ? b.completionDate : existing?.completionDate;
+  const titleAz = optionalString(b, ['titleAz', 'title'], existing?.titleAz || '');
+  const images = imageArrayField(b, existing);
+  let coverImage = optionalString(b, ['coverImage', 'image'], existing?.coverImage || images[0] || '');
+  if (!coverImage && images.length) coverImage = images[0];
+  const sortOrder = intField(b, 'sortOrder', existing?.sortOrder ?? 0);
+  const stories = intField(b, 'stories', existing?.stories ?? null);
+  const rooms = intField(b, 'rooms', existing?.rooms ?? null);
+  const active = boolField(b, 'active', existing?.active ?? true);
+  const featured = boolField(b, 'featured', existing?.featured ?? false);
+  const archived = boolField(b, 'archived', existing?.archived ?? false);
+  const completionDateRaw = firstPresent(b, ['completionDate'], existing?.completionDate || null);
   if (!titleAz) errors.push('titleAz is required');
   if (!coverImage) errors.push('coverImage is required');
   if (categoryCheck.errors) errors.push(...categoryCheck.errors);
   const imageLimit = limitImageArray(images);
   if (imageLimit.errors) errors.push(...imageLimit.errors);
   if (!Number.isInteger(sortOrder) || sortOrder < 0) errors.push('sortOrder must be a non-negative integer');
-  if (typeof active !== 'boolean') errors.push('active must be a boolean');
-  if (typeof featured !== 'boolean') errors.push('featured must be a boolean');
+  if (Number.isNaN(stories)) errors.push('stories must be an integer or empty');
+  if (Number.isNaN(rooms)) errors.push('rooms must be an integer or empty');
   let completionDate = null;
   if (completionDateRaw) { completionDate = new Date(completionDateRaw); if (Number.isNaN(completionDate.getTime())) errors.push('completionDate must be a valid date or null'); }
   if (errors.length) return { errors };
-  return { data: { ...(existing?.slug ? {} : { slug: b.slug }), category, titleAz, titleRu: b.titleRu || existing?.titleRu || titleAz, titleEn: b.titleEn || existing?.titleEn || titleAz, descriptionAz: b.descriptionAz || b.description || '', descriptionRu: b.descriptionRu || existing?.descriptionRu || b.descriptionAz || b.description || '', descriptionEn: b.descriptionEn || existing?.descriptionEn || b.descriptionAz || b.description || '', locationAz: b.locationAz || b.location || '', locationRu: b.locationRu || existing?.locationRu || b.locationAz || b.location || '', locationEn: b.locationEn || existing?.locationEn || b.locationAz || b.location || '', area: String(b.area || existing?.area || ''), stories: b.stories === '' || b.stories == null ? existing?.stories || null : Number(b.stories), rooms: b.rooms === '' || b.rooms == null ? existing?.rooms || null : Number(b.rooms), buildTimeAz: b.buildTimeAz || b.buildTime || existing?.buildTimeAz || '', buildTimeRu: b.buildTimeRu || existing?.buildTimeRu || b.buildTimeAz || b.buildTime || '', buildTimeEn: b.buildTimeEn || existing?.buildTimeEn || b.buildTimeAz || b.buildTime || '', completionDate, coverImage, images, sortOrder, featured, archived: has('archived') ? Boolean(b.archived) : (existing?.archived ?? false), active } };
+  return { data: {
+    ...(existing?.slug ? {} : { slug: b.slug }), category,
+    titleAz, titleRu: optionalString(b, ['titleRu'], existing?.titleRu || titleAz) || titleAz,
+    titleEn: optionalString(b, ['titleEn'], existing?.titleEn || titleAz) || titleAz,
+    descriptionAz: optionalString(b, ['descriptionAz', 'description'], existing?.descriptionAz || ''),
+    descriptionRu: optionalString(b, ['descriptionRu'], existing?.descriptionRu || optionalString(b, ['descriptionAz', 'description'], '')),
+    descriptionEn: optionalString(b, ['descriptionEn'], existing?.descriptionEn || optionalString(b, ['descriptionAz', 'description'], '')),
+    locationAz: optionalString(b, ['locationAz', 'location'], existing?.locationAz || ''),
+    locationRu: optionalString(b, ['locationRu'], existing?.locationRu || optionalString(b, ['locationAz', 'location'], '')),
+    locationEn: optionalString(b, ['locationEn'], existing?.locationEn || optionalString(b, ['locationAz', 'location'], '')),
+    area: optionalString(b, ['area'], existing?.area || ''), stories, rooms,
+    buildTimeAz: optionalString(b, ['buildTimeAz', 'buildTime'], existing?.buildTimeAz || ''),
+    buildTimeRu: optionalString(b, ['buildTimeRu'], existing?.buildTimeRu || optionalString(b, ['buildTimeAz', 'buildTime'], '')),
+    buildTimeEn: optionalString(b, ['buildTimeEn'], existing?.buildTimeEn || optionalString(b, ['buildTimeAz', 'buildTime'], '')),
+    completionDate, coverImage, images, sortOrder, featured, archived, active
+  } };
+}
+function projectIn(b = {}, existing = null) {
+  const categoryCheck = validateCategory(firstPresent(b, ['category', 'cat'], existing?.category || 'house'));
+  if (categoryCheck.errors) return { errors: categoryCheck.errors };
+  const c = categoryCheck.category;
+  const images = imageArrayField(b, existing);
+  const limited = limitImageArray(images);
+  if (limited.errors) return { errors: limited.errors };
+  let coverImage = optionalString(b, ['coverImage', 'image'], existing?.coverImage || images[0] || '');
+  if (!coverImage && images.length) coverImage = images[0];
+  const titleAz = optionalString(b, ['titleAz', 'title'], existing?.titleAz || '');
+  const stories = intField(b, 'stories', existing?.stories ?? 1);
+  const rooms = intField(b, 'rooms', existing?.rooms ?? 1);
+  const errors = [];
+  if (!titleAz) errors.push('titleAz is required');
+  if (Number.isNaN(stories)) errors.push('stories must be an integer or empty');
+  if (Number.isNaN(rooms)) errors.push('rooms must be an integer or empty');
+  if (errors.length) return { errors };
+  return {
+    category: c, categoryNameAz: catMap[c]?.az, categoryNameRu: catMap[c]?.ru, categoryNameEn: catMap[c]?.en,
+    titleAz, titleRu: optionalString(b, ['titleRu'], existing?.titleRu || titleAz) || titleAz,
+    titleEn: optionalString(b, ['titleEn'], existing?.titleEn || titleAz) || titleAz,
+    descriptionAz: optionalString(b, ['descAz', 'desc', 'descriptionAz', 'description'], existing?.descriptionAz || ''),
+    descriptionRu: optionalString(b, ['descRu', 'descriptionRu'], existing?.descriptionRu || optionalString(b, ['descAz', 'desc', 'descriptionAz', 'description'], '')),
+    descriptionEn: optionalString(b, ['descEn', 'descriptionEn'], existing?.descriptionEn || optionalString(b, ['descAz', 'desc', 'descriptionAz', 'description'], '')),
+    area: optionalString(b, ['area'], existing?.area || ''), stories: stories ?? 1, rooms: rooms ?? 1,
+    buildTimeAz: optionalString(b, ['buildTimeAz', 'buildTime'], existing?.buildTimeAz || ''),
+    buildTimeRu: optionalString(b, ['buildTimeRu'], existing?.buildTimeRu || optionalString(b, ['buildTimeAz', 'buildTime'], '')),
+    buildTimeEn: optionalString(b, ['buildTimeEn'], existing?.buildTimeEn || optionalString(b, ['buildTimeAz', 'buildTime'], '')),
+    coverImage, images, archived: boolField(b, 'archived', existing?.archived ?? false),
+    ...(existing?.slug ? {} : { slug: b.slug })
+  };
 }
 const localWorkUploadPath = (url = '') => {
   const value = String(url || '');
@@ -268,7 +336,6 @@ const catMap = CATEGORY_LABELS;
 function projectOut(p) {
   return { id: p.id, legacyId: p.legacyId, slug:p.slug, type:'project', category: p.category, cat: p.category, categoryNameAz: p.categoryNameAz || catMap[p.category]?.az || p.category, categoryNameRu: p.categoryNameRu || catMap[p.category]?.ru || p.category, categoryNameEn: p.categoryNameEn || catMap[p.category]?.en || p.category, catName: p.categoryNameAz || catMap[p.category]?.az || p.category, catNameRu: p.categoryNameRu || catMap[p.category]?.ru || p.category, catNameEn: p.categoryNameEn || catMap[p.category]?.en || p.category, title: p.titleAz, titleAz: p.titleAz, titleRu: p.titleRu, titleEn: p.titleEn, shortDescription: p.descriptionAz, shortDescriptionAz: p.descriptionAz, shortDescriptionRu: p.descriptionRu, shortDescriptionEn: p.descriptionEn, description: p.descriptionAz, desc: p.descriptionAz, descriptionAz: p.descriptionAz, descriptionRu: p.descriptionRu, descriptionEn: p.descriptionEn, descRu: p.descriptionRu, descEn: p.descriptionEn, area: p.area, stories: p.stories, rooms: p.rooms, buildTime: p.buildTimeAz, buildTimeAz: p.buildTimeAz, buildTimeRu: p.buildTimeRu, buildTimeEn: p.buildTimeEn, image: p.coverImage, coverImage: p.coverImage, images: jsonArray(p.images), views: p.views, archived: p.archived };
 }
-function projectIn(b, existing = null) { const categoryCheck = validateCategory(b.category ?? b.cat ?? existing?.category ?? 'house'); if (categoryCheck.errors) return { errors: categoryCheck.errors }; const c = categoryCheck.category; const images = b.images || (b.image ? [b.image] : []); const limited = limitImageArray(images); if (limited.errors) return { errors: limited.errors }; return { category: c, categoryNameAz: b.catName || b.categoryNameAz || catMap[c]?.az, categoryNameRu: b.catNameRu || b.categoryNameRu || catMap[c]?.ru, categoryNameEn: b.catNameEn || b.categoryNameEn || catMap[c]?.en, titleAz: b.titleAz || b.title || '', titleRu: b.titleRu, titleEn: b.titleEn, descriptionAz: b.descAz || b.desc || b.descriptionAz, descriptionRu: b.descRu || b.descriptionRu, descriptionEn: b.descEn || b.descriptionEn, area: String(b.area || ''), stories: Number(b.stories) || 1, rooms: Number(b.rooms) || 1, buildTimeAz: b.buildTimeAz || b.buildTime, buildTimeRu: b.buildTimeRu, buildTimeEn: b.buildTimeEn, coverImage: b.image || b.coverImage || images[0], images, ...(existing?.slug ? {} : { slug: b.slug }) }; }
 function galleryOut(g) { return { id: g.id, src: g.mediaUrl, mediaUrl: g.mediaUrl, images: jsonArray(g.images), title: g.titleAz, titleAz: g.titleAz, titleRu: g.titleRu, titleEn: g.titleEn, type: g.type, archived: g.archived, sortOrder: g.sortOrder }; }
 function galleryIn(b) { const images = b.images || (b.src ? [b.src] : []); const limited = limitImageArray(images); if (limited.errors) return { errors: limited.errors }; return { mediaUrl: b.src || b.mediaUrl || '', images, titleAz: b.titleAz || b.title || '', titleRu: b.titleRu, titleEn: b.titleEn, type: b.type || 'image', sortOrder: Number(b.sortOrder) || 0 }; }
 function getYouTubeId(url = '') { const value = String(url || '').trim(); const patterns = [/[?&]v=([^&]+)/i, /youtu\.be\/([^?&#/]+)/i, /youtube\.com\/embed\/([^?&#/]+)/i, /youtube\.com\/shorts\/([^?&#/]+)/i]; for (const pattern of patterns) { const match = value.match(pattern); if (match?.[1]) return decodeURIComponent(match[1]).replace(/[^a-zA-Z0-9_-]/g, ''); } return ''; }
@@ -574,8 +641,8 @@ app.use((err, req, res, next) => {
 const buildJsonLd = (view, isProject, url, image) => JSON.stringify({
   '@context': 'https://schema.org',
   '@graph': [
-    { '@type': 'WebPage', name: view?.titleAz || 'Baltic Caspian', description: view?.descriptionAz || view?.desc || '', url, image: image ? [image] : undefined },
-    { '@type': 'CreativeWork', name: view?.titleAz || 'Baltic Caspian', description: view?.descriptionAz || view?.desc || '', url, image: image ? [image] : undefined },
+    { '@type': 'WebPage', name: view?.titleAz || 'Baltic Caspian LTD', description: view?.descriptionAz || view?.desc || '', url, image: image ? [image] : undefined },
+    { '@type': 'CreativeWork', name: view?.titleAz || 'Baltic Caspian LTD', description: view?.descriptionAz || view?.desc || '', url, image: image ? [image] : undefined },
     { '@type': 'BreadcrumbList', itemListElement: [
       { '@type':'ListItem', position:1, name:'Ana səhifə', item: publicOrigin() + '/' },
       { '@type':'ListItem', position:2, name:isProject ? 'Layihələr' : 'İşlərimiz', item: publicOrigin() + (isProject ? '/layiheler' : '/islerimiz') },
@@ -601,11 +668,11 @@ app.get(['/layiheler/:slug', '/islerimiz/:slug'], wrap(async (req, res) => {
   let item = null;
   try { item = isProject ? await findProjectBySlug(req.params.slug) : await findWorkBySlug(req.params.slug); } catch (err) { console.warn('[detail:ssr:fallback]', err?.message); }
   const html = await fs.promises.readFile(path.join(__dirname, 'index.html'), 'utf8');
-  if (!item) return res.status(404).send(injectMeta(html, { title: `${isProject ? 'Layihə' : 'İş'} tapılmadı | Baltic Caspian`, description: 'Axtardığınız səhifə tapılmadı.', url: absoluteUrl(req, req.originalUrl), image: absoluteUrl(req, '/uploads/hero'), jsonLd: '{}' }));
+  if (!item) return res.status(404).send(injectMeta(html, { title: `${isProject ? 'Layihə' : 'İş'} tapılmadı | Baltic Caspian LTD`, description: 'Axtardığınız səhifə tapılmadı.', url: absoluteUrl(req, req.originalUrl), image: absoluteUrl(req, '/uploads/hero'), jsonLd: '{}' }));
   const view = isProject ? projectOut(item) : workOut(item);
   if (view.slug && req.params.slug !== view.slug) return res.redirect(301, `${isProject ? '/layiheler' : '/islerimiz'}/${view.slug}`);
-  const title = `${view.titleAz || view.title || 'Detal'} | Baltic Caspian`;
-  const description = String(view.descriptionAz || view.desc || view.description || 'Baltic Caspian layihə detalları.').replace(/\s+/g,' ').slice(0, 155);
+  const title = `${view.titleAz || view.title || 'Detal'} | Baltic Caspian LTD`;
+  const description = String(view.descriptionAz || view.desc || view.description || 'Baltic Caspian LTD layihə detalları.').replace(/\s+/g,' ').slice(0, 155);
   const firstImage = [view.coverImage, view.image, ...(Array.isArray(view.images) ? view.images : [])].find(isBrowserImage) || view.coverImage || view.image || '';
   const image = absoluteUrl(req, firstImage || '/uploads/hero');
   const url = `${publicOrigin()}${isProject ? '/layiheler' : '/islerimiz'}/${view.slug}`;
@@ -618,13 +685,13 @@ app.get('/sitemap.xml', wrap(async (req,res)=>{
   res.type('application/xml').send(`<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${urls.map(u=>`<url><loc>${escapeHtml(publicOrigin()+u)}</loc></url>`).join('')}</urlset>`);
 }));
 const STATIC_PUBLIC_META = {
-  '/': { title: 'Baltic Caspian | Taxta Evlərin Tikintisi', description: 'Premium taxta evlərin layihələndirilməsi və tikintisi.' },
-  '/layiheler': { title: 'Taxta Ev Layihələri | Baltic Caspian', description: 'Baltic Caspian taxta ev layihələri və fərdi memarlıq həlləri.' },
-  '/islerimiz': { title: 'İşlərimiz | Baltic Caspian', description: 'Baltic Caspian tərəfindən tamamlanmış taxta ev işləri.' },
-  '/qalereya': { title: 'Qalereya | Baltic Caspian', description: 'Taxta evlər, tikinti prosesi və tamamlanmış layihələrin qalereyası.' },
-  '/haqqimizda': { title: 'Haqqımızda | Baltic Caspian', description: 'Baltic Caspian komandası, dəyərləri və taxta ev tikintisi təcrübəsi.' },
-  '/elaqe': { title: 'Əlaqə | Baltic Caspian', description: 'Baltic Caspian ilə əlaqə saxlayın və taxta ev layihənizi planlayın.' },
-  '/admin': { title: 'Admin | Baltic Caspian', description: 'Baltic Caspian admin paneli.' }
+  '/': { title: 'Baltic Caspian LTD | Taxta Evlərin Tikintisi', description: 'Premium taxta evlərin layihələndirilməsi və tikintisi.' },
+  '/layiheler': { title: 'Taxta Ev Layihələri | Baltic Caspian LTD', description: 'Baltic Caspian LTD taxta ev layihələri və fərdi memarlıq həlləri.' },
+  '/islerimiz': { title: 'İşlərimiz | Baltic Caspian LTD', description: 'Baltic Caspian LTD tərəfindən tamamlanmış taxta ev işləri.' },
+  '/qalereya': { title: 'Qalereya | Baltic Caspian LTD', description: 'Taxta evlər, tikinti prosesi və tamamlanmış layihələrin qalereyası.' },
+  '/haqqimizda': { title: 'Haqqımızda | Baltic Caspian LTD', description: 'Baltic Caspian LTD komandası, dəyərləri və taxta ev tikintisi təcrübəsi.' },
+  '/elaqe': { title: 'Əlaqə | Baltic Caspian LTD', description: 'Baltic Caspian LTD ilə əlaqə saxlayın və taxta ev layihənizi planlayın.' },
+  '/admin': { title: 'Admin | Baltic Caspian LTD', description: 'Baltic Caspian LTD admin paneli.' }
 };
 const normalizePublicPath = value => {
   let clean = String(value || '/').split('?')[0].split('#')[0].replace(/\/+/g, '/');
@@ -643,11 +710,11 @@ app.get(Object.keys(STATIC_PUBLIC_META), (req,res)=>{
   sendShellWithMeta(req, res, STATIC_PUBLIC_META[clean] || STATIC_PUBLIC_META['/']);
 });
 app.get('*', (req,res)=>{
-  sendShellWithMeta(req, res, { title:'Səhifə tapılmadı | Baltic Caspian', description:'Axtardığınız səhifə tapılmadı.' }, 404);
+  sendShellWithMeta(req, res, { title:'Səhifə tapılmadı | Baltic Caspian LTD', description:'Axtardığınız səhifə tapılmadı.' }, 404);
 });
 
 const PORT = process.env.PORT || 3000;
 console.log(`DATABASE_URL exists: ${process.env.DATABASE_URL ? 'yes' : 'no'}`);
 console.log(`NODE_ENV: ${process.env.NODE_ENV || 'development'}`);
 console.log(`Server port: ${PORT}`);
-app.listen(PORT, () => console.log(`Baltic Caspian API running on ${PORT}`));
+app.listen(PORT, () => console.log(`Baltic Caspian LTD API running on ${PORT}`));
