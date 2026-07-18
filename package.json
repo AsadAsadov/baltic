@@ -3,7 +3,9 @@
     "start": "node server.js",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate deploy",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "build:css": "tailwindcss -i ./src/tailwind.css -o ./assets/css/tailwind.css --minify",
+    "optimize:images": "node scripts/optimize-existing-images.js --dry-run"
   },
   "dependencies": {
     "@prisma/client": "6.16.2",
@@ -16,10 +18,12 @@
     "connect-pg-simple": "^10.0.0",
     "express-rate-limit": "^7.5.1",
     "express-session": "^1.18.1",
-    "pg": "^8.16.3"
+    "pg": "^8.16.3",
+    "sharp": "^0.33.5"
   },
   "devDependencies": {
-    "prisma": "6.16.2"
+    "prisma": "6.16.2",
+    "tailwindcss": "^3.4.17"
   },
   "engines": {
     "node": ">=18"
