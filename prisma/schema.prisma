@@ -10,6 +10,7 @@ datasource db {
 model Project {
   id              String   @id @default(uuid()) @db.Uuid
   legacyId        Int?     @unique @map("legacy_id")
+  slug            String   @unique
   category        String   @default("house") @map("category")
   categoryNameAz  String?  @map("category_name_az")
   categoryNameRu  String?  @map("category_name_ru")
@@ -174,6 +175,7 @@ model AdminPanelSetting {
 
 model WorkItem {
   id             String    @id @default(uuid()) @db.Uuid
+  slug           String    @unique
   category       String
   titleAz        String    @map("title_az")
   titleRu        String?   @map("title_ru")
