@@ -10,6 +10,7 @@ const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient({ log: [{ level: 'error', emit: 'event' }, { level: 'warn', emit: 'stdout' }] });
 prisma.$on('error', (event) => console.error('[prisma:error]', event.message));
 const app = express();
+app.set('trust proxy', 1);
 app.use(cors());
 app.use(express.json({ limit: '150mb' }));
 app.use(express.urlencoded({ extended: true, limit: '150mb' }));
@@ -106,7 +107,7 @@ const workCategoryMap = {
   'Hamam & Sauna': { ru: 'Баня и сауна', en: 'Bath & Sauna' },
   'Digər': { ru: 'Другое', en: 'Other' }
 };
-function workOut(w) { return w && { id:w.id, category:w.category, categoryRu:workCategoryMap[w.category]?.ru || w.category, categoryEn:workCategoryMap[w.category]?.en || w.category, title:w.titleAz, titleAz:w.titleAz, titleRu:w.titleRu, titleEn:w.titleEn, description:w.descriptionAz, descriptionAz:w.descriptionAz, descriptionRu:w.descriptionRu, descriptionEn:w.descriptionEn, location:w.locationAz, locationAz:w.locationAz, locationRu:w.locationRu, locationEn:w.locationEn, completionDate:w.completionDate, coverImage:w.coverImage, image:w.coverImage, images:jsonArray(w.images), sortOrder:w.sortOrder, featured:w.featured, active:w.active, createdAt:w.createdAt, updatedAt:w.updatedAt }; }
+function workOut(w) { return w && { id:w.id, slug:w.slug, type:'work', category:w.category, categoryRu:workCategoryMap[w.category]?.ru || w.category, categoryEn:workCategoryMap[w.category]?.en || w.category, title:w.titleAz, titleAz:w.titleAz, titleRu:w.titleRu, titleEn:w.titleEn, description:w.descriptionAz, descriptionAz:w.descriptionAz, descriptionRu:w.descriptionRu, descriptionEn:w.descriptionEn, location:w.locationAz, locationAz:w.locationAz, locationRu:w.locationRu, locationEn:w.locationEn, completionDate:w.completionDate, coverImage:w.coverImage, image:w.coverImage, images:jsonArray(w.images), sortOrder:w.sortOrder, featured:w.featured, active:w.active, createdAt:w.createdAt, updatedAt:w.updatedAt }; }
 function validateWorkBody(b = {}, existing = null) {
   const errors = [];
   const has = (k) => Object.prototype.hasOwnProperty.call(b, k);
@@ -130,7 +131,7 @@ function validateWorkBody(b = {}, existing = null) {
   let completionDate = null;
   if (completionDateRaw) { completionDate = new Date(completionDateRaw); if (Number.isNaN(completionDate.getTime())) errors.push('completionDate must be a valid date or null'); }
   if (errors.length) return { errors };
-  return { data: { category, titleAz, titleRu: b.titleRu || existing?.titleRu || titleAz, titleEn: b.titleEn || existing?.titleEn || titleAz, descriptionAz: b.descriptionAz || b.description || '', descriptionRu: b.descriptionRu || existing?.descriptionRu || b.descriptionAz || b.description || '', descriptionEn: b.descriptionEn || existing?.descriptionEn || b.descriptionAz || b.description || '', locationAz: b.locationAz || b.location || '', locationRu: b.locationRu || existing?.locationRu || b.locationAz || b.location || '', locationEn: b.locationEn || existing?.locationEn || b.locationAz || b.location || '', completionDate, coverImage, images, sortOrder, featured, active } };
+  return { data: { ...(existing?.slug ? {} : { slug: b.slug }), category, titleAz, titleRu: b.titleRu || existing?.titleRu || titleAz, titleEn: b.titleEn || existing?.titleEn || titleAz, descriptionAz: b.descriptionAz || b.description || '', descriptionRu: b.descriptionRu || existing?.descriptionRu || b.descriptionAz || b.description || '', descriptionEn: b.descriptionEn || existing?.descriptionEn || b.descriptionAz || b.description || '', locationAz: b.locationAz || b.location || '', locationRu: b.locationRu || existing?.locationRu || b.locationAz || b.location || '', locationEn: b.locationEn || existing?.locationEn || b.locationAz || b.location || '', completionDate, coverImage, images, sortOrder, featured, active } };
 }
 const localWorkUploadPath = (url = '') => {
   const value = String(url || '');
@@ -160,9 +161,9 @@ const catMap = {
 };
 
 function projectOut(p) {
-  return { id: p.id, legacyId: p.legacyId, cat: p.category, catName: p.categoryNameAz || catMap[p.category]?.az || p.category, catNameRu: p.categoryNameRu || catMap[p.category]?.ru || p.category, catNameEn: p.categoryNameEn || catMap[p.category]?.en || p.category, title: p.titleAz, titleAz: p.titleAz, titleRu: p.titleRu, titleEn: p.titleEn, desc: p.descriptionAz, descriptionAz: p.descriptionAz, descRu: p.descriptionRu, descEn: p.descriptionEn, area: p.area, stories: p.stories, rooms: p.rooms, buildTime: p.buildTimeAz, buildTimeAz: p.buildTimeAz, buildTimeRu: p.buildTimeRu, buildTimeEn: p.buildTimeEn, image: p.coverImage, coverImage: p.coverImage, images: jsonArray(p.images), views: p.views, archived: p.archived };
+  return { id: p.id, legacyId: p.legacyId, slug:p.slug, type:'project', cat: p.category, catName: p.categoryNameAz || catMap[p.category]?.az || p.category, catNameRu: p.categoryNameRu || catMap[p.category]?.ru || p.category, catNameEn: p.categoryNameEn || catMap[p.category]?.en || p.category, title: p.titleAz, titleAz: p.titleAz, titleRu: p.titleRu, titleEn: p.titleEn, desc: p.descriptionAz, descriptionAz: p.descriptionAz, descRu: p.descriptionRu, descEn: p.descriptionEn, area: p.area, stories: p.stories, rooms: p.rooms, buildTime: p.buildTimeAz, buildTimeAz: p.buildTimeAz, buildTimeRu: p.buildTimeRu, buildTimeEn: p.buildTimeEn, image: p.coverImage, coverImage: p.coverImage, images: jsonArray(p.images), views: p.views, archived: p.archived };
 }
-function projectIn(b) { const c = b.cat || b.category || 'house'; const images = b.images || (b.image ? [b.image] : []); const limited = limitImageArray(images); if (limited.errors) return { errors: limited.errors }; return { category: c, categoryNameAz: b.catName || b.categoryNameAz || catMap[c]?.az, categoryNameRu: b.catNameRu || b.categoryNameRu || catMap[c]?.ru, categoryNameEn: b.catNameEn || b.categoryNameEn || catMap[c]?.en, titleAz: b.titleAz || b.title || '', titleRu: b.titleRu, titleEn: b.titleEn, descriptionAz: b.descAz || b.desc || b.descriptionAz, descriptionRu: b.descRu || b.descriptionRu, descriptionEn: b.descEn || b.descriptionEn, area: String(b.area || ''), stories: Number(b.stories) || 1, rooms: Number(b.rooms) || 1, buildTimeAz: b.buildTimeAz || b.buildTime, buildTimeRu: b.buildTimeRu, buildTimeEn: b.buildTimeEn, coverImage: b.image || b.coverImage || images[0], images }; }
+function projectIn(b, existing = null) { const c = b.cat || b.category || 'house'; const images = b.images || (b.image ? [b.image] : []); const limited = limitImageArray(images); if (limited.errors) return { errors: limited.errors }; return { category: c, categoryNameAz: b.catName || b.categoryNameAz || catMap[c]?.az, categoryNameRu: b.catNameRu || b.categoryNameRu || catMap[c]?.ru, categoryNameEn: b.catNameEn || b.categoryNameEn || catMap[c]?.en, titleAz: b.titleAz || b.title || '', titleRu: b.titleRu, titleEn: b.titleEn, descriptionAz: b.descAz || b.desc || b.descriptionAz, descriptionRu: b.descRu || b.descriptionRu, descriptionEn: b.descEn || b.descriptionEn, area: String(b.area || ''), stories: Number(b.stories) || 1, rooms: Number(b.rooms) || 1, buildTimeAz: b.buildTimeAz || b.buildTime, buildTimeRu: b.buildTimeRu, buildTimeEn: b.buildTimeEn, coverImage: b.image || b.coverImage || images[0], images, ...(existing?.slug ? {} : { slug: b.slug }) }; }
 function galleryOut(g) { return { id: g.id, src: g.mediaUrl, mediaUrl: g.mediaUrl, images: jsonArray(g.images), title: g.titleAz, titleAz: g.titleAz, titleRu: g.titleRu, titleEn: g.titleEn, type: g.type, archived: g.archived, sortOrder: g.sortOrder }; }
 function galleryIn(b) { const images = b.images || (b.src ? [b.src] : []); const limited = limitImageArray(images); if (limited.errors) return { errors: limited.errors }; return { mediaUrl: b.src || b.mediaUrl || '', images, titleAz: b.titleAz || b.title || '', titleRu: b.titleRu, titleEn: b.titleEn, type: b.type || 'image', sortOrder: Number(b.sortOrder) || 0 }; }
 function getYouTubeId(url = '') { const value = String(url || '').trim(); const patterns = [/[?&]v=([^&]+)/i, /youtu\.be\/([^?&#/]+)/i, /youtube\.com\/embed\/([^?&#/]+)/i, /youtube\.com\/shorts\/([^?&#/]+)/i]; for (const pattern of patterns) { const match = value.match(pattern); if (match?.[1]) return decodeURIComponent(match[1]).replace(/[^a-zA-Z0-9_-]/g, ''); } return ''; }
@@ -202,23 +203,32 @@ function bannerIn(b = {}) {
 
 const slugify = (value = '') => String(value || '')
   .replace(/[Əə]/g, 'e').replace(/[Öö]/g, 'o').replace(/[Üü]/g, 'u').replace(/[Ğğ]/g, 'g').replace(/[Şş]/g, 's').replace(/[Çç]/g, 'c').replace(/[İIı]/g, 'i')
-  .normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'detal';
+  .normalize('NFKD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'detal';
+const sanitizeSlug = (value = '') => slugify(value);
 const slugId = (slug = '') => String(slug || '').split('-').pop();
-const absoluteUrl = (req, url = '') => /^https?:\/\//i.test(url) ? url : `${req.protocol}://${req.get('host')}${url || ''}`;
+const publicOrigin = () => (process.env.PUBLIC_SITE_URL || 'https://balticcaspian.com').replace(/\/+$/, '');
+const absoluteUrl = (req, url = '') => /^https?:\/\//i.test(url) ? url : `${publicOrigin()}${String(url || '').startsWith('/') ? '' : '/'}${url || ''}`;
 const escapeHtml = (value = '') => String(value || '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+const isBrowserImage = (url='') => /\.(jpe?g|png|webp|avif|gif)(?:[?#].*)?$/i.test(String(url||''));
+async function uniqueSlug(model, title, requested, existingId = null) {
+  const base = sanitizeSlug(requested || title || existingId || 'detal');
+  let candidate = base, n = 2;
+  while (await prisma[model].findFirst({ where: { slug: candidate, ...(existingId ? { id: { not: existingId } } : {}) }, select: { id:true } })) candidate = `${base}-${n++}`;
+  return candidate;
+}
 async function findProjectBySlug(slug) {
+  const safe = sanitizeSlug(slug);
+  const bySlug = await prisma.project.findFirst({ where: { slug: safe, archived:false } });
+  if (bySlug) return bySlug;
   const id = slugId(slug);
-  const direct = await prisma.project.findFirst({ where: idWhere(id) });
-  if (direct && (`${slugify(direct.titleAz)}-${direct.id}` === slug || `${slugify(direct.titleAz)}-${direct.legacyId}` === slug || String(direct.id) === id || String(direct.legacyId) === id)) return direct;
-  const all = await prisma.project.findMany({ where:{ archived:false } });
-  return all.find(p => `${slugify(p.titleAz)}-${p.id}` === slug || `${slugify(p.titleAz)}-${p.legacyId}` === slug) || null;
+  return prisma.project.findFirst({ where: { ...idWhere(id), archived:false } });
 }
 async function findWorkBySlug(slug) {
+  const safe = sanitizeSlug(slug);
+  const bySlug = await prisma.workItem.findFirst({ where: { slug: safe, active:true } });
+  if (bySlug) return bySlug;
   const id = slugId(slug);
-  const direct = isUuid(id) ? await prisma.workItem.findUnique({ where:{ id } }) : null;
-  if (direct && direct.active !== false) return direct;
-  const all = await prisma.workItem.findMany({ where:{ active:true } });
-  return all.find(w => `${slugify(w.titleAz)}-${w.id}` === slug || String(w.id) === id) || null;
+  return isUuid(id) ? prisma.workItem.findFirst({ where:{ id, active:true } }) : null;
 }
 
 const msgOut = (m) => ({ id: m.id, legacyId: m.legacyId, name: m.name || m.fullname || '', fullname: m.fullname || m.name || '', phone: m.phone, email: m.email || 'N/A', message: m.message, isRead: m.isRead ?? m.read ?? false, read: m.isRead ?? m.read ?? false, createdAt: m.createdAt, updatedAt: m.updatedAt, date: m.createdAt ? m.createdAt.toLocaleDateString('az-AZ') : '' });
@@ -235,10 +245,10 @@ app.get('/api/health/db', async (req, res) => {
 });
 
 app.get('/api/projects', wrap(async (req,res)=>res.json((await prisma.project.findMany({ where: req.query.includeArchived === 'true' ? {} : { archived:false }, orderBy:{ id:'desc' }})).map(projectOut))));
-app.get('/api/projects/slug/:slug', wrap(async (req,res)=>{ const p=await findProjectBySlug(req.params.slug); if(!p) return res.status(404).json({ok:false,error:'PROJECT_NOT_FOUND'}); res.json(projectOut(p)); }));
+app.get('/api/projects/slug/:slug', wrap(async (req,res)=>{ const p=await findProjectBySlug(req.params.slug); if(!p) return res.status(404).json({ok:false,error:'PROJECT_NOT_FOUND'}); res.set('Cache-Control','public, max-age=60, stale-while-revalidate=300'); res.json(projectOut(p)); }));
 app.get('/api/projects/:id', wrap(async (req,res)=>{ const p=await prisma.project.findFirst({ where:idWhere(req.params.id) }); if(!p) return res.status(404).json({ok:false,error:'PROJECT_NOT_FOUND'}); res.json(projectOut(p)); }));
-app.post('/api/projects', wrap(async (req,res)=>{ const data = projectIn(req.body); if (data.errors) return res.status(400).json({ok:false,errors:data.errors}); res.status(201).json(projectOut(await prisma.project.create({ data }))); }));
-app.put('/api/projects/:id', wrap(async (req,res)=>{ const p=await prisma.project.findFirst({ where:idWhere(req.params.id) }); if(!p) return res.status(404).json({ok:false,error:'PROJECT_NOT_FOUND'}); { const data = projectIn(req.body); if (data.errors) return res.status(400).json({ok:false,errors:data.errors}); res.json(projectOut(await prisma.project.update({ where:{ id:p.id }, data }))); }; }));
+app.post('/api/projects', wrap(async (req,res)=>{ const data = projectIn(req.body); if (data.errors) return res.status(400).json({ok:false,errors:data.errors}); data.slug = await uniqueSlug('project', data.titleAz, data.slug); res.status(201).json(projectOut(await prisma.project.create({ data }))); }));
+app.put('/api/projects/:id', wrap(async (req,res)=>{ const p=await prisma.project.findFirst({ where:idWhere(req.params.id) }); if(!p) return res.status(404).json({ok:false,error:'PROJECT_NOT_FOUND'}); { const data = projectIn(req.body, p); if (data.errors) return res.status(400).json({ok:false,errors:data.errors}); res.json(projectOut(await prisma.project.update({ where:{ id:p.id }, data }))); }; }));
 app.delete('/api/projects/:id', wrap(async (req,res)=>{ const p=await prisma.project.findFirst({ where:idWhere(req.params.id) }); if (p) await prisma.project.delete({ where:{ id:p.id }}); res.json({ ok:true }); }));
 app.patch('/api/projects/:id/archive', wrap(async (req,res)=>{ const p=await prisma.project.findFirst({ where:idWhere(req.params.id) }); if(!p) return res.status(404).json({ok:false,error:'PROJECT_NOT_FOUND'}); res.json(projectOut(await prisma.project.update({ where:{ id:p.id }, data:{ archived: req.body.archived ?? !p.archived }}))); }));
 app.post('/api/projects/:id/view', wrap(async (req,res)=>{
@@ -258,9 +268,9 @@ app.get('/api/work-items', wrap(async (req, res) => {
   const where = { ...(includeInactive ? {} : { active:true }), ...(req.query.category ? { category:String(req.query.category) } : {}), ...(req.query.featured === 'true' ? { featured:true } : {}) };
   res.json((await prisma.workItem.findMany({ where, orderBy:[{sortOrder:'asc'},{featured:'desc'},{createdAt:'desc'}] })).map(workOut));
 }));
-app.get('/api/work-items/slug/:slug', wrap(async (req,res)=>{ const item=await findWorkBySlug(req.params.slug); if(!item) return res.status(404).json({ok:false,error:'WORK_ITEM_NOT_FOUND'}); res.json(workOut(item)); }));
+app.get(['/api/work-items/slug/:slug','/api/works/slug/:slug'], wrap(async (req,res)=>{ const item=await findWorkBySlug(req.params.slug); if(!item) return res.status(404).json({ok:false,error:'WORK_ITEM_NOT_FOUND'}); res.set('Cache-Control','public, max-age=60, stale-while-revalidate=300'); res.json(workOut(item)); }));
 app.get('/api/work-items/:id', wrap(async (req, res) => { const item = await prisma.workItem.findUnique({ where:{ id:String(req.params.id) } }); if(!item) return res.status(404).json({ok:false,error:'WORK_ITEM_NOT_FOUND'}); if(!item.active && req.headers['x-admin-auth'] !== 'true' && req.query.admin !== 'true') return res.status(401).json({ok:false,error:'ADMIN_AUTH_REQUIRED'}); res.json(workOut(item)); }));
-app.post('/api/work-items', requireAdmin, wrap(async (req,res)=>{ const v=validateWorkBody(req.body); if(v.errors) return res.status(400).json({ok:false,errors:v.errors}); res.status(201).json(workOut(await prisma.workItem.create({data:v.data}))); }));
+app.post('/api/work-items', requireAdmin, wrap(async (req,res)=>{ const v=validateWorkBody(req.body); if(v.errors) return res.status(400).json({ok:false,errors:v.errors}); v.data.slug = await uniqueSlug('workItem', v.data.titleAz, v.data.slug); res.status(201).json(workOut(await prisma.workItem.create({data:v.data}))); }));
 app.put('/api/work-items/reorder', requireAdmin, wrap(async (req,res)=>{ await Promise.all((req.body.items||[]).map((it,i)=>prisma.workItem.update({where:{id:String(it.id)},data:{sortOrder:Number.isInteger(Number(it.sortOrder)) ? Number(it.sortOrder) : i}}))); res.json({ok:true}); }));
 app.put('/api/work-items/:id', requireAdmin, wrap(async (req,res)=>{ const existing=await prisma.workItem.findUnique({where:{id:String(req.params.id)}}); if(!existing) return res.status(404).json({ok:false,error:'WORK_ITEM_NOT_FOUND'}); const v=validateWorkBody(req.body, existing); if(v.errors) return res.status(400).json({ok:false,errors:v.errors}); res.json(workOut(await prisma.workItem.update({where:{id:existing.id},data:v.data}))); }));
 app.patch('/api/work-items/:id/status', requireAdmin, wrap(async (req,res)=>{ const w=await prisma.workItem.findUnique({where:{id:String(req.params.id)}}); if(!w) return res.status(404).json({ok:false,error:'WORK_ITEM_NOT_FOUND'}); res.json(workOut(await prisma.workItem.update({where:{id:w.id},data:{active:req.body.active ?? !w.active}}))); }));
@@ -394,20 +404,55 @@ app.use((err, req, res, next) => {
   res.status(err.code === 'P2025' ? 404 : 500).json({ ok: false, error: err.message || 'Server error' });
 });
 
+
+const buildJsonLd = (view, isProject, url, image) => JSON.stringify({
+  '@context': 'https://schema.org',
+  '@graph': [
+    { '@type': 'WebPage', name: view?.titleAz || 'Baltic Caspian', description: view?.descriptionAz || view?.desc || '', url, image: image ? [image] : undefined },
+    { '@type': 'CreativeWork', name: view?.titleAz || 'Baltic Caspian', description: view?.descriptionAz || view?.desc || '', url, image: image ? [image] : undefined },
+    { '@type': 'BreadcrumbList', itemListElement: [
+      { '@type':'ListItem', position:1, name:'Ana səhifə', item: publicOrigin() + '/' },
+      { '@type':'ListItem', position:2, name:isProject ? 'Layihələr' : 'İşlərimiz', item: publicOrigin() + (isProject ? '/projects' : '/works') },
+      { '@type':'ListItem', position:3, name:view?.titleAz || 'Detal', item:url }
+    ] }
+  ]
+}).replace(/</g, '\\u003c');
+const injectMeta = (html, meta) => html.replaceAll('__META_TITLE__', escapeHtml(meta.title))
+  .replaceAll('__META_DESCRIPTION__', escapeHtml(meta.description))
+  .replaceAll('__META_URL__', escapeHtml(meta.url))
+  .replaceAll('__META_IMAGE__', escapeHtml(meta.image))
+  .replaceAll('__JSON_LD__', meta.jsonLd || '{}');
+
 app.use(express.static(__dirname, { index: false }));
+app.get(['/projects/:id', '/works/:id'], wrap(async (req, res, next) => {
+  const isProject = req.path.startsWith('/projects/');
+  const item = isProject ? await prisma.project.findFirst({ where: { ...idWhere(req.params.id), archived:false } }) : (isUuid(req.params.id) ? await prisma.workItem.findFirst({ where:{ id:req.params.id, active:true } }) : null);
+  if (!item?.slug) return next();
+  res.redirect(301, `${isProject ? '/layiheler' : '/islerimiz'}/${item.slug}`);
+}));
 app.get(['/layiheler/:slug', '/islerimiz/:slug'], wrap(async (req, res) => {
   const isProject = req.path.startsWith('/layiheler/');
   let item = null;
   try { item = isProject ? await findProjectBySlug(req.params.slug) : await findWorkBySlug(req.params.slug); } catch (err) { console.warn('[detail:ssr:fallback]', err?.message); }
-  const view = item ? (isProject ? projectOut(item) : workOut(item)) : null;
-  const title = view ? `${view.titleAz || view.title || 'Detal'} | Baltic Caspian` : 'Baltic Caspian | Premium Taxta Evlər';
-  const description = view ? String(view.descriptionAz || view.desc || view.description || 'Baltic Caspian layihə detalları.').slice(0, 155) : 'Premium taxta evlər, tamamlanmış işlər və layihələr.';
-  const image = view ? absoluteUrl(req, view.coverImage || view.image || (Array.isArray(view.images) ? view.images[0] : '')) : absoluteUrl(req, '/uploads/hero');
   const html = await fs.promises.readFile(path.join(__dirname, 'index.html'), 'utf8');
-  res.send(html.replaceAll('__META_TITLE__', escapeHtml(title)).replaceAll('__META_DESCRIPTION__', escapeHtml(description)).replaceAll('__META_URL__', escapeHtml(absoluteUrl(req, req.originalUrl))).replaceAll('__META_IMAGE__', escapeHtml(image)));
+  if (!item) return res.status(404).send(injectMeta(html, { title: `${isProject ? 'Layihə' : 'İş'} tapılmadı | Baltic Caspian`, description: 'Axtardığınız səhifə tapılmadı.', url: absoluteUrl(req, req.originalUrl), image: absoluteUrl(req, '/uploads/hero'), jsonLd: '{}' }));
+  const view = isProject ? projectOut(item) : workOut(item);
+  if (view.slug && req.params.slug !== view.slug) return res.redirect(301, `${isProject ? '/layiheler' : '/islerimiz'}/${view.slug}`);
+  const title = `${view.titleAz || view.title || 'Detal'} | Baltic Caspian`;
+  const description = String(view.descriptionAz || view.desc || view.description || 'Baltic Caspian layihə detalları.').replace(/\s+/g,' ').slice(0, 155);
+  const firstImage = [view.coverImage, view.image, ...(Array.isArray(view.images) ? view.images : [])].find(isBrowserImage) || view.coverImage || view.image || '';
+  const image = absoluteUrl(req, firstImage || '/uploads/hero');
+  const url = `${publicOrigin()}${isProject ? '/layiheler' : '/islerimiz'}/${view.slug}`;
+  res.set('Cache-Control','public, max-age=60, stale-while-revalidate=300');
+  res.send(injectMeta(html, { title, description, url, image, jsonLd: buildJsonLd(view, isProject, url, image) }));
+}));
+app.get('/sitemap.xml', wrap(async (req,res)=>{
+  const [projects, works] = await Promise.all([prisma.project.findMany({where:{archived:false},select:{slug:true,updatedAt:true}}), prisma.workItem.findMany({where:{active:true},select:{slug:true,updatedAt:true}})]);
+  const urls = ['/', '/projects', '/works', ...projects.map(p=>`/layiheler/${p.slug}`), ...works.map(w=>`/islerimiz/${w.slug}`)];
+  res.type('application/xml').send(`<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${urls.map(u=>`<url><loc>${escapeHtml(publicOrigin()+u)}</loc></url>`).join('')}</urlset>`);
 }));
 app.get('*', (req,res)=>{
-  fs.promises.readFile(path.join(__dirname,'index.html'), 'utf8').then(html => res.send(html.replaceAll('__META_TITLE__', 'Baltic Caspian | Premium Taxta Evlər').replaceAll('__META_DESCRIPTION__', 'Premium taxta evlər, tamamlanmış işlər və layihələr.').replaceAll('__META_URL__', escapeHtml(absoluteUrl(req, req.originalUrl))).replaceAll('__META_IMAGE__', escapeHtml(absoluteUrl(req, '/uploads/hero'))))).catch(() => res.sendFile(path.join(__dirname,'index.html')));
+  fs.promises.readFile(path.join(__dirname,'index.html'), 'utf8').then(html => res.send(injectMeta(html, { title:'Baltic Caspian | Premium Taxta Evlər', description:'Premium taxta evlər, tamamlanmış işlər və layihələr.', url:absoluteUrl(req, req.originalUrl), image:absoluteUrl(req, '/uploads/hero'), jsonLd:'{}' }))).catch(() => res.sendFile(path.join(__dirname,'index.html')));
 });
 
 const PORT = process.env.PORT || 3000;

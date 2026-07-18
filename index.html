@@ -7,9 +7,17 @@
     <meta name="description" content="__META_DESCRIPTION__">
     <meta property="og:title" content="__META_TITLE__">
     <meta property="og:description" content="__META_DESCRIPTION__">
-    <meta property="og:type" content="website">
+    <meta name="robots" content="index,follow">
+    <link rel="canonical" href="__META_URL__">
+    <meta property="og:type" content="article">
     <meta property="og:url" content="__META_URL__">
     <meta property="og:image" content="__META_IMAGE__">
+    <meta property="og:site_name" content="Baltic Caspian">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="__META_TITLE__">
+    <meta name="twitter:description" content="__META_DESCRIPTION__">
+    <meta name="twitter:image" content="__META_IMAGE__">
+    <script type="application/ld+json">__JSON_LD__</script>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     
@@ -163,8 +171,6 @@
                 mobileMenuOpen: false,
                 isHeaderScrolled: false,
                 isCalculatorOpen: false,
-                isProjectModalOpen: false,
-                projectModalOpen: false,
                 isGalleryModalOpen: false,
                 isMapSheetOpen: false,
                 isMapNavigationHidden: false,
@@ -179,7 +185,6 @@
                 filterCategory: 'all',
                 activeGalleryIndex: 0,
                 activeGalleryImageIndex: 0,
-                activeProjectImageIndex: 0,
                 galleryPreviewIndex: 0,
                 activeHomeGalleryIndex: 0,
                 activeAdvantagesImageIndex: 0,
@@ -281,14 +286,11 @@
                 statsAnimated: false,
                 displayStats: { completed: 0, customers: 0, experience: 0, contract: 0 },
                 openFaqIndex: 0,
-                selectedProject: null,
-                selectedProjectIndex: -1,
                 detailType: '',
                 detailSlug: '',
                 detailItem: null,
                 detailImageIndex: 0,
                 detailLightboxOpen: false,
-                projectModalScrollY: 0,
                 contactForm: { name: '', phone: '', email: '', message: '' },
                 contactErrors: {},
                 contactSuccess: '',
@@ -601,7 +603,7 @@
                     const map = { ə:'e', Ə:'e', ö:'o', Ö:'o', ü:'u', Ü:'u', ğ:'g', Ğ:'g', ş:'s', Ş:'s', ç:'c', Ç:'c', ı:'i', I:'i', İ:'i' };
                     return String(value || '').split('').map(ch => map[ch] || ch).join('').toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'detal';
                 },
-                itemSlug(item = {}) { return `${this.slugify(item.titleAz || item.title || item.titleEn || item.titleRu)}-${item.id}`; },
+                itemSlug(item = {}) { return item.slug || `${this.slugify(item.titleAz || item.title || item.titleEn || item.titleRu)}-${item.id}`; },
                 projectUrl(item = {}) { return `/layiheler/${this.itemSlug(item)}`; },
                 workUrl(item = {}) { return `/islerimiz/${this.itemSlug(item)}`; },
                 initRouter() {
@@ -626,7 +628,7 @@
                     const id = this.detailSlug.split('-').pop();
                     let item = (Array.isArray(list) ? list : []).find(x => String(x.id) === String(id) || this.itemSlug(x) === this.detailSlug);
                     if (!item) {
-                        try { item = this.detailType === 'project' ? this.normalizeProject(await this.api(`/api/projects/slug/${encodeURIComponent(this.detailSlug)}`)) : this.normalizeWorkItem(await this.api(`/api/work-items/slug/${encodeURIComponent(this.detailSlug)}`)); } catch (e) { console.warn('Detail route not found', e); }
+                        try { item = this.detailType === 'project' ? this.normalizeProject(await this.api(`/api/projects/slug/${encodeURIComponent(this.detailSlug)}`)) : this.normalizeWorkItem(await this.api(`/api/works/slug/${encodeURIComponent(this.detailSlug)}`)); } catch (e) { console.warn('Detail route not found', e); }
                     }
                     this.detailItem = item || null;
                     this.updateMeta();
@@ -640,7 +642,8 @@
                 nextDetailImage() { const n = this.detailImages().length; if (n > 1) this.detailImageIndex = (this.detailImageIndex + 1) % n; },
                 prevDetailImage() { const n = this.detailImages().length; if (n > 1) this.detailImageIndex = (this.detailImageIndex - 1 + n) % n; },
                 similarDetailItems() { const list = this.detailType === 'work' ? this.workItems : this.projects; const item = this.detailItem || {}; return (Array.isArray(list) ? list : []).filter(x => x.id !== item.id && !x.archived && ((x.category && x.category === item.category) || (x.cat && x.cat === item.cat))).slice(0,3); },
-                detailWhatsappUrl() { const message = `Salam, Baltic Caspian. ${this.detailTitle()} səhifəsi ilə bağlı məlumat almaq istəyirəm: ${location.href}`; return `https://wa.me/994553221109?text=${encodeURIComponent(message)}`; },
+                detailWhatsappUrl() { const message = `Salam. “${this.detailTitle()}” ilə maraqlanıram: ${location.href}`; return `https://wa.me/994553221109?text=${encodeURIComponent(message)}`; },
+                async shareDetail() { const data = { title: this.detailTitle(), text: this.detailDescription(), url: location.href }; try { if (navigator.share) await navigator.share(data); else if (navigator.clipboard) { await navigator.clipboard.writeText(location.href); this.showToast?.('Link kopyalandı', location.href); } else { const input = document.createElement('input'); input.value = location.href; document.body.appendChild(input); input.select(); document.execCommand('copy'); input.remove(); this.showToast?.('Link kopyalandı', location.href); } } catch (e) { if (e?.name !== 'AbortError') console.warn('Share failed', e); } },
                 updateMeta() { const title = this.detailItem ? `${this.detailTitle()} | Baltic Caspian` : 'Baltic Caspian | Premium Taxta Evlər'; const desc = (this.detailDescription() || 'Premium taxta evlər, tamamlanmış işlər və layihələr.').slice(0,155); document.title = title; document.querySelector('meta[name="description"]')?.setAttribute('content', desc); document.querySelector('meta[property="og:title"]')?.setAttribute('content', title); document.querySelector('meta[property="og:description"]')?.setAttribute('content', desc); document.querySelector('meta[property="og:url"]')?.setAttribute('content', location.href); document.querySelector('meta[property="og:image"]')?.setAttribute('content', this.detailImage() || '/uploads/hero'); },
 
                 async api(path, options = {}) {
@@ -693,6 +696,7 @@
                     const cat = String(project.cat || project.category || 'default');
                     return {
                         id: project.id ?? '',
+                        slug: project.slug || '',
                         cat,
                         category: cat,
                         catName: project.catName || project.categoryNameAz || cat,
@@ -730,7 +734,8 @@
                 normalizeGalleryItem(item = {}) {
                     const images = this.normalizeImageList(item.images);
                     const src = this.normalizeImageUrl(item.src || item.image || item.url || item.mediaUrl || images[0] || '');
-                    return { id: item.id ?? '', src, image: item.image || src, url: item.url || src, mediaUrl: item.mediaUrl || src, images: images.length ? images : (src && (item.type || 'image') === 'image' ? [src] : []), title: item.title || item.titleAz || '', titleAz: item.titleAz || item.title || '', titleRu: item.titleRu || item.title || '', titleEn: item.titleEn || item.title || '', type: item.type || 'image', archived: Boolean(item.archived), sortOrder: Number(item.sortOrder) || 0 };
+                    return { id: item.id ?? '',
+                        slug: item.slug || '', src, image: item.image || src, url: item.url || src, mediaUrl: item.mediaUrl || src, images: images.length ? images : (src && (item.type || 'image') === 'image' ? [src] : []), title: item.title || item.titleAz || '', titleAz: item.titleAz || item.title || '', titleRu: item.titleRu || item.title || '', titleEn: item.titleEn || item.title || '', type: item.type || 'image', archived: Boolean(item.archived), sortOrder: Number(item.sortOrder) || 0 };
                 },
                 normalizeGallery(payload, fallback = []) {
                     const items = this.asArray(payload).map(item => this.normalizeGalleryItem(item));
@@ -1246,80 +1251,6 @@
                     }
                 },
 
-                openProjectModal(proj, index = null) {
-                    if (!proj || !proj.id) return;
-
-                    this.projectModalScrollY = window.scrollY || window.pageYOffset || 0;
-                    this.selectedProject = proj;
-                    this.selectedProjectIndex = Number.isFinite(index) ? index : this.projects.findIndex(p => String(p.id) === String(proj.id));
-                    this.activeProjectImageIndex = 0;
-                    this.isProjectModalOpen = true;
-                    this.projectModalOpen = true;
-                    this.lockProjectModalBodyScroll();
-                    this.triggerAction(() => {
-                        proj.views = (proj.views || 0) + 1;
-                        this.stats.projectViews++;
-                        this.cacheSave();
-                        if (proj.id) this.api(`/api/projects/${proj.id}/view`).catch(() => console.warn('Project view was not persisted.'));
-                    }, false); // No global loader overlay to avoid blocking lightbox
-                },
-
-                lockProjectModalBodyScroll() {
-                    document.body.classList.add('modal-open');
-                    document.body.style.position = 'fixed';
-                    document.body.style.top = `-${this.projectModalScrollY || 0}px`;
-                    document.body.style.width = '100%';
-                },
-
-                closeProjectModal() {
-                    const scrollY = Number.isFinite(this.projectModalScrollY) ? this.projectModalScrollY : 0;
-                    this.selectedProject = null;
-                    this.selectedProjectIndex = -1;
-                    this.activeProjectImageIndex = 0;
-                    this.isProjectModalOpen = false;
-                    this.projectModalOpen = false;
-                    document.body.classList.remove('modal-open');
-                    document.body.style.top = '';
-                    document.body.style.position = '';
-                    document.body.style.width = '';
-                    window.scrollTo(0, scrollY);
-                    this.projectModalScrollY = 0;
-                },
-
-                visibleProjects() { return (Array.isArray(this.filteredProjects) ? this.filteredProjects : []).filter(p => !p.archived); },
-
-                currentProjectImages() {
-                    const p = this.selectedProject || {};
-                    const imgs = Array.isArray(p.images) && p.images.length ? p.images : [p.coverImage || p.image].filter(Boolean);
-                    return imgs.filter(Boolean);
-                },
-
-                currentProjectImage() { const imgs = this.currentProjectImages(); return imgs[this.activeProjectImageIndex] || imgs[0] || ''; },
-
-                selectProjectImage(index) { const imgs = this.currentProjectImages(); if (imgs.length) this.activeProjectImageIndex = Math.max(0, Math.min(Number(index) || 0, imgs.length - 1)); },
-
-                nextProjectImage() { const imgs = this.currentProjectImages(); if (imgs.length > 1) this.activeProjectImageIndex = (this.activeProjectImageIndex + 1) % imgs.length; },
-
-                prevProjectImage() { const imgs = this.currentProjectImages(); if (imgs.length > 1) this.activeProjectImageIndex = (this.activeProjectImageIndex - 1 + imgs.length) % imgs.length; },
-
-                projectModalIndex() { const items = this.visibleProjects(); return Math.max(0, items.findIndex(p => String(p.id) === String(this.selectedProject?.id))); },
-
-                navigateProjectModal(direction) {
-                    const items = this.visibleProjects();
-                    if (!items.length) return;
-                    const current = this.projectModalIndex();
-                    const next = (current + direction + items.length) % items.length;
-                    this.selectedProject = items[next];
-                    this.selectedProjectIndex = next;
-                    this.activeProjectImageIndex = 0;
-                },
-
-                nextProjectModal() { this.navigateProjectModal(1); },
-
-                prevProjectModal() { this.navigateProjectModal(-1); },
-
-                handleProjectModalKeydown(event) { if (!this.isProjectModalOpen || !this.selectedProject?.id) return; if (event.key === 'ArrowRight') this.nextProjectModal(); if (event.key === 'ArrowLeft') this.prevProjectModal(); },
-
                 openCalculator() {
                     this.calculatorModalScrollY = window.scrollY || window.pageYOffset || 0;
                     this.isCalculatorOpen = true;
@@ -1472,23 +1403,6 @@ Sahə: ${this.calc.area} m²
 Mərtəbə: ${this.calc.stories}
 Material: ${calcTimberText}
 Təxmini qiymət: ${this.calculatePrice()} AZN
-Zəhmət olmasa ətraflı məlumat göndərin.`;
-                    window.open(`https://wa.me/994553221109?text=${encodeURIComponent(message)}`, '_blank', 'noopener');
-                },
-
-                openProjectWhatsApp() {
-                    const p = this.selectedProject || {};
-                    const title = this.lang === 'en' ? (p.titleEn || p.title) : (this.lang === 'ru' ? (p.titleRu || p.title) : p.title);
-                    const catName = this.lang === 'en' ? (p.catNameEn || p.catName) : (this.lang === 'ru' ? (p.catNameRu || p.catName) : p.catName);
-                    const buildTime = this.lang === 'en' ? (p.buildTimeEn || p.buildTime) : (this.lang === 'ru' ? (p.buildTimeRu || p.buildTime) : p.buildTime);
-                    const message = `Salam, Baltic Caspian.
-Mən bu layihə ilə maraqlanıram:
-Layihə: ${title || ''}
-Kateqoriya: ${catName || ''}
-Sahə: ${p.area || ''} m²
-Mərtəbə: ${p.stories || ''}
-Otaq: ${p.rooms || ''}
-Tikinti müddəti: ${buildTime || ''}
 Zəhmət olmasa ətraflı məlumat göndərin.`;
                     window.open(`https://wa.me/994553221109?text=${encodeURIComponent(message)}`, '_blank', 'noopener');
                 },
@@ -2318,7 +2232,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                 normalizeWorkItem(item = {}) {
                     const images = this.normalizeImageList(item.images);
                     const coverImage = this.normalizeImageUrl(item.coverImage || item.image || images[0] || '');
-                    return { id:item.id || '', category:item.category || 'Digər', title:item.title || item.titleAz || '', titleAz:item.titleAz || item.title || '', titleRu:item.titleRu || item.title || '', titleEn:item.titleEn || item.title || '', description:item.description || item.descriptionAz || '', descriptionAz:item.descriptionAz || item.description || '', descriptionRu:item.descriptionRu || item.description || '', descriptionEn:item.descriptionEn || item.description || '', location:item.location || item.locationAz || '', locationAz:item.locationAz || item.location || '', locationRu:item.locationRu || item.location || '', locationEn:item.locationEn || item.location || '', completionDate:item.completionDate || '', coverImage, image:coverImage, images:images.length ? images : (coverImage ? [coverImage] : []), sortOrder:Number(item.sortOrder)||0, featured:Boolean(item.featured), active:item.active !== false, createdAt:item.createdAt || '' };
+                    return { id:item.id || '', slug:item.slug || '', category:item.category || 'Digər', title:item.title || item.titleAz || '', titleAz:item.titleAz || item.title || '', titleRu:item.titleRu || item.title || '', titleEn:item.titleEn || item.title || '', description:item.description || item.descriptionAz || '', descriptionAz:item.descriptionAz || item.description || '', descriptionRu:item.descriptionRu || item.description || '', descriptionEn:item.descriptionEn || item.description || '', location:item.location || item.locationAz || '', locationAz:item.locationAz || item.location || '', locationRu:item.locationRu || item.location || '', locationEn:item.locationEn || item.location || '', completionDate:item.completionDate || '', coverImage, image:coverImage, images:images.length ? images : (coverImage ? [coverImage] : []), sortOrder:Number(item.sortOrder)||0, featured:Boolean(item.featured), active:item.active !== false, createdAt:item.createdAt || '' };
                 },
                 normalizeWorkItems(payload, fallback = []) { const items = this.asArray(payload).map(item => this.normalizeWorkItem(item)); return items.length ? items : fallback.map(item => this.normalizeWorkItem(item)); },
                 localizedWorkTitle(item) { return this.lang === 'en' ? (item.titleEn || item.titleAz) : (this.lang === 'ru' ? (item.titleRu || item.titleAz) : item.titleAz); },
@@ -3014,155 +2928,6 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
             .login-card-premium h2 { color: #f5f5f4; }
             .login-card-premium p { color: rgba(245,245,244,.72); }
         }
-        body.modal-open {
-            position: fixed;
-            width: 100%;
-            overflow: hidden;
-            left: 0;
-            right: 0;
-        }
-        .project-modal-overlay {
-            position: fixed;
-            inset: var(--header-height) 0 0 0;
-            overflow-y: auto;
-            overscroll-behavior: contain;
-            -webkit-overflow-scrolling: touch;
-        }
-        .project-detail-modal { overscroll-behavior: contain; }
-        .bottom-mobile-nav { display: none; }
-        @media (max-width: 767px) {
-            .header-main .max-w-7xl { padding-left: 12px; padding-right: 12px; }
-            .header-main a.group { min-width: 0; gap: .6rem; }
-            .header-main a.group > div:last-child { min-width: 0; }
-            .header-main a.group span:first-child { font-size: .92rem; white-space: nowrap; }
-            .header-main a.group span:last-child { font-size: 8px; letter-spacing: .12em; white-space: nowrap; }
-            .header-main a.group .w-10 { width: 2.35rem; height: 2.35rem; flex-shrink: 0; }
-            :root {
-                --mobile-bottom-nav-height: 76px;
-                --mobile-bottom-nav-gap: 14px;
-                --mobile-nav-height: var(--mobile-bottom-nav-height);
-                --mobile-nav-side-gap: 14px;
-                --mobile-nav-bottom-gap: max(8px, env(safe-area-inset-bottom));
-            }
-            .bottom-mobile-nav {
-                position: fixed !important;
-                left: 16px !important;
-                right: 16px !important;
-                bottom: calc(10px + env(safe-area-inset-bottom)) !important;
-                width: auto !important;
-                height: var(--mobile-nav-height) !important;
-                margin: 0 !important;
-                z-index: 9000 !important;
-                transform: translateZ(0);
-                will-change: transform;
-                border-radius: 24px;
-                background: rgba(8, 24, 18, .92);
-                backdrop-filter: blur(18px);
-                -webkit-backdrop-filter: blur(18px);
-                border: 1px solid rgba(255,255,255,.12);
-                box-shadow: 0 18px 50px rgba(0,0,0,.24);
-                display: grid;
-                grid-template-columns: repeat(5, minmax(0, 1fr));
-                padding: 6px;
-            }
-            body {
-                padding-bottom: calc(92px + env(safe-area-inset-bottom));
-            }
-            footer,
-            .site-footer {
-                margin-bottom: 0;
-                padding-bottom: 0;
-                min-height: 0;
-                height: auto;
-            }
-            .bottom-mobile-nav__item {
-                min-width: 0;
-                border-radius: 18px;
-                display: flex;
-                flex-direction: column;
-                align-items: center;
-                justify-content: center;
-                gap: 3px;
-                color: rgba(255,255,255,.65);
-                font-size: 10px;
-                line-height: 1.05;
-                font-weight: 800;
-                transition: color .2s ease, background .2s ease, box-shadow .2s ease;
-            }
-            .bottom-mobile-nav__item i { font-size: 18px; }
-            .bottom-mobile-nav__item span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-            .bottom-mobile-nav__item.is-active { color: #fff; background: linear-gradient(135deg, rgba(51,115,79,.72), rgba(184,138,96,.34)); box-shadow: inset 0 0 0 1px rgba(255,255,255,.10), 0 10px 26px rgba(51,115,79,.24); }
-            body.modal-open .bottom-mobile-nav,
-            body.calculator-modal-open .bottom-mobile-nav,
-            .bottom-mobile-nav.hidden { visibility: hidden !important; opacity: 0; pointer-events: none; }
-            body.calculator-modal-open { overflow: hidden !important; touch-action: none; }
-            .project-modal-overlay {
-                position: fixed !important;
-                inset: 0 !important;
-                z-index: 9999 !important;
-                overflow: hidden !important;
-                padding: calc(10px + env(safe-area-inset-top)) 10px calc(10px + env(safe-area-inset-bottom)) !important;
-                display: flex !important;
-                align-items: center !important;
-                justify-content: center !important;
-                background: rgba(5, 12, 9, .72);
-                backdrop-filter: blur(14px);
-                -webkit-backdrop-filter: blur(14px);
-            }
-            .project-modal-backdrop { display: none; }
-            .project-detail-modal {
-                width: calc(100vw - 20px) !important;
-                height: calc(100svh - 24px - env(safe-area-inset-top) - env(safe-area-inset-bottom)) !important;
-                max-height: calc(100svh - 24px - env(safe-area-inset-top) - env(safe-area-inset-bottom)) !important;
-                overflow: hidden !important;
-                border-radius: 26px;
-                display: flex !important;
-                flex-direction: column !important;
-            }
-            .project-modal-scroll {
-                flex: 1 1 auto !important;
-                min-height: 0 !important;
-                overflow-y: auto !important;
-                -webkit-overflow-scrolling: touch;
-                overscroll-behavior: contain;
-                padding: 18px 14px 22px;
-            }
-            .project-modal-scroll > .bg-stone-100 { padding: 0 !important; }
-            .project-modal-info,
-            .project-detail-modal .project-info-panel {
-                padding: 0 !important;
-                display: block;
-                overflow: visible !important;
-            }
-            .project-modal-close {
-                position: absolute !important;
-                top: 14px !important;
-                right: 14px !important;
-                z-index: 50 !important;
-                width: 44px !important;
-                height: 44px !important;
-                border-radius: 999px;
-                background: rgba(255,255,255,.96);
-                color: #123024;
-                box-shadow: 0 12px 30px rgba(0,0,0,.18);
-            }
-            .project-modal-image {
-                height: 230px !important;
-                max-height: 30svh !important;
-                width: 100%;
-                object-fit: cover;
-                border-radius: 22px;
-            }
-            .project-modal-nav-row { gap: 10px; margin: 14px 0 18px; }
-            .project-modal-nav-btn { height: 50px !important; font-size: 18px !important; border-radius: 18px; }
-            .project-modal-title { font-size: 34px !important; line-height: 1.05; margin-top: 10px; }
-            .project-modal-description { font-size: 18px; line-height: 1.45; margin-top: 12px; }
-            .project-spec-grid { grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 18px; }
-            .project-spec-card { height: 86px; border-radius: 18px; }
-            .project-duration { min-height: 62px; margin-top: 14px; }
-            .project-whatsapp-button { height: 58px; margin-top: 14px; margin-bottom: 8px; }
-        }
-
         /* Mobile-only polish: compact header, BestHome-style hero card, and bottom-nav-safe footer. */
         @media (max-width: 767px) {
             :root { --mobile-header-height: 76px; --header-height: 76px; }
@@ -4261,15 +4026,15 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                         <div x-show="!(Array.isArray(filteredProjects) && filteredProjects.filter(p => !p.archived).length)" class="empty-state projects-empty rounded-3xl border border-stone-200 bg-white p-10 text-center text-stone-500 font-bold" x-text="lang === 'az' ? 'Bu kateqoriyada layihə yoxdur' : (lang === 'ru' ? 'В этой категории проектов нет.' : 'There are no projects in this category.')"></div>
                         <div x-show="Array.isArray(filteredProjects) && filteredProjects.filter(p => !p.archived).length > 0" class="project-grid grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                     <template x-for="(proj, index) in (Array.isArray(filteredProjects) ? filteredProjects : []).filter(p => !p.archived)" :key="proj.id">
-                        <div @click="openDetail(proj, 'project')" class="project-card group cursor-pointer bg-white rounded-3xl overflow-hidden shadow-sm transition-all duration-[450ms] border border-stone-200/60 flex flex-col justify-between hover:shadow-2xl hover:shadow-forest-950/12 hover:border-wood-200">
+                        <a :href="projectUrl(proj)" class="project-card group bg-white rounded-3xl overflow-hidden shadow-sm transition-all duration-[450ms] border border-stone-200/60 flex flex-col justify-between hover:shadow-2xl hover:shadow-forest-950/12 hover:border-wood-200">
                             <div>
                                 <div class="project-card__media relative h-64 overflow-hidden">
                                     <img :src="(proj.images && proj.images[0]) || proj.image" class="project-card__image w-full h-full object-cover transition-transform duration-[500ms] ease-out" :alt="proj.title">
                                     <div class="project-card__overlay absolute inset-0 bg-gradient-to-t from-forest-950/65 via-forest-950/10 to-transparent opacity-0 transition-opacity duration-[450ms]"></div>
                                     <span class="project-card__badge absolute top-4 left-4 bg-forest-950/85 text-white backdrop-blur text-xs font-bold px-3 py-1 rounded-full uppercase" x-text="lang === 'en' ? proj.catNameEn : (lang === 'ru' ? proj.catNameRu : proj.catName)">Taxta Ev</span>
-                                    <button @click.stop="openDetail(proj, 'project')" class="project-card__cta absolute left-5 right-5 bottom-5 translate-y-4 opacity-0 rounded-xl border border-white/40 py-3 text-sm font-black text-white shadow-lg backdrop-blur transition-all duration-[450ms]">
+                                    <span class="project-card__cta absolute left-5 right-5 bottom-5 translate-y-4 opacity-0 rounded-xl border border-white/40 py-3 text-sm font-black text-white shadow-lg backdrop-blur transition-all duration-[450ms]">
                                         <span x-text="t('viewDetails')">Layihəyə Bax</span>
-                                    </button>
+                                    </span>
                                 </div>
                                 <div class="project-card__body p-6 space-y-4">
                                     <h3 class="project-card__title text-xl font-bold text-stone-900 transition-all duration-[450ms]" x-text="lang === 'en' ? proj.titleEn : (lang === 'ru' ? proj.titleRu : proj.title)">Taxta Ev</h3>
@@ -4277,11 +4042,11 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                                 </div>
                             </div>
                             <div class="project-card__fallback p-6 pt-0">
-                                <button @click.stop="openDetail(proj, 'project')" class="w-full py-3 bg-forest-50 hover:bg-forest-600 text-forest-700 hover:text-white font-bold rounded-xl text-sm transition-all duration-300">
+                                <span class="block text-center w-full py-3 bg-forest-50 hover:bg-forest-600 text-forest-700 hover:text-white font-bold rounded-xl text-sm transition-all duration-300">
                                     <span x-text="t('viewDetails')">Layihəyə Bax</span>
-                                </button>
+                                </span>
                             </div>
-                        </div>
+                        </a>
                     </template>
                         </div>
                     </div>
@@ -4307,10 +4072,10 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                         <div x-show="!filteredWorkItems.length" class="works-empty-state"><i class="fa-solid fa-briefcase"></i><strong x-text="lang === 'az' ? 'Hələ iş əlavə edilməyib' : (lang === 'ru' ? 'Работы пока не добавлены' : 'No work items yet')"></strong><small x-text="lang === 'az' ? 'Tamamlanmış işlər burada göstəriləcək.' : (lang === 'ru' ? 'Завершенные работы появятся здесь.' : 'Completed works will appear here.')"></small></div>
                         <div x-show="filteredWorkItems.length" class="work-grid">
                             <template x-for="(item, index) in filteredWorkItems" :key="item.id">
-                                <button type="button" @click="openDetail(item, 'work')" class="work-card group flex h-full flex-col overflow-hidden rounded-[20px] border border-stone-200/80 bg-white text-left shadow-sm transition hover:-translate-y-1 hover:shadow-xl hover:shadow-forest-950/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-forest-700" :aria-label="localizedWorkTitle(item)">
+                                <a :href="workUrl(item)" class="work-card group flex h-full flex-col overflow-hidden rounded-[20px] border border-stone-200/80 bg-white text-left shadow-sm transition hover:-translate-y-1 hover:shadow-xl hover:shadow-forest-950/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-forest-700" :aria-label="localizedWorkTitle(item)">
                                     <div class="relative aspect-[4/3] overflow-hidden bg-stone-100"><img :src="item.coverImage" :alt="localizedWorkTitle(item)" class="h-full w-full object-cover transition duration-500 group-hover:scale-105"><span class="absolute left-2 top-2 rounded-full bg-forest-950/85 px-2.5 py-1 text-[10px] font-black uppercase text-white" x-text="workCategoryLabel(item.category)"></span></div>
                                     <div class="flex flex-1 flex-col gap-2 p-3 sm:p-4"><h2 class="line-clamp-2 text-sm sm:text-lg font-black leading-tight text-forest-950" x-text="localizedWorkTitle(item)"></h2><p x-show="localizedWorkLocation(item)" class="truncate text-[11px] sm:text-sm font-semibold text-stone-500"><i class="fa-solid fa-location-dot text-wood-500"></i> <span x-text="localizedWorkLocation(item)"></span></p><p x-show="formatWorkDate(item.completionDate)" class="text-[11px] font-bold text-stone-400" x-text="formatWorkDate(item.completionDate)"></p><span class="mt-auto inline-flex items-center gap-1 text-xs font-black text-forest-700"><span x-text="t('workViewDetails')"></span><i class="fa-solid fa-arrow-right"></i></span></div>
-                                </button>
+                                </a>
                             </template>
                         </div>
                     </div>
@@ -4357,8 +4122,8 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                 <template x-if="detailItem"><article class="space-y-10">
                     <nav class="text-sm font-bold text-stone-500"><a href="/" @click.prevent="navigateTo('home')">Ana səhifə</a><span class="mx-2">/</span><a :href="detailType==='project'?'/projects':'/works'" @click.prevent="navigateTo(detailType==='project'?'projects':'works')" x-text="detailType==='project'?t('navProjects'):t('navWorks')"></a><span class="mx-2">/</span><span class="text-forest-800" x-text="detailTitle()"></span></nav>
                     <section class="relative overflow-hidden rounded-[2rem] min-h-[42vh] flex items-end bg-stone-900"><img :src="detailImage()" :alt="detailTitle()" class="absolute inset-0 h-full w-full object-cover opacity-70" loading="eager"><div class="relative z-10 max-w-3xl p-6 sm:p-10 text-white"><span class="inline-flex rounded-full bg-white/15 px-4 py-2 text-xs font-black uppercase backdrop-blur" x-text="detailType==='work'?workCategoryLabel(detailItem.category):(detailItem.catName||detailItem.category)"></span><h1 class="mt-4 text-4xl sm:text-6xl font-black" x-text="detailTitle()"></h1><p class="mt-4 text-white/85 leading-8" x-text="detailDescription()"></p></div></section>
-                    <section class="grid gap-6 lg:grid-cols-[minmax(0,1fr)_300px]"><div class="min-h-[70vh] rounded-[2rem] bg-stone-950 p-3 sm:p-4"><button class="block h-[70vh] w-full" @click="detailLightboxOpen=true"><img :src="detailImage()" :alt="detailTitle()" class="h-full w-full object-contain" loading="eager"></button></div><aside class="space-y-4"><div class="rounded-[2rem] border bg-white p-4 shadow-sm"><div class="mb-3 flex items-center justify-between font-black"><span>Qalereya</span><span x-text="`${detailImageIndex+1} / ${detailImages().length}`"></span></div><div class="max-h-[70vh] grid grid-cols-3 gap-2 overflow-y-auto pr-1"><template x-for="(src,index) in detailImages()" :key="src+index"><button @click="selectDetailImage(index)" class="aspect-square overflow-hidden rounded-xl border-2 transition" :class="detailImageIndex===index?'border-forest-700':'border-transparent'"><img :src="src" class="h-full w-full object-cover" loading="lazy" alt="Thumbnail"></button></template></div></div><a :href="detailWhatsappUrl()" target="_blank" rel="noopener" class="flex h-14 items-center justify-center gap-2 rounded-2xl bg-[#25D366] font-black text-white shadow-lg"><i class="fa-brands fa-whatsapp"></i> WhatsApp CTA</a></aside></section>
-                    <section x-show="similarDetailItems().length" class="space-y-4"><h2 class="text-2xl font-black text-forest-950">Oxşar layihələr</h2><div class="grid sm:grid-cols-3 gap-4"><template x-for="item in similarDetailItems()" :key="item.id"><button @click="openDetail(item, detailType)" class="text-left rounded-2xl overflow-hidden bg-white border shadow-sm hover:shadow-xl transition"><img :src="item.coverImage||item.image" class="h-40 w-full object-cover" loading="lazy"><div class="p-4 font-black" x-text="detailType==='work'?localizedWorkTitle(item):(item.title||item.titleAz)"></div></button></template></div></section>
+                    <section class="grid gap-6 lg:grid-cols-[minmax(0,1fr)_300px]"><div class="min-h-[70vh] rounded-[2rem] bg-stone-950 p-3 sm:p-4"><button class="block h-[70vh] w-full" @click="detailLightboxOpen=true"><img :src="detailImage()" :alt="detailTitle()" class="h-full w-full object-contain" loading="eager"></button></div><aside class="space-y-4"><div class="rounded-[2rem] border bg-white p-4 shadow-sm"><div class="mb-3 flex items-center justify-between font-black"><span>Qalereya</span><span x-text="`${detailImageIndex+1} / ${detailImages().length}`"></span></div><div class="max-h-[70vh] grid grid-cols-3 gap-2 overflow-y-auto pr-1"><template x-for="(src,index) in detailImages()" :key="src+index"><button @click="selectDetailImage(index)" class="aspect-square overflow-hidden rounded-xl border-2 transition" :class="detailImageIndex===index?'border-forest-700':'border-transparent'"><img :src="src" class="h-full w-full object-cover" loading="lazy" alt="Thumbnail"></button></template></div></div><a :href="detailWhatsappUrl()" target="_blank" rel="noopener noreferrer" class="flex h-14 items-center justify-center gap-2 rounded-2xl bg-[#25D366] font-black text-white shadow-lg"><i class="fa-brands fa-whatsapp"></i> <span x-text="detailType==='work'?'WhatsApp-la müraciət et':'Layihə üçün müraciət et'"></span></a><button type="button" @click="shareDetail()" class="flex h-12 w-full items-center justify-center gap-2 rounded-2xl border border-forest-200 bg-white font-black text-forest-800"><i class="fa-solid fa-share-nodes"></i> Linki paylaş</button></aside></section>
+                    <section x-show="similarDetailItems().length" class="space-y-4"><h2 class="text-2xl font-black text-forest-950">Oxşar layihələr</h2><div class="grid sm:grid-cols-3 gap-4"><template x-for="item in similarDetailItems()" :key="item.id"><a :href="detailType==='work'?workUrl(item):projectUrl(item)" class="text-left rounded-2xl overflow-hidden bg-white border shadow-sm hover:shadow-xl transition"><img :src="item.coverImage||item.image" class="h-40 w-full object-cover" loading="lazy"><div class="p-4 font-black" x-text="detailType==='work'?localizedWorkTitle(item):(item.title||item.titleAz)"></div></a></template></div></section>
                     <div x-show="detailLightboxOpen" x-cloak class="fixed inset-0 z-[9999] bg-black/95 p-4 flex items-center justify-center" @click="detailLightboxOpen=false"><button class="absolute top-4 right-4 h-12 w-12 rounded-full bg-white/15 text-white" @click.stop="detailLightboxOpen=false"><i class="fa-solid fa-xmark"></i></button><button class="absolute left-4 h-12 w-12 rounded-full bg-white/15 text-white" @click.stop="prevDetailImage()"><i class="fa-solid fa-chevron-left"></i></button><img :src="detailImage()" class="max-h-full max-w-full object-contain" :alt="detailTitle()"><button class="absolute right-4 h-12 w-12 rounded-full bg-white/15 text-white" @click.stop="nextDetailImage()"><i class="fa-solid fa-chevron-right"></i></button></div>
                 </article></template>
             </div>
@@ -4574,9 +4339,9 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                                     <i class="fa-brands fa-whatsapp"></i>
                                     <span>WhatsApp ilə əlaqə</span>
                                 </a>
-                                <button @click="deleteMessage(msg.id)" class="bg-red-50 text-red-600 py-2 px-3 rounded-xl text-xs font-bold" x-text="lang==='az' ? 'Sil' : (lang==='ru' ? 'Удалить' : 'Delete')">Sil</button>
+                                <button @click="deleteMessage(msg.id)" class="bg-red-50 text-red-600 py-2 px-3 rounded-xl text-xs font-bold" x-text="lang==='az' ? 'Sil' : (lang==='ru' ? 'Удалить' : 'Delete')">Sil</span>
                             </div>
-                        </div>
+                        </a>
                     </template>
                 </div>
 
@@ -5060,7 +4825,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
 
     </div>
 
-    <nav class="bottom-mobile-nav md:hidden" :class="(selectedProject && selectedProject.id && isProjectModalOpen) || (selectedWorkItem && selectedWorkItem.id) || isMapSheetOpen || isMapNavigationHidden ? 'hidden' : ''" aria-label="Bottom mobile navigation">
+    <nav class="bottom-mobile-nav md:hidden" :class="page === 'detail' || (selectedWorkItem && selectedWorkItem.id) || isMapSheetOpen || isMapNavigationHidden ? 'hidden' : ''" aria-label="Bottom mobile navigation">
         <button type="button" @click="navigateTo('home')" class="bottom-mobile-nav__item" :class="{ 'is-active': page === 'home' }">
             <i class="fa-solid fa-house"></i>
             <span x-text="t('navHome')">Ana səhifə</span>
@@ -5137,73 +4902,6 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                 <p x-show="localizedWorkDescription(selectedWorkItem)" class="text-sm leading-7 text-stone-600" x-text="localizedWorkDescription(selectedWorkItem)"></p>
                 <div class="grid grid-cols-1 gap-3 text-sm"><div x-show="localizedWorkLocation(selectedWorkItem)" class="rounded-2xl bg-stone-50 p-4"><b>Ünvan:</b> <span x-text="localizedWorkLocation(selectedWorkItem)"></span></div><div x-show="formatWorkDate(selectedWorkItem.completionDate)" class="rounded-2xl bg-stone-50 p-4"><b>Tarix:</b> <span x-text="formatWorkDate(selectedWorkItem.completionDate)"></span></div></div>
                 <a :href="workWhatsAppUrl(selectedWorkItem)" target="_blank" rel="noopener" class="flex h-14 items-center justify-center gap-2 rounded-2xl bg-[#25D366] font-black text-white shadow-lg"><i class="fa-brands fa-whatsapp"></i><span x-text="t('workWhatsapp')"></span></a>
-            </div>
-        </div>
-    </div>
-    </template>
-
-    <!-- DETAILED PROJECT VIEW MODAL -->
-    <template x-if="selectedProject && selectedProject.id">
-    <div x-show="isProjectModalOpen && selectedProject && selectedProject.id" x-cloak class="project-modal-overlay z-50 flex items-start justify-center p-3 pt-6 sm:p-6" x-transition @keydown.escape.window="closeProjectModal()" @keydown.window="handleProjectModalKeydown($event)">
-        <div class="project-modal-backdrop absolute inset-0 bg-stone-950/78 backdrop-blur-sm" @click.self="closeProjectModal()"></div>
-
-        <button @click="prevProjectModal()" class="absolute left-3 top-1/2 z-20 hidden h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full border border-white/25 bg-white/15 text-white shadow-2xl backdrop-blur-xl transition hover:bg-white/25 lg:flex" aria-label="Previous project">
-            <i class="fa-solid fa-chevron-left"></i>
-        </button>
-        <button @click="nextProjectModal()" class="absolute right-3 top-1/2 z-20 hidden h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full border border-white/25 bg-white/15 text-white shadow-2xl backdrop-blur-xl transition hover:bg-white/25 lg:flex" aria-label="Next project">
-            <i class="fa-solid fa-chevron-right"></i>
-        </button>
-
-        <div class="project-detail-modal relative z-10 grid w-full max-w-[980px] w-[min(94vw,980px)] grid-cols-1 gap-0 overflow-hidden rounded-[26px] border border-white/70 bg-white shadow-2xl shadow-stone-950/30 max-h-[calc(100svh-150px)] lg:grid-cols-[54%_46%] lg:gap-4 lg:p-4" @touchmove.stop>
-            <button @click="closeProjectModal()" class="project-modal-close absolute right-4 top-4 z-30 flex h-11 w-11 items-center justify-center rounded-full border border-stone-200/70 bg-white/90 text-stone-800 shadow-lg backdrop-blur transition hover:bg-stone-950 hover:text-white" aria-label="Close project modal"><i class="fa-solid fa-xmark"></i></button>
-
-            <div class="project-modal-scroll project-detail-scroll min-h-0 overflow-y-auto lg:contents">
-                <div class="bg-stone-100 p-3 sm:p-4 lg:p-0">
-                    <div class="project-modal-image relative h-[280px] overflow-hidden rounded-[22px] bg-stone-200 sm:h-[340px] lg:h-[clamp(360px,58vh,560px)]">
-                        <img :src="currentProjectImage()" class="h-full w-full object-cover" :alt="lang === 'en' ? selectedProject.titleEn : (lang === 'ru' ? selectedProject.titleRu : selectedProject.title)">
-                        <template x-if="currentProjectImages().length > 1">
-                            <div>
-                                <button @click.stop="prevProjectImage()" class="absolute left-4 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-white/30 bg-white/20 text-white shadow-xl backdrop-blur-xl transition hover:bg-white/35" aria-label="Previous image"><i class="fa-solid fa-chevron-left"></i></button>
-                                <button @click.stop="nextProjectImage()" class="absolute right-4 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-white/30 bg-white/20 text-white shadow-xl backdrop-blur-xl transition hover:bg-white/35" aria-label="Next image"><i class="fa-solid fa-chevron-right"></i></button>
-                            </div>
-                        </template>
-                    </div>
-                    <template x-if="currentProjectImages().length > 1">
-                        <div class="mt-3 grid grid-cols-4 gap-2 sm:grid-cols-5">
-                            <template x-for="(src, index) in currentProjectImages()" :key="src + index">
-                                <button @click="selectProjectImage(index)" class="h-16 overflow-hidden rounded-2xl border-2 transition" :class="activeProjectImageIndex === index ? 'border-forest-700' : 'border-white/80 hover:border-wood-300'">
-                                    <img :src="src" class="h-full w-full object-cover" alt="Project thumbnail">
-                                </button>
-                            </template>
-                        </div>
-                    </template>
-                </div>
-
-                <div class="project-modal-info project-info-panel flex min-h-0 flex-col overflow-y-auto p-5 pt-4 sm:p-7 lg:max-h-[calc(100svh-190px)] lg:p-7 lg:pl-3">
-                    <div class="project-modal-nav-row mb-5 flex gap-2 lg:hidden">
-                        <button @click="prevProjectModal()" class="project-modal-nav-btn flex h-11 flex-1 items-center justify-center gap-2 rounded-2xl border border-stone-200 bg-stone-50 font-bold text-forest-800"><i class="fa-solid fa-chevron-left"></i><span>Previous</span></button>
-                        <button @click="nextProjectModal()" class="project-modal-nav-btn flex h-11 flex-1 items-center justify-center gap-2 rounded-2xl border border-stone-200 bg-stone-50 font-bold text-forest-800"><span>Next</span><i class="fa-solid fa-chevron-right"></i></button>
-                    </div>
-
-                    <span class="mb-3 inline-flex w-max rounded-full bg-forest-50 px-3 py-1 text-xs font-black uppercase tracking-wider text-forest-800" x-text="lang === 'en' ? selectedProject.catNameEn : (lang === 'ru' ? selectedProject.catNameRu : selectedProject.catName)"></span>
-                    <h3 class="project-modal-title text-2xl font-black leading-tight text-forest-950 sm:text-3xl" x-text="lang === 'en' ? selectedProject.titleEn : (lang === 'ru' ? selectedProject.titleRu : selectedProject.title)"></h3>
-                    <p class="project-modal-description mt-4 text-sm leading-7 text-stone-600" x-text="lang === 'en' ? (selectedProject.descriptionEn || selectedProject.descEn || selectedProject.description || selectedProject.desc) : (lang === 'ru' ? (selectedProject.descriptionRu || selectedProject.descRu || selectedProject.description || selectedProject.desc) : (selectedProject.descriptionAz || selectedProject.descAz || selectedProject.description || selectedProject.desc))"></p>
-
-                    <div class="project-spec-grid mt-5 grid grid-cols-3 gap-3 text-center">
-                        <div class="project-spec-card min-h-[68px] rounded-2xl border border-stone-100 bg-stone-50 p-3"><span class="text-[11px] font-bold uppercase text-stone-400">Sahə</span><p class="mt-1 font-black text-forest-950" x-text="(selectedProject.area || '-') + (selectedProject.area ? ' m²' : '')"></p></div>
-                        <div class="project-spec-card min-h-[68px] rounded-2xl border border-stone-100 bg-stone-50 p-3"><span class="text-[11px] font-bold uppercase text-stone-400">Mərtəbə</span><p class="mt-1 font-black text-forest-950" x-text="selectedProject.stories || '-'"></p></div>
-                        <div class="project-spec-card min-h-[68px] rounded-2xl border border-stone-100 bg-stone-50 p-3"><span class="text-[11px] font-bold uppercase text-stone-400">Otaq</span><p class="mt-1 font-black text-forest-950" x-text="selectedProject.rooms || '-'"></p></div>
-                    </div>
-
-                    <template x-if="selectedProject.buildTime || selectedProject.buildTimeAz || selectedProject.buildTimeRu || selectedProject.buildTimeEn">
-                        <div class="project-duration mt-4 rounded-2xl border border-wood-100 bg-wood-50/60 p-4 text-sm font-bold text-forest-900">
-                            <i class="fa-regular fa-clock mr-2 text-wood-700"></i>
-                            <span x-text="lang === 'en' ? (selectedProject.buildTimeEn || selectedProject.buildTime) : (lang === 'ru' ? (selectedProject.buildTimeRu || selectedProject.buildTime) : (selectedProject.buildTimeAz || selectedProject.buildTime))"></span>
-                        </div>
-                    </template>
-
-                    <button @click="openProjectWhatsApp()" class="project-whatsapp-button mt-5 flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-green-600 px-6 py-3 font-black text-white shadow-lg shadow-green-900/20 transition hover:bg-green-700"><i class="fa-brands fa-whatsapp text-xl"></i><span>WhatsApp ilə müraciət et</span></button>
-                </div>
             </div>
         </div>
     </div>
