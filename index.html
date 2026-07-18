@@ -132,13 +132,15 @@
             const HERO_SLIDES_CACHE_KEY = 'bc_cached_hero_slides';
 
             const MAX_IMAGES_PER_ITEM = 40;
-            const IMAGE_ACCEPT = 'image/jpeg,image/png,image/webp,image/avif,image/gif,image/bmp,image/tiff,image/svg+xml,image/heic,image/heif,.jpg,.jpeg,.png,.webp,.avif,.gif,.bmp,.tif,.tiff,.svg,.heic,.heif';
+            const IMAGE_ACCEPT = 'image/jpeg,image/png,image/webp,image/avif,image/gif,image/bmp,image/tiff,image/heic,image/heif,image/heic-sequence,image/heif-sequence,.jpg,.jpeg,.png,.webp,.avif,.gif,.bmp,.tif,.tiff,.heic,.heif';
             const IMAGE_VIDEO_ACCEPT = `${IMAGE_ACCEPT},video/mp4,video/webm,video/quicktime,.mp4,.webm,.mov`;
-            const ALLOWED_IMAGE_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/avif', 'image/gif', 'image/bmp', 'image/tiff', 'image/heic', 'image/heif']);
-            const ALLOWED_IMAGE_EXTENSIONS = new Set(['.jpg', '.jpeg', '.png', '.webp', '.avif', '.gif', '.bmp', '.tif', '.tiff', '.heic', '.heif']);
+            const STANDARD_IMAGE_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/avif', 'image/gif', 'image/bmp', 'image/tiff']);
+            const HEIC_MIME_TYPES = new Set(['image/heic', 'image/heif', 'image/heic-sequence', 'image/heif-sequence']);
+            const STANDARD_IMAGE_EXTENSIONS = new Set(['.jpg', '.jpeg', '.png', '.webp', '.avif', '.gif', '.bmp', '.tif', '.tiff']);
+            const HEIC_EXTENSIONS = new Set(['.heic', '.heif']);
             const REJECTED_UNSANITIZED_IMAGE_EXTENSIONS = new Set(['.svg']);
             const REJECTED_UNSANITIZED_IMAGE_MIME_TYPES = new Set(['image/svg+xml']);
-            const NO_IMAGE_PREVIEW_MIME_TYPES = new Set(['image/heic', 'image/heif', 'image/tiff']);
+            const NO_IMAGE_PREVIEW_MIME_TYPES = new Set(['image/heic', 'image/heif', 'image/heic-sequence', 'image/heif-sequence', 'image/tiff']);
 
             const defaultMessages = [
                 { id: 1, name: 'Həsən Əliyev', phone: '+994 50 211 44 55', email: 'hasan@mail.ru', message: 'Şamaxıda 2 mərtəbəli evin inşası ile bağlı əlaqə saxlayın.', date: '21.06.2026', read: false }
@@ -1132,27 +1134,37 @@
                     });
                 },
 
-                getFileExtension(file) {
-                    const name = String(file?.name || '');
+                getFileExtension(fileOrName = '') {
+                    const name = String(typeof fileOrName === 'string' ? fileOrName : (fileOrName?.name || ''));
                     const dot = name.lastIndexOf('.');
                     return dot >= 0 ? name.slice(dot).toLowerCase().replace(/[^a-z0-9.]/g, '') : '';
                 },
-                isAllowedImageFile(file) {
+                isHeicImageFile(file) {
                     const ext = this.getFileExtension(file);
-                    const type = String(file?.type || '').toLowerCase();
-                    if (REJECTED_UNSANITIZED_IMAGE_EXTENSIONS.has(ext) || REJECTED_UNSANITIZED_IMAGE_MIME_TYPES.has(type)) return false;
-                    const isHeifOctetStream = ['.heic', '.heif'].includes(ext) && type === 'application/octet-stream';
-                    return ALLOWED_IMAGE_EXTENSIONS.has(ext) && (ALLOWED_IMAGE_MIME_TYPES.has(type) || isHeifOctetStream);
+                    const type = String(file?.type || '').toLowerCase().trim();
+                    return HEIC_EXTENSIONS.has(ext) && (HEIC_MIME_TYPES.has(type) || type === '' || type === 'application/octet-stream');
                 },
+                isSupportedImageFile(file) {
+                    if (!file || !file.name) return false;
+                    const extension = this.getFileExtension(file);
+                    const mimeType = String(file.type || '').toLowerCase().trim();
+                    if (REJECTED_UNSANITIZED_IMAGE_EXTENSIONS.has(extension) || REJECTED_UNSANITIZED_IMAGE_MIME_TYPES.has(mimeType)) return false;
+                    if (STANDARD_IMAGE_MIME_TYPES.has(mimeType)) return STANDARD_IMAGE_EXTENSIONS.has(extension);
+                    if (HEIC_MIME_TYPES.has(mimeType)) return HEIC_EXTENSIONS.has(extension);
+                    if ((mimeType === '' || mimeType === 'application/octet-stream') && HEIC_EXTENSIONS.has(extension)) return true;
+                    return false;
+                },
+                isAllowedImageFile(file) { return this.isSupportedImageFile(file); },
                 canPreviewImageFile(file) {
-                    const type = String(file?.type || '').toLowerCase();
-                    return type.startsWith('image/') && !NO_IMAGE_PREVIEW_MIME_TYPES.has(type) && !['.heic', '.heif', '.tif', '.tiff'].includes(this.getFileExtension(file));
+                    const type = String(file?.type || '').toLowerCase().trim();
+                    return STANDARD_IMAGE_MIME_TYPES.has(type) && !NO_IMAGE_PREVIEW_MIME_TYPES.has(type) && !['.tif', '.tiff'].includes(this.getFileExtension(file));
                 },
                 previewFileUrl(file) { return this.canPreviewImageFile(file) ? URL.createObjectURL(file) : ''; },
+                heicPreviewMessage(file) { return this.isHeicImageFile(file) ? 'HEIC şəkli seçildi. Önizləmə bu brauzerdə mövcud deyil, lakin fayl yüklənəcək.' : 'Önizləmə mövcud deyil'; },
 
                 async uploadMedia(file, bucket) {
                     if (!(file instanceof File)) return file || '';
-                    if (String(file.type || '').startsWith('image/') && !this.isAllowedImageFile(file)) throw new Error('Bu şəkil formatı dəstəklənmir.');
+                    if (!this.isAllowedImageFile(file) && !String(file.type || '').startsWith('video/')) throw new Error('Bu şəkil formatı dəstəklənmir.');
                     console.info('[uploadMedia:start]', { bucket, filename: file.name, type: file.type, size: file.size });
                     const formData = new FormData();
                     formData.append('bucket', bucket);
@@ -1457,12 +1469,13 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                 handleFileSelect(event, previewProperty, targetProperty = null) {
                     const file = event.target.files[0];
                     if (!file) return;
-                    if (file.type.startsWith('image/') && !this.isAllowedImageFile(file)) {
-                        this.showToast('Format dəstəklənmir', 'Yalnız dəstəklənən şəkil formatlarını seçin. SVG sanitizasiya olmadığı üçün qəbul edilmir.');
+                    if (!this.isAllowedImageFile(file) && !String(file.type || '').startsWith('video/')) {
+                        this.showToast('Format dəstəklənmir', 'Bu şəkil formatı dəstəklənmir.');
                         event.target.value = '';
                         return;
                     }
                     const previewUrl = file.type.startsWith('image/') ? this.previewFileUrl(file) : URL.createObjectURL(file);
+                    if (this.isHeicImageFile(file)) this.showToast('HEIC şəkli seçildi', 'Önizləmə bu brauzerdə mövcud deyil, lakin fayl yüklənəcək.');
                     this[`${previewProperty}File`] = file;
                     this[previewProperty] = previewUrl;
                     if (previewProperty === 'adPreviewImg') {
@@ -1480,7 +1493,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                     const files = Array.from(event.target.files || []);
                     if (!files.length) return;
                     if (files.some(file => !this.isAllowedImageFile(file))) {
-                        this.showToast('Format dəstəklənmir', 'Yalnız dəstəklənən şəkil formatlarını seçin. SVG sanitizasiya olmadığı üçün qəbul edilmir.');
+                        this.showToast('Format dəstəklənmir', 'Bu şəkil formatı dəstəklənmir.');
                         event.target.value = '';
                         return;
                     }
@@ -1490,6 +1503,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                         return;
                     }
                     const images = files.map(file => this.previewFileUrl(file)).filter(Boolean);
+                    if (files.some(file => this.isHeicImageFile(file))) this.showToast('HEIC şəkli seçildi', 'Önizləmə bu brauzerdə mövcud deyil, lakin fayl yüklənəcək.');
                     this[`${collectionProperty}Files`] = files;
                     this[collectionProperty] = images;
                     this[previewProperty] = images[0] || '';
@@ -2063,11 +2077,12 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                 handleHomeImageFile(sectionKey, event) {
                     const file = event.target.files[0];
                     if (!file) return;
-                    if (file.type.startsWith('image/') && !this.isAllowedImageFile(file)) {
-                        this.showToast('Format dəstəklənmir', 'Yalnız dəstəklənən şəkil formatlarını seçin. SVG sanitizasiya olmadığı üçün qəbul edilmir.');
+                    if (!this.isAllowedImageFile(file) && !String(file.type || '').startsWith('video/')) {
+                        this.showToast('Format dəstəklənmir', 'Bu şəkil formatı dəstəklənmir.');
                         event.target.value = '';
                         return;
                     }
+                    if (this.isHeicImageFile(file)) this.showToast('HEIC şəkli seçildi', 'Önizləmə bu brauzerdə mövcud deyil, lakin fayl yüklənəcək.');
                     this.homeImageFiles[sectionKey] = file;
                     this.homeImagePreviews[sectionKey] = this.previewFileUrl(file);
                 },
@@ -2252,10 +2267,10 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                 prevWorkImage() { const n=this.currentWorkImages().length; if(n>1) this.activeWorkImageIndex=(this.activeWorkImageIndex-1+n)%n; },
                 nextWorkImage() { const n=this.currentWorkImages().length; if(n>1) this.activeWorkImageIndex=(this.activeWorkImageIndex+1)%n; },
                 workWhatsAppUrl(item) { return `https://wa.me/994553221109?text=${encodeURIComponent('Salam, '+this.localizedWorkTitle(item)+' işi ilə bağlı məlumat almaq istəyirəm.')}`; },
-                setWorkCoverFile(event) { if (this.creatingWork) return; const file = event.target.files?.[0] || null; if (file && !this.isAllowedImageFile(file)) { this.showToast('Format dəstəklənmir', 'Yalnız dəstəklənən şəkil formatlarını seçin. SVG sanitizasiya olmadığı üçün qəbul edilmir.'); event.target.value = ''; return; } this.workCoverFile = file; },
+                setWorkCoverFile(event) { if (this.creatingWork) return; const file = event.target.files?.[0] || null; if (file && !this.isAllowedImageFile(file)) { this.showToast('Format dəstəklənmir', 'Bu şəkil formatı dəstəklənmir.'); event.target.value = ''; return; } if (file && this.isHeicImageFile(file)) this.showToast('HEIC şəkli seçildi', 'Önizləmə bu brauzerdə mövcud deyil, lakin fayl yüklənəcək.'); this.workCoverFile = file; },
                 workCoverPreview() { return this.workCoverFile ? this.previewFileUrl(this.workCoverFile) : this.workForm.coverImage; },
                 clearWorkCover() { if (this.creatingWork) return; this.workCoverFile = null; this.workForm.coverImage = ''; },
-                setWorkImageFiles(event) { if (this.creatingWork) return; const files = [...(event.target.files || [])]; if (files.some(file => !this.isAllowedImageFile(file))) { this.showToast('Format dəstəklənmir', 'Yalnız dəstəklənən şəkil formatlarını seçin. SVG sanitizasiya olmadığı üçün qəbul edilmir.'); event.target.value = ''; return; } if (files.length + (this.workForm.images || []).length > MAX_IMAGES_PER_ITEM) { this.showToast('Limit', 'Bir layihəyə maksimum 40 şəkil əlavə edə bilərsiniz.'); event.target.value = ''; return; } this.workImageFiles = files; },
+                setWorkImageFiles(event) { if (this.creatingWork) return; const files = [...(event.target.files || [])]; if (files.some(file => !this.isAllowedImageFile(file))) { this.showToast('Format dəstəklənmir', 'Bu şəkil formatı dəstəklənmir.'); event.target.value = ''; return; } if (files.length + (this.workForm.images || []).length > MAX_IMAGES_PER_ITEM) { this.showToast('Limit', 'Bir layihəyə maksimum 40 şəkil əlavə edə bilərsiniz.'); event.target.value = ''; return; } if (files.some(file => this.isHeicImageFile(file))) this.showToast('HEIC şəkli seçildi', 'Önizləmə bu brauzerdə mövcud deyil, lakin fayl yüklənəcək.'); this.workImageFiles = files; },
                 removePendingWorkImage(index) { if (this.creatingWork) return; this.workImageFiles = this.workImageFiles.filter((_, i) => i !== index); },
                 resetWorkForm(force = false) { if (this.creatingWork && !force) return; this.editingWorkItemId = null; this.workForm = { category: 'Taxta Ev', titleAz: '', titleRu: '', titleEn: '', descriptionAz: '', descriptionRu: '', descriptionEn: '', locationAz: '', locationRu: '', locationEn: '', completionDate: '', coverImage: '', images: [], featured: false, active: true, sortOrder: (this.workItems?.length || 0) }; this.workCoverFile = null; this.workImageFiles = []; this.workUploadProgress = ''; },
                 editWorkItem(item) { if (this.creatingWork) return; this.editingWorkItemId = item.id; this.workForm = { ...item, completionDate: item.completionDate ? String(item.completionDate).slice(0,10) : '' }; this.workCoverFile = null; this.workImageFiles = []; this.workUploadProgress = ''; },
@@ -4531,7 +4546,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                         <!-- Local Upload Input with visual preview panel and delete "x" -->
                         <div class="p-4 bg-stone-100 rounded-2xl border border-dashed border-stone-300">
                             <label class="block mb-2 text-stone-700" x-text="lang==='az'?'Şəkil seçin (Lokal Yaddaş / Telefon)':(lang==='ru'?'Выбрать фото':'Upload Image File')">Şəkil seçin</label>
-                            <input type="file" accept="image/jpeg,image/png,image/webp,image/avif,image/gif,image/bmp,image/tiff,image/svg+xml,image/heic,image/heif,.jpg,.jpeg,.png,.webp,.avif,.gif,.bmp,.tif,.tiff,.svg,.heic,.heif" multiple @change="handleMultiFileSelect($event, 'projectPreviewImg', 'projectPreviewImages')" class="w-full text-stone-600 font-medium tracking-normal text-xs">
+                            <input type="file" :accept="IMAGE_ACCEPT" multiple @change="handleMultiFileSelect($event, 'projectPreviewImg', 'projectPreviewImages')" class="w-full text-stone-600 font-medium tracking-normal text-xs">
                             
                             <!-- Preview Box with X clear trigger -->
                             <template x-if="projectPreviewImg">
@@ -4636,8 +4651,8 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                         <div class="admin-field"><label>Açıqlama</label><textarea x-model="workForm.descriptionAz" :disabled="creatingWork"></textarea></div>
                         <div class="admin-field"><label>Ünvan</label><input x-model="workForm.locationAz" :disabled="creatingWork"></div>
                         <div class="admin-date-sort-row"><div class="admin-field"><label>Tamamlanma tarixi</label><input type="date" x-model="workForm.completionDate" :disabled="creatingWork"></div><div class="admin-field"><label>Sıralama</label><input type="number" min="0" x-model.number="workForm.sortOrder" :disabled="creatingWork" class="admin-sort-input"></div></div>
-                        <div class="admin-field"><label>Əsas şəkil</label><label class="admin-upload-card" :class="{ 'is-disabled': creatingWork }"><input class="sr-only" type="file" accept="image/jpeg,image/png,image/webp,image/avif,image/gif,image/bmp,image/tiff,image/svg+xml,image/heic,image/heif,.jpg,.jpeg,.png,.webp,.avif,.gif,.bmp,.tif,.tiff,.svg,.heic,.heif" @change="setWorkCoverFile($event)" :disabled="creatingWork"><span class="admin-upload-icon"><i class="fa-regular fa-image"></i></span><span class="admin-upload-main">Əsas şəkil seç</span><span class="admin-upload-help">Müasir şəkil formatları</span></label><div x-show="workCoverFile || workForm.coverImage" class="admin-cover-preview"><img :src="workCoverPreview()" alt="Work cover preview"><button type="button" @click="clearWorkCover()" :disabled="creatingWork">Sil</button></div></div>
-                        <div class="admin-field"><label>Əlavə şəkillər</label><label class="admin-upload-card" :class="{ 'is-disabled': creatingWork }"><input class="sr-only" type="file" multiple accept="image/jpeg,image/png,image/webp,image/avif,image/gif,image/bmp,image/tiff,image/svg+xml,image/heic,image/heif,.jpg,.jpeg,.png,.webp,.avif,.gif,.bmp,.tif,.tiff,.svg,.heic,.heif" @change="setWorkImageFiles($event)" :disabled="creatingWork"><span class="admin-upload-icon"><i class="fa-solid fa-images"></i></span><span class="admin-upload-main">Əlavə şəkillər seç</span><span class="admin-upload-help" x-text="(workImageFiles.length + (workForm.images || []).length) + ' / 40'"></span></label><div class="admin-preview-grid"><template x-for="(img,i) in workForm.images" :key="img+i"><div class="admin-preview-tile"><img :src="img" alt="Work image"><button type="button" class="remove" @click="removeWorkImage(i)" :disabled="creatingWork">×</button><button type="button" class="move left" @click="moveWorkImage(i,-1)" :disabled="creatingWork">↑</button><button type="button" class="move right" @click="moveWorkImage(i,1)" :disabled="creatingWork">↓</button></div></template><template x-for="(file,i) in workImageFiles" :key="file.name+i"><div class="admin-preview-tile"><template x-if="canPreviewImageFile(file)"><img :src="previewFileUrl(file)" alt="Selected work image"></template><template x-if="!canPreviewImageFile(file)"><div class="admin-preview-fallback"><span x-text="file.name"></span><small>Önizləmə mövcud deyil</small></div></template><button type="button" class="remove" @click="removePendingWorkImage(i)" :disabled="creatingWork">×</button></div></template></div></div>
+                        <div class="admin-field"><label>Əsas şəkil</label><label class="admin-upload-card" :class="{ 'is-disabled': creatingWork }"><input class="sr-only" type="file" :accept="IMAGE_ACCEPT" @change="setWorkCoverFile($event)" :disabled="creatingWork"><span class="admin-upload-icon"><i class="fa-regular fa-image"></i></span><span class="admin-upload-main">Əsas şəkil seç</span><span class="admin-upload-help">Müasir şəkil formatları</span></label><div x-show="workCoverFile || workForm.coverImage" class="admin-cover-preview"><img :src="workCoverPreview()" alt="Work cover preview"><button type="button" @click="clearWorkCover()" :disabled="creatingWork">Sil</button></div></div>
+                        <div class="admin-field"><label>Əlavə şəkillər</label><label class="admin-upload-card" :class="{ 'is-disabled': creatingWork }"><input class="sr-only" type="file" multiple :accept="IMAGE_ACCEPT" @change="setWorkImageFiles($event)" :disabled="creatingWork"><span class="admin-upload-icon"><i class="fa-solid fa-images"></i></span><span class="admin-upload-main">Əlavə şəkillər seç</span><span class="admin-upload-help" x-text="(workImageFiles.length + (workForm.images || []).length) + ' / 40'"></span></label><div class="admin-preview-grid"><template x-for="(img,i) in workForm.images" :key="img+i"><div class="admin-preview-tile"><img :src="img" alt="Work image"><button type="button" class="remove" @click="removeWorkImage(i)" :disabled="creatingWork">×</button><button type="button" class="move left" @click="moveWorkImage(i,-1)" :disabled="creatingWork">↑</button><button type="button" class="move right" @click="moveWorkImage(i,1)" :disabled="creatingWork">↓</button></div></template><template x-for="(file,i) in workImageFiles" :key="file.name+i"><div class="admin-preview-tile"><template x-if="canPreviewImageFile(file)"><img :src="previewFileUrl(file)" alt="Selected work image"></template><template x-if="!canPreviewImageFile(file)"><div class="admin-preview-fallback"><span x-text="file.name"></span><small x-text="heicPreviewMessage(file)"></small></div></template><button type="button" class="remove" @click="removePendingWorkImage(i)" :disabled="creatingWork">×</button></div></template></div></div>
                         <div class="admin-toggle-stack"><label class="admin-toggle-row"><span><strong>Seçilmiş iş</strong><small>Portfolio daxilində vurğula</small></span><input type="checkbox" x-model="workForm.featured" :disabled="creatingWork"><i></i></label><label class="admin-toggle-row"><span><strong>Aktiv</strong><small>Saytda göstərilsin</small></span><input type="checkbox" x-model="workForm.active" :disabled="creatingWork"><i></i></label></div>
                         <div class="admin-form-actions"><button type="button" @click="saveWorkItem()" :disabled="creatingWork" :aria-busy="creatingWork" class="admin-primary-action work-submit-button"><span x-show="!creatingWork" x-cloak x-text="editingWorkItemId ? 'Yadda saxla' : 'Yeni iş yarat'"></span><span x-show="creatingWork" x-cloak class="work-submit-loading"><span class="work-submit-spinner" aria-hidden="true"></span><span x-text="workUploadProgress || 'İş yaradılır...'"></span></span></button><button type="button" @click="resetWorkForm()" :disabled="creatingWork" class="admin-secondary-action">Ləğv et</button></div>
                     </div>
@@ -4665,7 +4680,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                             <template x-if="newGallery.type === 'image'">
                                 <div>
                                     <label class="block mb-2 text-stone-700" x-text="lang==='az'?'Lokal Şəkil Seçin':'Выбрать файл'">Şəkil faylı</label>
-                                    <input type="file" accept="image/jpeg,image/png,image/webp,image/avif,image/gif,image/bmp,image/tiff,image/svg+xml,image/heic,image/heif,.jpg,.jpeg,.png,.webp,.avif,.gif,.bmp,.tif,.tiff,.svg,.heic,.heif" multiple @change="handleMultiFileSelect($event, 'galleryPreviewImg', 'galleryPreviewImages')" class="w-full text-stone-600 font-medium tracking-normal text-xs">
+                                    <input type="file" :accept="IMAGE_ACCEPT" multiple @change="handleMultiFileSelect($event, 'galleryPreviewImg', 'galleryPreviewImages')" class="w-full text-stone-600 font-medium tracking-normal text-xs">
                                 </div>
                             </template>
                             <template x-if="newGallery.type === 'video'">
@@ -4736,7 +4751,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                         <div class="order-2 lg:order-1 bg-stone-50 border border-stone-200 rounded-3xl p-5 sm:p-6 space-y-5">
                             <div class="bg-white border-2 border-dashed border-stone-300 hover:border-wood-500 rounded-3xl p-5 text-center transition">
                                 <label class="cursor-pointer block">
-                                    <input type="file" accept="image/jpeg,image/png,image/webp,image/avif,image/gif,image/bmp,image/tiff,image/svg+xml,image/heic,image/heif,.jpg,.jpeg,.png,.webp,.avif,.gif,.bmp,.tif,.tiff,.svg,.heic,.heif,video/mp4,video/webm,video/quicktime,.mp4,.webm,.mov" @change="handleFileSelect($event, 'heroPreviewImg')" class="sr-only">
+                                    <input type="file" :accept="IMAGE_VIDEO_ACCEPT" @change="handleFileSelect($event, 'heroPreviewImg')" class="sr-only">
                                     <span class="mx-auto w-12 h-12 rounded-2xl bg-wood-50 text-wood-700 flex items-center justify-center text-xl"><i class="fa-solid fa-cloud-arrow-up"></i></span>
                                     <span class="block mt-3 text-stone-900 text-sm font-black normal-case">Şəkil və ya video seç</span>
                                     <span class="block mt-1 text-[10px] text-stone-400 normal-case">jpg, png, webp, avif, gif, bmp, tif, heic/heif, mp4, webm və mov dəstəklənir</span>
@@ -4797,7 +4812,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                     <template x-for="cfg in [{key:'why_wood', title:t('homeWhyWood'), items: visibleHomeGalleryImages()}, {key:'advantages', title:t('advantagesTitle'), items: visibleAdvantagesImages()}]" :key="cfg.key">
                         <div class="bg-white p-6 rounded-3xl border border-stone-200/80 shadow-sm space-y-4">
                             <h3 class="text-lg font-black text-stone-900 tracking-normal" x-text="cfg.title"></h3>
-                            <input type="file" accept="image/jpeg,image/png,image/webp,image/avif,image/gif,image/bmp,image/tiff,image/svg+xml,image/heic,image/heif,.jpg,.jpeg,.png,.webp,.avif,.gif,.bmp,.tif,.tiff,.svg,.heic,.heif" @change="handleHomeImageFile(cfg.key, $event)" class="w-full text-stone-600 font-medium tracking-normal text-xs">
+                            <input type="file" :accept="IMAGE_ACCEPT" @change="handleHomeImageFile(cfg.key, $event)" class="w-full text-stone-600 font-medium tracking-normal text-xs">
                             <input type="text" x-model="homeImageForms[cfg.key].title" class="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg text-stone-800 tracking-normal font-medium" placeholder="Optional title">
                             <template x-if="homeImagePreviews[cfg.key]"><img :src="homeImagePreviews[cfg.key]" class="w-full h-36 object-cover rounded-xl shadow"></template>
                             <button @click="saveHomeSectionImage(cfg.key)" class="w-full py-3 bg-forest-700 text-white rounded-xl font-bold normal-case">Save</button>
