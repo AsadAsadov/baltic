@@ -5,15 +5,69 @@ const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
 const multer = require('multer');
+const session = require('express-session');
+const pgSession = require('connect-pg-simple')(session);
+const { Pool } = require('pg');
+const bcrypt = require('bcryptjs');
+const rateLimit = require('express-rate-limit');
 const { PrismaClient } = require('@prisma/client');
 
 const prisma = new PrismaClient({ log: [{ level: 'error', emit: 'event' }, { level: 'warn', emit: 'stdout' }] });
 prisma.$on('error', (event) => console.error('[prisma:error]', event.message));
 const app = express();
 app.set('trust proxy', 1);
-app.use(cors());
+
+const isProduction = process.env.NODE_ENV === 'production';
+const requiredEnv = ['DATABASE_URL', 'ADMIN_USERNAME', 'ADMIN_PASSWORD_HASH', 'SESSION_SECRET'];
+for (const name of requiredEnv) {
+  if (!process.env[name]) {
+    console.error(`Missing required environment variable: ${name}`);
+    process.exit(1);
+  }
+}
+
+const adminSessionCookieName = 'bc_admin_session';
+const sessionPool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: isProduction ? { rejectUnauthorized: false } : undefined });
+const adminSessionStore = new pgSession({ pool: sessionPool, tableName: 'admin_sessions', createTableIfMissing: true });
+adminSessionStore.on('error', (error) => console.error('[session-store:error]', { message: error?.message }));
+
+const allowedSameSiteOrigins = new Set([
+  'https://balticcaspian.com',
+  'https://www.balticcaspian.com',
+  'http://localhost:3002',
+  'http://127.0.0.1:3002'
+]);
+const isStateChangingMethod = (method) => ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method);
+const validateAdminOrigin = (req, res, next) => {
+  if (!isStateChangingMethod(req.method)) return next();
+  const origin = req.get('origin');
+  const referer = req.get('referer');
+  if (origin && allowedSameSiteOrigins.has(origin)) return next();
+  if (!origin && referer) {
+    try { if (allowedSameSiteOrigins.has(new URL(referer).origin)) return next(); } catch (error) { return res.status(403).json({ ok: false, error: 'Sorğu mənbəyi qəbul edilmir' }); }
+  }
+  if (!origin && !referer && !isProduction) return next();
+  return res.status(403).json({ ok: false, error: 'Sorğu mənbəyi qəbul edilmir' });
+};
+
+app.use(cors({ origin: false }));
 app.use(express.json({ limit: '150mb' }));
 app.use(express.urlencoded({ extended: true, limit: '150mb' }));
+app.use(session({
+  name: adminSessionCookieName,
+  store: adminSessionStore,
+  secret: process.env.SESSION_SECRET,
+  resave: false,
+  saveUninitialized: false,
+  rolling: true,
+  proxy: true,
+  cookie: {
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: 'lax',
+    maxAge: 8 * 60 * 60 * 1000
+  }
+}));
 
 const allowedUploadBuckets = ['projects', 'gallery', 'hero', 'banners', 'home', 'works'];
 const UPLOAD_SIZE_LIMIT_BYTES = 150 * 1024 * 1024;
@@ -111,9 +165,7 @@ const isAdminPrivateGet = (req) => req.method === 'GET' && (
   (req.path.startsWith('/api/projects') && req.query.includeArchived === 'true') ||
   ((req.path.startsWith('/api/works') || req.path.startsWith('/api/work-items')) && req.query.includeArchived === 'true') ||
   (req.path.startsWith('/api/hero-slides') && req.query.admin === 'true') ||
-  (req.path.startsWith('/api/gallery') && req.query.includeArchived === 'true') ||
-  (req.path.startsWith('/api/banners') && req.headers['x-admin-auth'] === 'true') ||
-  (req.path.startsWith('/api/home-section-images') && req.headers['x-admin-auth'] === 'true')
+  (req.path.startsWith('/api/gallery') && req.query.includeArchived === 'true')
 );
 app.use((req, res, next) => {
   if (isAdminPrivateGet(req)) setAdminNoStore(res);
@@ -122,9 +174,19 @@ app.use((req, res, next) => {
 
 
 const requireAdmin = (req, res, next) => {
-  if (req.headers['x-admin-auth'] === 'true' || req.query.admin === 'true') return next();
-  return res.status(401).json({ ok: false, error: 'ADMIN_AUTH_REQUIRED' });
+  if (req.session?.adminAuthenticated === true) return next();
+  return res.status(401).json({ ok: false, error: 'Admin girişi tələb olunur' });
 };
+const requireAdminWrite = [validateAdminOrigin, requireAdmin];
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  skipSuccessfulRequests: true,
+  message: { ok: false, error: 'Çox sayda uğursuz cəhd. Bir az sonra yenidən yoxlayın.' }
+});
+const invalidLogin = (res) => res.status(401).json({ ok: false, error: 'İstifadəçi adı və ya şifrə yanlışdır' });
 const PROJECT_CATEGORIES = {
   house: 'Taxta Evlər',
   restaurant: 'Restoranlar',
@@ -276,6 +338,51 @@ async function findWorkBySlug(slug) {
 
 const msgOut = (m) => ({ id: m.id, legacyId: m.legacyId, name: m.name || m.fullname || '', fullname: m.fullname || m.name || '', phone: m.phone, email: m.email || 'N/A', message: m.message, isRead: m.isRead ?? m.read ?? false, read: m.isRead ?? m.read ?? false, createdAt: m.createdAt, updatedAt: m.updatedAt, date: m.createdAt ? m.createdAt.toLocaleDateString('az-AZ') : '' });
 
+
+app.get('/api/admin/session', (req, res) => {
+  if (req.session?.adminAuthenticated === true) {
+    return res.json({ ok: true, authenticated: true, username: req.session.adminUsername || process.env.ADMIN_USERNAME });
+  }
+  return res.json({ ok: true, authenticated: false });
+});
+app.post('/api/admin/login', validateAdminOrigin, loginLimiter, wrap(async (req, res) => {
+  const { username, password } = req.body || {};
+  if (!String(username || '').trim() || !String(password || '')) return invalidLogin(res);
+  let passwordOk = false;
+  try {
+    passwordOk = await bcrypt.compare(String(password), process.env.ADMIN_PASSWORD_HASH);
+  } catch (error) {
+    console.error('[admin-login:bcrypt:error]', { message: error?.message });
+    return invalidLogin(res);
+  }
+  if (String(username).trim() !== process.env.ADMIN_USERNAME || !passwordOk) return invalidLogin(res);
+  req.session.regenerate((error) => {
+    if (error) {
+      console.error('[admin-login:session:error]', { message: error?.message });
+      return res.status(500).json({ ok: false, error: 'Session yaradıla bilmədi' });
+    }
+    req.session.adminAuthenticated = true;
+    req.session.adminUsername = process.env.ADMIN_USERNAME;
+    return req.session.save((saveError) => {
+      if (saveError) {
+        console.error('[admin-login:save:error]', { message: saveError?.message });
+        return res.status(500).json({ ok: false, error: 'Session saxlanıla bilmədi' });
+      }
+      return res.json({ ok: true, authenticated: true });
+    });
+  });
+}));
+app.post('/api/admin/logout', validateAdminOrigin, (req, res) => {
+  req.session.destroy((error) => {
+    res.clearCookie(adminSessionCookieName, { httpOnly: true, secure: isProduction, sameSite: 'lax', path: '/' });
+    if (error) {
+      console.error('[admin-logout:error]', { message: error?.message });
+      return res.status(500).json({ ok: false, error: 'Çıxış tamamlanmadı' });
+    }
+    return res.json({ ok: true });
+  });
+});
+
 app.get('/api/health', (req, res) => res.json({ ok: true, service: 'baltic-caspian-api' }));
 app.get('/api/health/db', async (req, res) => {
   try {
@@ -287,13 +394,13 @@ app.get('/api/health/db', async (req, res) => {
   }
 });
 
-app.get('/api/projects', wrap(async (req,res)=>res.json((await prisma.project.findMany({ where: req.query.includeArchived === 'true' ? {} : { archived:false }, orderBy:{ id:'desc' }})).map(projectOut))));
+app.get('/api/projects', wrap(async (req,res)=>{ if (req.query.includeArchived === 'true' && req.session?.adminAuthenticated !== true) return res.status(401).json({ ok:false, error:'Admin girişi tələb olunur' }); res.json((await prisma.project.findMany({ where: req.query.includeArchived === 'true' ? {} : { archived:false }, orderBy:{ id:'desc' }})).map(projectOut)); }));
 app.get('/api/projects/slug/:slug', wrap(async (req,res)=>{ const p=await findProjectBySlug(req.params.slug); if(!p) return res.status(404).json({ok:false,error:'PROJECT_NOT_FOUND'}); res.set('Cache-Control','public, max-age=60, stale-while-revalidate=300'); res.json(projectOut(p)); }));
 app.get('/api/projects/:id', wrap(async (req,res)=>{ const p=await prisma.project.findFirst({ where:idWhere(req.params.id) }); if(!p) return res.status(404).json({ok:false,error:'PROJECT_NOT_FOUND'}); res.json(projectOut(p)); }));
-app.post('/api/projects', wrap(async (req,res)=>{ const data = projectIn(req.body); if (data.errors) return res.status(400).json({ok:false,errors:data.errors}); data.slug = await uniqueSlug('project', data.titleAz, data.slug); res.status(201).json(projectOut(await prisma.project.create({ data }))); }));
-app.put('/api/projects/:id', wrap(async (req,res)=>{ const p=await prisma.project.findFirst({ where:idWhere(req.params.id) }); if(!p) return res.status(404).json({ok:false,error:'PROJECT_NOT_FOUND'}); { const data = projectIn(req.body, p); if (data.errors) return res.status(400).json({ok:false,errors:data.errors}); res.json(projectOut(await prisma.project.update({ where:{ id:p.id }, data }))); }; }));
-app.delete('/api/projects/:id', wrap(async (req,res)=>{ const p=await prisma.project.findFirst({ where:idWhere(req.params.id) }); if (p) await prisma.project.delete({ where:{ id:p.id }}); res.json({ ok:true }); }));
-app.patch('/api/projects/:id/archive', wrap(async (req,res)=>{ const p=await prisma.project.findFirst({ where:idWhere(req.params.id) }); if(!p) return res.status(404).json({ok:false,error:'PROJECT_NOT_FOUND'}); res.json(projectOut(await prisma.project.update({ where:{ id:p.id }, data:{ archived: req.body.archived ?? !p.archived }}))); }));
+app.post('/api/projects', requireAdminWrite, wrap(async (req,res)=>{ const data = projectIn(req.body); if (data.errors) return res.status(400).json({ok:false,errors:data.errors}); data.slug = await uniqueSlug('project', data.titleAz, data.slug); res.status(201).json(projectOut(await prisma.project.create({ data }))); }));
+app.put('/api/projects/:id', requireAdminWrite, wrap(async (req,res)=>{ const p=await prisma.project.findFirst({ where:idWhere(req.params.id) }); if(!p) return res.status(404).json({ok:false,error:'PROJECT_NOT_FOUND'}); { const data = projectIn(req.body, p); if (data.errors) return res.status(400).json({ok:false,errors:data.errors}); res.json(projectOut(await prisma.project.update({ where:{ id:p.id }, data }))); }; }));
+app.delete('/api/projects/:id', requireAdminWrite, wrap(async (req,res)=>{ const p=await prisma.project.findFirst({ where:idWhere(req.params.id) }); if (p) await prisma.project.delete({ where:{ id:p.id }}); res.json({ ok:true }); }));
+app.patch('/api/projects/:id/archive', requireAdminWrite, wrap(async (req,res)=>{ const p=await prisma.project.findFirst({ where:idWhere(req.params.id) }); if(!p) return res.status(404).json({ok:false,error:'PROJECT_NOT_FOUND'}); res.json(projectOut(await prisma.project.update({ where:{ id:p.id }, data:{ archived: req.body.archived ?? !p.archived }}))); }));
 app.post('/api/projects/:id/view', wrap(async (req,res)=>{
   const project = await prisma.project.findFirst({ where: idWhere(req.params.id) });
   if (!project) return res.json({ ok: false, skipped: true, reason: 'PROJECT_NOT_FOUND' });
@@ -307,13 +414,13 @@ app.post('/api/projects/:id/view', wrap(async (req,res)=>{
 
 app.get(['/api/work-items', '/api/works'], wrap(async (req, res) => {
   const includeInactive = req.query.includeInactive === 'true' || req.query.includeArchived === 'true';
-  if (includeInactive && req.headers['x-admin-auth'] !== 'true' && req.query.admin !== 'true') return res.status(401).json({ ok:false, error:'ADMIN_AUTH_REQUIRED' });
+  if (includeInactive && req.session?.adminAuthenticated !== true) return res.status(401).json({ ok:false, error:'ADMIN_AUTH_REQUIRED' });
   const where = { ...(includeInactive ? {} : { active:true, archived:false }), ...(req.query.category ? { category:normalizeCategoryValue(req.query.category) } : {}), ...(req.query.featured === 'true' ? { featured:true } : {}) };
   res.json((await prisma.workItem.findMany({ where, orderBy:[{sortOrder:'asc'},{featured:'desc'},{createdAt:'desc'}] })).map(workOut));
 }));
 app.get(['/api/work-items/slug/:slug','/api/works/slug/:slug'], wrap(async (req,res)=>{ const item=await findWorkBySlug(req.params.slug); if(!item) return res.status(404).json({ok:false,error:'WORK_ITEM_NOT_FOUND'}); res.set('Cache-Control','public, max-age=60, stale-while-revalidate=300'); res.json(workOut(item)); }));
-app.get(['/api/work-items/:id', '/api/works/:id'], wrap(async (req, res) => { const item = await prisma.workItem.findUnique({ where:{ id:String(req.params.id) } }); if(!item) return res.status(404).json({ok:false,error:'WORK_ITEM_NOT_FOUND'}); if(!item.active && req.headers['x-admin-auth'] !== 'true' && req.query.admin !== 'true') return res.status(401).json({ok:false,error:'ADMIN_AUTH_REQUIRED'}); res.json(workOut(item)); }));
-app.post(['/api/work-items', '/api/works'], requireAdmin, wrap(async (req,res)=>{
+app.get(['/api/work-items/:id', '/api/works/:id'], wrap(async (req, res) => { const item = await prisma.workItem.findUnique({ where:{ id:String(req.params.id) } }); if(!item) return res.status(404).json({ok:false,error:'WORK_ITEM_NOT_FOUND'}); if(!item.active && req.session?.adminAuthenticated !== true) return res.status(401).json({ok:false,error:'ADMIN_AUTH_REQUIRED'}); res.json(workOut(item)); }));
+app.post(['/api/work-items', '/api/works'], requireAdminWrite, wrap(async (req,res)=>{
   const uploadCount = [req.body?.coverImage, ...(Array.isArray(req.body?.images) ? req.body.images : [])].filter(Boolean).length;
   console.info('[works:create:start]', { endpoint:req.originalUrl, recordType:'workItem', uploadCount, destinationDir:uploadBucketFolders.works });
   const v=validateWorkBody(req.body);
@@ -328,22 +435,23 @@ app.post(['/api/work-items', '/api/works'], requireAdmin, wrap(async (req,res)=>
     res.status(isDbError(err) ? 503 : 500).json({ ok:false, error:'WORK_CREATE_FAILED', message:'İş məlumatları yadda saxlanılmadı.', code:err?.code });
   }
 }));
-app.put(['/api/work-items/reorder', '/api/works/reorder'], requireAdmin, wrap(async (req,res)=>{ await Promise.all((req.body.items||[]).map((it,i)=>prisma.workItem.update({where:{id:String(it.id)},data:{sortOrder:Number.isInteger(Number(it.sortOrder)) ? Number(it.sortOrder) : i}}))); res.json({ok:true}); }));
-app.put(['/api/work-items/:id', '/api/works/:id'], requireAdmin, wrap(async (req,res)=>{ const existing=await prisma.workItem.findUnique({where:{id:String(req.params.id)}}); if(!existing) return res.status(404).json({ok:false,error:'WORK_ITEM_NOT_FOUND'}); const v=validateWorkBody(req.body, existing); if(v.errors) return res.status(400).json({ok:false,errors:v.errors}); res.json(workOut(await prisma.workItem.update({where:{id:existing.id},data:v.data}))); }));
-app.patch(['/api/work-items/:id/archive', '/api/works/:id/archive'], requireAdmin, wrap(async (req,res)=>{ const w=await prisma.workItem.findUnique({where:{id:String(req.params.id)}}); if(!w) return res.status(404).json({ok:false,error:'WORK_ITEM_NOT_FOUND'}); const archived = req.body.archived ?? !w.archived; res.json(workOut(await prisma.workItem.update({where:{id:w.id},data:{archived}}))); }));
-app.patch(['/api/work-items/:id/status', '/api/works/:id/status'], requireAdmin, wrap(async (req,res)=>{ const w=await prisma.workItem.findUnique({where:{id:String(req.params.id)}}); if(!w) return res.status(404).json({ok:false,error:'WORK_ITEM_NOT_FOUND'}); res.json(workOut(await prisma.workItem.update({where:{id:w.id},data:{active:req.body.active ?? !w.active}}))); }));
-app.patch(['/api/work-items/:id/featured', '/api/works/:id/featured'], requireAdmin, wrap(async (req,res)=>{ const w=await prisma.workItem.findUnique({where:{id:String(req.params.id)}}); if(!w) return res.status(404).json({ok:false,error:'WORK_ITEM_NOT_FOUND'}); res.json(workOut(await prisma.workItem.update({where:{id:w.id},data:{featured:req.body.featured ?? !w.featured}}))); }));
-app.delete(['/api/work-items/:id', '/api/works/:id'], requireAdmin, wrap(async (req,res)=>{ const w=await prisma.workItem.findUnique({where:{id:String(req.params.id)}}); if(w){ await prisma.workItem.delete({where:{id:w.id}}); await safeDeleteUnusedWorkFiles([w.coverImage, ...jsonArray(w.images)], w.id); } res.json({ok:true}); }));
+app.put(['/api/work-items/reorder', '/api/works/reorder'], requireAdminWrite, wrap(async (req,res)=>{ await Promise.all((req.body.items||[]).map((it,i)=>prisma.workItem.update({where:{id:String(it.id)},data:{sortOrder:Number.isInteger(Number(it.sortOrder)) ? Number(it.sortOrder) : i}}))); res.json({ok:true}); }));
+app.put(['/api/work-items/:id', '/api/works/:id'], requireAdminWrite, wrap(async (req,res)=>{ const existing=await prisma.workItem.findUnique({where:{id:String(req.params.id)}}); if(!existing) return res.status(404).json({ok:false,error:'WORK_ITEM_NOT_FOUND'}); const v=validateWorkBody(req.body, existing); if(v.errors) return res.status(400).json({ok:false,errors:v.errors}); res.json(workOut(await prisma.workItem.update({where:{id:existing.id},data:v.data}))); }));
+app.patch(['/api/work-items/:id/archive', '/api/works/:id/archive'], requireAdminWrite, wrap(async (req,res)=>{ const w=await prisma.workItem.findUnique({where:{id:String(req.params.id)}}); if(!w) return res.status(404).json({ok:false,error:'WORK_ITEM_NOT_FOUND'}); const archived = req.body.archived ?? !w.archived; res.json(workOut(await prisma.workItem.update({where:{id:w.id},data:{archived}}))); }));
+app.patch(['/api/work-items/:id/status', '/api/works/:id/status'], requireAdminWrite, wrap(async (req,res)=>{ const w=await prisma.workItem.findUnique({where:{id:String(req.params.id)}}); if(!w) return res.status(404).json({ok:false,error:'WORK_ITEM_NOT_FOUND'}); res.json(workOut(await prisma.workItem.update({where:{id:w.id},data:{active:req.body.active ?? !w.active}}))); }));
+app.patch(['/api/work-items/:id/featured', '/api/works/:id/featured'], requireAdminWrite, wrap(async (req,res)=>{ const w=await prisma.workItem.findUnique({where:{id:String(req.params.id)}}); if(!w) return res.status(404).json({ok:false,error:'WORK_ITEM_NOT_FOUND'}); res.json(workOut(await prisma.workItem.update({where:{id:w.id},data:{featured:req.body.featured ?? !w.featured}}))); }));
+app.delete(['/api/work-items/:id', '/api/works/:id'], requireAdminWrite, wrap(async (req,res)=>{ const w=await prisma.workItem.findUnique({where:{id:String(req.params.id)}}); if(w){ await prisma.workItem.delete({where:{id:w.id}}); await safeDeleteUnusedWorkFiles([w.coverImage, ...jsonArray(w.images)], w.id); } res.json({ok:true}); }));
 
-app.get('/api/gallery', wrap(async (req,res)=>res.json((await prisma.galleryItem.findMany({ where: req.query.includeArchived === 'true' ? {} : { archived:false }, orderBy:[{sortOrder:'asc'},{id:'desc'}] })).map(galleryOut))));
-app.post('/api/gallery', wrap(async (req,res)=>{ const data = galleryIn(req.body); if (data.errors) return res.status(400).json({ok:false,errors:data.errors}); res.status(201).json(galleryOut(await prisma.galleryItem.create({ data }))); }));
-app.put('/api/gallery/reorder', wrap(async (req,res)=>{ await Promise.all((req.body.items||[]).map((it,i)=>prisma.galleryItem.update({where:{id:Number(it.id)},data:{sortOrder:Number(it.sortOrder ?? i)}}))); res.json({ok:true}); }));
-app.put('/api/gallery/:id', wrap(async (req,res)=>{ const data = galleryIn(req.body); if (data.errors) return res.status(400).json({ok:false,errors:data.errors}); res.json(galleryOut(await prisma.galleryItem.update({ where:{id:intId(req)}, data}))); }));
-app.delete('/api/gallery/:id', wrap(async (req,res)=>{ await prisma.galleryItem.delete({where:{id:intId(req)}}); res.json({ok:true}); }));
-app.patch('/api/gallery/:id/archive', wrap(async (req,res)=>{ const g=await prisma.galleryItem.findUniqueOrThrow({where:{id:intId(req)}}); res.json(galleryOut(await prisma.galleryItem.update({where:{id:g.id},data:{archived:req.body.archived ?? !g.archived}}))); }));
+app.get('/api/gallery', wrap(async (req,res)=>{ if (req.query.includeArchived === 'true' && req.session?.adminAuthenticated !== true) return res.status(401).json({ ok:false, error:'Admin girişi tələb olunur' }); res.json((await prisma.galleryItem.findMany({ where: req.query.includeArchived === 'true' ? {} : { archived:false }, orderBy:[{sortOrder:'asc'},{id:'desc'}] })).map(galleryOut)); }));
+app.post('/api/gallery', requireAdminWrite, wrap(async (req,res)=>{ const data = galleryIn(req.body); if (data.errors) return res.status(400).json({ok:false,errors:data.errors}); res.status(201).json(galleryOut(await prisma.galleryItem.create({ data }))); }));
+app.put('/api/gallery/reorder', requireAdminWrite, wrap(async (req,res)=>{ await Promise.all((req.body.items||[]).map((it,i)=>prisma.galleryItem.update({where:{id:Number(it.id)},data:{sortOrder:Number(it.sortOrder ?? i)}}))); res.json({ok:true}); }));
+app.put('/api/gallery/:id', requireAdminWrite, wrap(async (req,res)=>{ const data = galleryIn(req.body); if (data.errors) return res.status(400).json({ok:false,errors:data.errors}); res.json(galleryOut(await prisma.galleryItem.update({ where:{id:intId(req)}, data}))); }));
+app.delete('/api/gallery/:id', requireAdminWrite, wrap(async (req,res)=>{ await prisma.galleryItem.delete({where:{id:intId(req)}}); res.json({ok:true}); }));
+app.patch('/api/gallery/:id/archive', requireAdminWrite, wrap(async (req,res)=>{ const g=await prisma.galleryItem.findUniqueOrThrow({where:{id:intId(req)}}); res.json(galleryOut(await prisma.galleryItem.update({where:{id:g.id},data:{archived:req.body.archived ?? !g.archived}}))); }));
 
 app.get('/api/hero-slides', async (req, res) => {
   try {
+    if (req.query.admin === 'true' && req.session?.adminAuthenticated !== true) return res.status(401).json({ ok:false, error:'Admin girişi tələb olunur' });
     const slides = await prisma.heroSlide.findMany({ select: heroSlideSelect, where: req.query.admin === 'true' ? {} : { active: true }, orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }] });
     res.json(slides.map(slideOut));
   } catch (err) {
@@ -351,7 +459,7 @@ app.get('/api/hero-slides', async (req, res) => {
     res.status(isDbError(err) ? 503 : 500).json({ ok: false, error: 'HERO_SLIDES_GET_FAILED', message: err?.message || 'Hero slides could not be loaded', code: err?.code, field: err?.meta?.field_name || err?.meta?.column || err?.meta?.target });
   }
 });
-app.post('/api/hero-slides', async (req, res) => {
+app.post('/api/hero-slides', requireAdminWrite, async (req, res) => {
   try {
     const body = req.body || {};
     const mediaUrl = body.mediaUrl || body.media_url || body.image || body.src || body.url;
@@ -367,8 +475,8 @@ app.post('/api/hero-slides', async (req, res) => {
     res.status(500).json({ ok: false, error: 'HERO_SLIDE_CREATE_FAILED', message: err?.message || 'Hero slide create failed', code: err?.code, field: err?.meta?.field_name || err?.meta?.column || err?.meta?.target });
   }
 });
-app.put('/api/hero-slides/reorder', wrap(async (req,res)=>{ const ids=req.body.ids || (req.body.items||[]).map(it=>it.id); const validIds=(ids||[]).map(String).filter(isUuid); if (validIds.length !== (ids||[]).length) return invalidHeroId(res); await Promise.all(validIds.map((id,i)=>prisma.heroSlide.update({where:{id},data:{sortOrder:i}}))); res.json((await prisma.heroSlide.findMany({select:heroSlideSelect,orderBy:[{sortOrder:'asc'},{id:'asc'}]})).map(slideOut)); }));
-app.put('/api/hero-slides/:id', async (req, res) => {
+app.put('/api/hero-slides/reorder', requireAdminWrite, wrap(async (req,res)=>{ const ids=req.body.ids || (req.body.items||[]).map(it=>it.id); const validIds=(ids||[]).map(String).filter(isUuid); if (validIds.length !== (ids||[]).length) return invalidHeroId(res); await Promise.all(validIds.map((id,i)=>prisma.heroSlide.update({where:{id},data:{sortOrder:i}}))); res.json((await prisma.heroSlide.findMany({select:heroSlideSelect,orderBy:[{sortOrder:'asc'},{id:'asc'}]})).map(slideOut)); }));
+app.put('/api/hero-slides/:id', requireAdminWrite, async (req, res) => {
   try {
     const where = heroIdWhere(req.params.id);
     if (!where) return invalidHeroId(res);
@@ -384,42 +492,42 @@ app.put('/api/hero-slides/:id', async (req, res) => {
     res.status(500).json({ ok: false, error: 'HERO_SLIDE_UPDATE_FAILED', message: err?.message || 'Hero slide update failed', code: err?.code, field: err?.meta?.field_name || err?.meta?.column || err?.meta?.target });
   }
 });
-app.delete('/api/hero-slides/:id', wrap(async (req,res)=>{ const where=heroIdWhere(req.params.id); if(!where) return invalidHeroId(res); await prisma.heroSlide.delete({where}); res.json({ok:true});}));
-app.patch('/api/hero-slides/:id/toggle', wrap(async (req,res)=>{ const where=heroIdWhere(req.params.id); if(!where) return invalidHeroId(res); const s=await prisma.heroSlide.findUniqueOrThrow({select:{id:true,active:true},where}); res.json(slideOut(await prisma.heroSlide.update({select:heroSlideSelect,where:{id:s.id},data:{active:req.body.active ?? !s.active}}))); }));
+app.delete('/api/hero-slides/:id', requireAdminWrite, wrap(async (req,res)=>{ const where=heroIdWhere(req.params.id); if(!where) return invalidHeroId(res); await prisma.heroSlide.delete({where}); res.json({ok:true});}));
+app.patch('/api/hero-slides/:id/toggle', requireAdminWrite, wrap(async (req,res)=>{ const where=heroIdWhere(req.params.id); if(!where) return invalidHeroId(res); const s=await prisma.heroSlide.findUniqueOrThrow({select:{id:true,active:true},where}); res.json(slideOut(await prisma.heroSlide.update({select:heroSlideSelect,where:{id:s.id},data:{active:req.body.active ?? !s.active}}))); }));
 
-app.get('/api/admin-panel-settings/:key', wrap(async (req,res)=>{ const setting=await prisma.adminPanelSetting.findUnique({where:{key:req.params.key}}); if(setting) return res.json(settingOut(setting)); if(req.params.key==='admin_tab_visibility') return res.json({key:req.params.key,value:adminTabDefaultVisibility}); res.status(404).json({ok:false,error:'SETTING_NOT_FOUND',message:'Admin panel setting not found'}); }));
-app.put('/api/admin-panel-settings/:key', wrap(async (req,res)=>{ const value=req.body.value && typeof req.body.value==='object' ? req.body.value : req.body; res.json(settingOut(await prisma.adminPanelSetting.upsert({where:{key:req.params.key},create:{key:req.params.key,value},update:{value}}))); }));
+app.get('/api/admin-panel-settings/:key', requireAdmin, wrap(async (req,res)=>{ const setting=await prisma.adminPanelSetting.findUnique({where:{key:req.params.key}}); if(setting) return res.json(settingOut(setting)); if(req.params.key==='admin_tab_visibility') return res.json({key:req.params.key,value:adminTabDefaultVisibility}); res.status(404).json({ok:false,error:'SETTING_NOT_FOUND',message:'Admin panel setting not found'}); }));
+app.put('/api/admin-panel-settings/:key', requireAdminWrite, wrap(async (req,res)=>{ const value=req.body.value && typeof req.body.value==='object' ? req.body.value : req.body; res.json(settingOut(await prisma.adminPanelSetting.upsert({where:{key:req.params.key},create:{key:req.params.key,value},update:{value}}))); }));
 
 
 app.get('/api/home-section-images', wrap(async (req,res)=>res.json((await prisma.homeSectionImage.findMany({ orderBy:[{sectionKey:'asc'},{sortOrder:'asc'}] })).map(homeSectionImageOut))));
 app.get('/api/home-section-images/:sectionKey', wrap(async (req,res)=>res.json((await prisma.homeSectionImage.findMany({ where:{sectionKey:req.params.sectionKey, active:true}, orderBy:[{sortOrder:'asc'},{id:'asc'}] })).map(homeSectionImageOut))));
-app.post('/api/home-section-images', wrap(async (req,res)=>{ const data=homeSectionImageIn(req.body); if(!data.sectionKey) return res.status(400).json({ok:false,error:'SECTION_REQUIRED'}); if(!data.imageUrl) return res.status(400).json({ok:false,error:'IMAGE_REQUIRED'}); const last=await prisma.homeSectionImage.findFirst({where:{sectionKey:data.sectionKey},orderBy:{sortOrder:'desc'}}); res.status(201).json(homeSectionImageOut(await prisma.homeSectionImage.create({data:{...data,sortOrder:(last?.sortOrder ?? -1)+1}}))); }));
-app.put('/api/home-section-images/reorder', wrap(async (req,res)=>{ const ids=req.body.ids||[]; const sectionKey=req.body.sectionKey||req.body.section_key; await Promise.all(ids.map((id,i)=>prisma.homeSectionImage.update({where:{id:String(id)},data:{sortOrder:i, ...(sectionKey ? {sectionKey} : {})}}))); res.json((await prisma.homeSectionImage.findMany({where:sectionKey?{sectionKey}:{},orderBy:[{sortOrder:'asc'},{id:'asc'}]})).map(homeSectionImageOut)); }));
-app.put('/api/home-section-images/:id', wrap(async (req,res)=>{ const data=homeSectionImageIn(req.body); if(!data.imageUrl) delete data.imageUrl; res.json(homeSectionImageOut(await prisma.homeSectionImage.update({where:{id:String(req.params.id)},data}))); }));
-app.delete('/api/home-section-images/:id', wrap(async (req,res)=>{await prisma.homeSectionImage.delete({where:{id:String(req.params.id)}});res.json({ok:true});}));
-app.patch('/api/home-section-images/:id/toggle', wrap(async (req,res)=>{ const item=await prisma.homeSectionImage.findUniqueOrThrow({where:{id:String(req.params.id)}}); res.json(homeSectionImageOut(await prisma.homeSectionImage.update({where:{id:item.id},data:{active:req.body.active ?? !item.active}}))); }));
+app.post('/api/home-section-images', requireAdminWrite, wrap(async (req,res)=>{ const data=homeSectionImageIn(req.body); if(!data.sectionKey) return res.status(400).json({ok:false,error:'SECTION_REQUIRED'}); if(!data.imageUrl) return res.status(400).json({ok:false,error:'IMAGE_REQUIRED'}); const last=await prisma.homeSectionImage.findFirst({where:{sectionKey:data.sectionKey},orderBy:{sortOrder:'desc'}}); res.status(201).json(homeSectionImageOut(await prisma.homeSectionImage.create({data:{...data,sortOrder:(last?.sortOrder ?? -1)+1}}))); }));
+app.put('/api/home-section-images/reorder', requireAdminWrite, wrap(async (req,res)=>{ const ids=req.body.ids||[]; const sectionKey=req.body.sectionKey||req.body.section_key; await Promise.all(ids.map((id,i)=>prisma.homeSectionImage.update({where:{id:String(id)},data:{sortOrder:i, ...(sectionKey ? {sectionKey} : {})}}))); res.json((await prisma.homeSectionImage.findMany({where:sectionKey?{sectionKey}:{},orderBy:[{sortOrder:'asc'},{id:'asc'}]})).map(homeSectionImageOut)); }));
+app.put('/api/home-section-images/:id', requireAdminWrite, wrap(async (req,res)=>{ const data=homeSectionImageIn(req.body); if(!data.imageUrl) delete data.imageUrl; res.json(homeSectionImageOut(await prisma.homeSectionImage.update({where:{id:String(req.params.id)},data}))); }));
+app.delete('/api/home-section-images/:id', requireAdminWrite, wrap(async (req,res)=>{await prisma.homeSectionImage.delete({where:{id:String(req.params.id)}});res.json({ok:true});}));
+app.patch('/api/home-section-images/:id/toggle', requireAdminWrite, wrap(async (req,res)=>{ const item=await prisma.homeSectionImage.findUniqueOrThrow({where:{id:String(req.params.id)}}); res.json(homeSectionImageOut(await prisma.homeSectionImage.update({where:{id:item.id},data:{active:req.body.active ?? !item.active}}))); }));
 
 app.get('/api/banners', wrap(async (req,res)=>res.json((await prisma.banner.findMany({ where:req.query.public==='true'?{active:true}:{}, orderBy:[{displayOrder:'asc'},{createdAt:'asc'}]})).map(bannerOut))));
 app.get('/api/banners/main', wrap(async (req,res)=>res.json(bannerOut(await prisma.banner.findFirst({where:{active:true},orderBy:[{displayOrder:'asc'},{createdAt:'asc'}]})) || null)));
-app.post('/api/banners', wrap(async (req,res)=>{ const last=await prisma.banner.findFirst({orderBy:{displayOrder:'desc'}}); res.status(201).json(bannerOut(await prisma.banner.create({data:{...bannerIn(req.body),displayOrder:(last?.displayOrder ?? -1)+1}}))); }));
-app.put('/api/banners/reorder', wrap(async (req,res)=>{ const ids=req.body.ids || []; await Promise.all(ids.map((id,i)=>prisma.banner.update({where:{id:String(id)},data:{displayOrder:i}}))); res.json((await prisma.banner.findMany({orderBy:[{displayOrder:'asc'},{createdAt:'asc'}]})).map(bannerOut)); }));
-app.put('/api/banners/:id', wrap(async (req,res)=>{ const b=await prisma.banner.findFirst({where:idWhere(req.params.id)}); if(!b) return res.status(404).json({ok:false,error:'BANNER_NOT_FOUND'}); const data=bannerIn(req.body); if (!Object.prototype.hasOwnProperty.call(req.body, 'displayOrder') && !Object.prototype.hasOwnProperty.call(req.body, 'display_order')) delete data.displayOrder; res.json(bannerOut(await prisma.banner.update({where:{id:b.id},data}))); }));
-app.delete('/api/banners/:id', wrap(async (req,res)=>{ const b=await prisma.banner.findFirst({where:idWhere(req.params.id)}); if (b) await prisma.banner.delete({where:{id:b.id}}); res.json({ok:true});}));
-app.patch('/api/banners/:id/toggle', wrap(async (req,res)=>{const b=await prisma.banner.findFirst({where:idWhere(req.params.id)}); if(!b) return res.status(404).json({ok:false,error:'BANNER_NOT_FOUND'}); res.json(bannerOut(await prisma.banner.update({where:{id:b.id},data:{active:req.body.active ?? !b.active}})));}));
+app.post('/api/banners', requireAdminWrite, wrap(async (req,res)=>{ const last=await prisma.banner.findFirst({orderBy:{displayOrder:'desc'}}); res.status(201).json(bannerOut(await prisma.banner.create({data:{...bannerIn(req.body),displayOrder:(last?.displayOrder ?? -1)+1}}))); }));
+app.put('/api/banners/reorder', requireAdminWrite, wrap(async (req,res)=>{ const ids=req.body.ids || []; await Promise.all(ids.map((id,i)=>prisma.banner.update({where:{id:String(id)},data:{displayOrder:i}}))); res.json((await prisma.banner.findMany({orderBy:[{displayOrder:'asc'},{createdAt:'asc'}]})).map(bannerOut)); }));
+app.put('/api/banners/:id', requireAdminWrite, wrap(async (req,res)=>{ const b=await prisma.banner.findFirst({where:idWhere(req.params.id)}); if(!b) return res.status(404).json({ok:false,error:'BANNER_NOT_FOUND'}); const data=bannerIn(req.body); if (!Object.prototype.hasOwnProperty.call(req.body, 'displayOrder') && !Object.prototype.hasOwnProperty.call(req.body, 'display_order')) delete data.displayOrder; res.json(bannerOut(await prisma.banner.update({where:{id:b.id},data}))); }));
+app.delete('/api/banners/:id', requireAdminWrite, wrap(async (req,res)=>{ const b=await prisma.banner.findFirst({where:idWhere(req.params.id)}); if (b) await prisma.banner.delete({where:{id:b.id}}); res.json({ok:true});}));
+app.patch('/api/banners/:id/toggle', requireAdminWrite, wrap(async (req,res)=>{const b=await prisma.banner.findFirst({where:idWhere(req.params.id)}); if(!b) return res.status(404).json({ok:false,error:'BANNER_NOT_FOUND'}); res.json(bannerOut(await prisma.banner.update({where:{id:b.id},data:{active:req.body.active ?? !b.active}})));}));
 app.post('/api/banners/:id/view', wrap(async (req,res)=>{ const b=await prisma.banner.findFirst({where:idWhere(req.params.id)}); if(!b) return res.json({ok:false,skipped:true,reason:'BANNER_NOT_FOUND'}); res.json(bannerOut(await prisma.banner.update({where:{id:b.id},data:{views:{increment:1}}}))); }));
 app.post('/api/banners/:id/click', wrap(async (req,res)=>{ const b=await prisma.banner.findFirst({where:idWhere(req.params.id)}); if(!b) return res.json({ok:false,skipped:true,reason:'BANNER_NOT_FOUND'}); res.json(bannerOut(await prisma.banner.update({where:{id:b.id},data:{clicks:{increment:1}}}))); }));
 
-app.get('/api/messages', wrap(async (req,res)=>res.json((await prisma.contactMessage.findMany({ select:{ id:true, legacyId:true, name:true, fullname:true, phone:true, email:true, message:true, isRead:true, createdAt:true, updatedAt:true }, orderBy:{createdAt:'desc'} })).map(msgOut))));
+app.get('/api/messages', requireAdmin, wrap(async (req,res)=>res.json((await prisma.contactMessage.findMany({ select:{ id:true, legacyId:true, name:true, fullname:true, phone:true, email:true, message:true, isRead:true, createdAt:true, updatedAt:true }, orderBy:{createdAt:'desc'} })).map(msgOut))));
 app.post('/api/messages', wrap(async (req,res)=>{ const name=req.body.name || req.body.fullname || null; const fullname=req.body.fullname || req.body.name || null; res.status(201).json(msgOut(await prisma.contactMessage.create({data:{name,fullname,phone:req.body.phone,email:req.body.email,message:req.body.message}}))); }));
-app.patch('/api/messages/:id/read', wrap(async (req,res)=>res.json(msgOut(await prisma.contactMessage.update({where:{id:intId(req)},data:{isRead:true}})))));
-app.delete('/api/messages/:id', wrap(async (req,res)=>{await prisma.contactMessage.delete({where:{id:intId(req)}});res.json({ok:true});}));
+app.patch('/api/messages/:id/read', requireAdminWrite, wrap(async (req,res)=>res.json(msgOut(await prisma.contactMessage.update({where:{id:intId(req)},data:{isRead:true}})))));
+app.delete('/api/messages/:id', requireAdminWrite, wrap(async (req,res)=>{await prisma.contactMessage.delete({where:{id:intId(req)}});res.json({ok:true});}));
 
-app.get('/api/stats', wrap(async (req,res)=>{ const rows=await prisma.siteStat.findMany(); res.json(Object.fromEntries(rows.map(r=>[r.key,r.value]))); }));
-app.put('/api/stats/:key', wrap(async (req,res)=>res.json(await prisma.siteStat.upsert({where:{key:req.params.key},create:{key:req.params.key,value:Number(req.body.value)||0},update:{value:Number(req.body.value)||0}}))));
+app.get('/api/stats', requireAdmin, wrap(async (req,res)=>{ const rows=await prisma.siteStat.findMany(); res.json(Object.fromEntries(rows.map(r=>[r.key,r.value]))); }));
+app.put('/api/stats/:key', requireAdminWrite, wrap(async (req,res)=>res.json(await prisma.siteStat.upsert({where:{key:req.params.key},create:{key:req.params.key,value:Number(req.body.value)||0},update:{value:Number(req.body.value)||0}}))));
 app.post('/api/stats/event', wrap(async (req,res)=>res.status(201).json(await prisma.statEvent.create({data:{type:req.body.type,targetId:req.body.targetId,metadata:req.body.metadata||{}}}))));
 app.get('/api/health/storage', (req, res) => res.json({ ok: true, localStorage: true, uploadRoot: '/uploads', allowedBuckets: allowedUploadBuckets }));
 
-app.post('/api/uploads', upload.single('file'), wrap(async (req, res) => {
+app.post('/api/uploads', requireAdminWrite, upload.single('file'), wrap(async (req, res) => {
   const bucket = req.body.bucket;
   console.info('[uploads:start]', { bucket, fileExists: Boolean(req.file), mimetype: req.file?.mimetype });
   if (!allowedUploadBuckets.includes(bucket)) {
@@ -436,7 +544,7 @@ app.post('/api/uploads', upload.single('file'), wrap(async (req, res) => {
   res.status(201).json({ ok: true, bucket, path: objectPath, publicUrl });
 }));
 
-app.post('/api/uploads/sign', (req,res)=>{
+app.post('/api/uploads/sign', requireAdminWrite, (req,res)=>{
   const bucket = req.body.bucket;
   if (!allowedUploadBuckets.includes(bucket)) return res.status(400).json({ error: 'Invalid bucket', buckets: allowedUploadBuckets });
   const filename = `${Date.now()}-${crypto.randomUUID()}-${safeUploadFilename(req.body.filename || 'upload')}`;
