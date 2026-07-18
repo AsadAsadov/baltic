@@ -101,20 +101,43 @@ const requireAdmin = (req, res, next) => {
   if (req.headers['x-admin-auth'] === 'true' || req.query.admin === 'true') return next();
   return res.status(401).json({ ok: false, error: 'ADMIN_AUTH_REQUIRED' });
 };
-const workCategoryMap = {
-  'Taxta Ev': { ru: 'Деревянный дом', en: 'Wooden House' },
-  'Restoran': { ru: 'Ресторан', en: 'Restaurant' },
-  'Besedka': { ru: 'Беседка', en: 'Gazebo' },
-  'Hamam & Sauna': { ru: 'Баня и сауна', en: 'Bath & Sauna' },
-  'Digər': { ru: 'Другое', en: 'Other' }
+const PROJECT_CATEGORIES = {
+  house: 'Taxta Evlər',
+  restaurant: 'Restoranlar',
+  gazebo: 'Besedkalar',
+  sauna: 'Hamam & Sauna'
 };
-function workOut(w) { return w && { id:w.id, slug:w.slug, type:'work', category:w.category, categoryRu:workCategoryMap[w.category]?.ru || w.category, categoryEn:workCategoryMap[w.category]?.en || w.category, title:w.titleAz, titleAz:w.titleAz, titleRu:w.titleRu, titleEn:w.titleEn, description:w.descriptionAz, descriptionAz:w.descriptionAz, descriptionRu:w.descriptionRu, descriptionEn:w.descriptionEn, location:w.locationAz, locationAz:w.locationAz, locationRu:w.locationRu, locationEn:w.locationEn, completionDate:w.completionDate, coverImage:w.coverImage, image:w.coverImage, images:jsonArray(w.images), sortOrder:w.sortOrder, featured:w.featured, active:w.active, createdAt:w.createdAt, updatedAt:w.updatedAt }; }
+const ALLOWED_CATEGORIES = new Set(Object.keys(PROJECT_CATEGORIES));
+const CATEGORY_LABELS = {
+  house: { az: 'Taxta Evlər', ru: 'Деревянные дома', en: 'Wooden Houses' },
+  restaurant: { az: 'Restoranlar', ru: 'Рестораны', en: 'Restaurants' },
+  gazebo: { az: 'Besedkalar', ru: 'Беседки', en: 'Gazebos' },
+  sauna: { az: 'Hamam & Sauna', ru: 'Бани & Сауны', en: 'Bath & Sauna' }
+};
+const CATEGORY_ALIASES = new Map([
+  ['house', 'house'], ['taxta ev', 'house'], ['taxta evlər', 'house'], ['wooden house', 'house'],
+  ['restaurant', 'restaurant'], ['restoran', 'restaurant'], ['restoranlar', 'restaurant'],
+  ['gazebo', 'gazebo'], ['besedka', 'gazebo'], ['besedkalar', 'gazebo'], ['besedka', 'gazebo'],
+  ['sauna', 'sauna'], ['bath', 'sauna'], ['hamam', 'sauna'], ['hamam & sauna', 'sauna'], ['hamam və sauna', 'sauna']
+]);
+function normalizeCategoryValue(value) {
+  const key = String(value || '').trim().toLowerCase();
+  return CATEGORY_ALIASES.get(key) || key;
+}
+function validateCategory(value, label = 'category') {
+  const category = normalizeCategoryValue(value || 'house');
+  if (!ALLOWED_CATEGORIES.has(category)) return { errors: [`Unsupported ${label}: ${value}`] };
+  return { category };
+}
+const workCategoryMap = Object.fromEntries(Object.entries(CATEGORY_LABELS).map(([key, labels]) => [key, { ru: labels.ru, en: labels.en }]))
+function workOut(w) { return w && { id:w.id, slug:w.slug, type:'work', category:w.category, categoryNameAz:CATEGORY_LABELS[w.category]?.az || w.category, categoryRu:CATEGORY_LABELS[w.category]?.ru || w.category, categoryEn:CATEGORY_LABELS[w.category]?.en || w.category, title:w.titleAz, titleAz:w.titleAz, titleRu:w.titleRu, titleEn:w.titleEn, description:w.descriptionAz, descriptionAz:w.descriptionAz, descriptionRu:w.descriptionRu, descriptionEn:w.descriptionEn, location:w.locationAz, locationAz:w.locationAz, locationRu:w.locationRu, locationEn:w.locationEn, area:w.area, stories:w.stories, rooms:w.rooms, buildTime:w.buildTimeAz, buildTimeAz:w.buildTimeAz, buildTimeRu:w.buildTimeRu, buildTimeEn:w.buildTimeEn, completionDate:w.completionDate, coverImage:w.coverImage, image:w.coverImage, images:jsonArray(w.images), sortOrder:w.sortOrder, archived:w.archived, featured:w.featured, active:w.active, createdAt:w.createdAt, updatedAt:w.updatedAt }; }
 function validateWorkBody(b = {}, existing = null) {
   const errors = [];
   const has = (k) => Object.prototype.hasOwnProperty.call(b, k);
   const titleAz = String(b.titleAz || b.title || '').trim();
   const coverImage = String(b.coverImage || b.image || '').trim();
-  const category = String(b.category || '').trim();
+  const categoryCheck = validateCategory(b.category || existing?.category || 'house');
+  const category = categoryCheck.category;
   const images = has('images') ? b.images : (existing?.images || []);
   const sortOrderRaw = has('sortOrder') ? b.sortOrder : (existing?.sortOrder ?? 0);
   const sortOrder = Number(sortOrderRaw);
@@ -123,7 +146,7 @@ function validateWorkBody(b = {}, existing = null) {
   const completionDateRaw = has('completionDate') ? b.completionDate : existing?.completionDate;
   if (!titleAz) errors.push('titleAz is required');
   if (!coverImage) errors.push('coverImage is required');
-  if (!category) errors.push('category is required');
+  if (categoryCheck.errors) errors.push(...categoryCheck.errors);
   const imageLimit = limitImageArray(images);
   if (imageLimit.errors) errors.push(...imageLimit.errors);
   if (!Number.isInteger(sortOrder) || sortOrder < 0) errors.push('sortOrder must be a non-negative integer');
@@ -132,7 +155,7 @@ function validateWorkBody(b = {}, existing = null) {
   let completionDate = null;
   if (completionDateRaw) { completionDate = new Date(completionDateRaw); if (Number.isNaN(completionDate.getTime())) errors.push('completionDate must be a valid date or null'); }
   if (errors.length) return { errors };
-  return { data: { ...(existing?.slug ? {} : { slug: b.slug }), category, titleAz, titleRu: b.titleRu || existing?.titleRu || titleAz, titleEn: b.titleEn || existing?.titleEn || titleAz, descriptionAz: b.descriptionAz || b.description || '', descriptionRu: b.descriptionRu || existing?.descriptionRu || b.descriptionAz || b.description || '', descriptionEn: b.descriptionEn || existing?.descriptionEn || b.descriptionAz || b.description || '', locationAz: b.locationAz || b.location || '', locationRu: b.locationRu || existing?.locationRu || b.locationAz || b.location || '', locationEn: b.locationEn || existing?.locationEn || b.locationAz || b.location || '', completionDate, coverImage, images, sortOrder, featured, active } };
+  return { data: { ...(existing?.slug ? {} : { slug: b.slug }), category, titleAz, titleRu: b.titleRu || existing?.titleRu || titleAz, titleEn: b.titleEn || existing?.titleEn || titleAz, descriptionAz: b.descriptionAz || b.description || '', descriptionRu: b.descriptionRu || existing?.descriptionRu || b.descriptionAz || b.description || '', descriptionEn: b.descriptionEn || existing?.descriptionEn || b.descriptionAz || b.description || '', locationAz: b.locationAz || b.location || '', locationRu: b.locationRu || existing?.locationRu || b.locationAz || b.location || '', locationEn: b.locationEn || existing?.locationEn || b.locationAz || b.location || '', area: String(b.area || existing?.area || ''), stories: b.stories === '' || b.stories == null ? existing?.stories || null : Number(b.stories), rooms: b.rooms === '' || b.rooms == null ? existing?.rooms || null : Number(b.rooms), buildTimeAz: b.buildTimeAz || b.buildTime || existing?.buildTimeAz || '', buildTimeRu: b.buildTimeRu || existing?.buildTimeRu || b.buildTimeAz || b.buildTime || '', buildTimeEn: b.buildTimeEn || existing?.buildTimeEn || b.buildTimeAz || b.buildTime || '', completionDate, coverImage, images, sortOrder, featured, archived: has('archived') ? Boolean(b.archived) : (existing?.archived ?? false), active } };
 }
 const localWorkUploadPath = (url = '') => {
   const value = String(url || '');
@@ -154,17 +177,12 @@ async function safeDeleteUnusedWorkFiles(urls = [], excludingId = null) {
 
 const settingOut = (s) => ({ id:s.id, key:s.key, value:s.value || {}, createdAt:s.createdAt, updatedAt:s.updatedAt });
 
-const catMap = {
-  house: { az: 'Taxta Ev', ru: 'Деревянный Дом', en: 'Wooden House' },
-  restaurant: { az: 'Restoran', ru: 'Ресторан', en: 'Restaurant' },
-  gazebo: { az: 'Besedka', ru: 'Беседка', en: 'Gazebo' },
-  bath: { az: 'Hamam & Sauna', ru: 'Бани & Сауны', en: 'Bath & Sauna' },
-};
+const catMap = CATEGORY_LABELS;
 
 function projectOut(p) {
   return { id: p.id, legacyId: p.legacyId, slug:p.slug, type:'project', category: p.category, cat: p.category, categoryNameAz: p.categoryNameAz || catMap[p.category]?.az || p.category, categoryNameRu: p.categoryNameRu || catMap[p.category]?.ru || p.category, categoryNameEn: p.categoryNameEn || catMap[p.category]?.en || p.category, catName: p.categoryNameAz || catMap[p.category]?.az || p.category, catNameRu: p.categoryNameRu || catMap[p.category]?.ru || p.category, catNameEn: p.categoryNameEn || catMap[p.category]?.en || p.category, title: p.titleAz, titleAz: p.titleAz, titleRu: p.titleRu, titleEn: p.titleEn, shortDescription: p.descriptionAz, shortDescriptionAz: p.descriptionAz, shortDescriptionRu: p.descriptionRu, shortDescriptionEn: p.descriptionEn, description: p.descriptionAz, desc: p.descriptionAz, descriptionAz: p.descriptionAz, descriptionRu: p.descriptionRu, descriptionEn: p.descriptionEn, descRu: p.descriptionRu, descEn: p.descriptionEn, area: p.area, stories: p.stories, rooms: p.rooms, buildTime: p.buildTimeAz, buildTimeAz: p.buildTimeAz, buildTimeRu: p.buildTimeRu, buildTimeEn: p.buildTimeEn, image: p.coverImage, coverImage: p.coverImage, images: jsonArray(p.images), views: p.views, archived: p.archived };
 }
-function projectIn(b, existing = null) { const c = b.cat || b.category || 'house'; const images = b.images || (b.image ? [b.image] : []); const limited = limitImageArray(images); if (limited.errors) return { errors: limited.errors }; return { category: c, categoryNameAz: b.catName || b.categoryNameAz || catMap[c]?.az, categoryNameRu: b.catNameRu || b.categoryNameRu || catMap[c]?.ru, categoryNameEn: b.catNameEn || b.categoryNameEn || catMap[c]?.en, titleAz: b.titleAz || b.title || '', titleRu: b.titleRu, titleEn: b.titleEn, descriptionAz: b.descAz || b.desc || b.descriptionAz, descriptionRu: b.descRu || b.descriptionRu, descriptionEn: b.descEn || b.descriptionEn, area: String(b.area || ''), stories: Number(b.stories) || 1, rooms: Number(b.rooms) || 1, buildTimeAz: b.buildTimeAz || b.buildTime, buildTimeRu: b.buildTimeRu, buildTimeEn: b.buildTimeEn, coverImage: b.image || b.coverImage || images[0], images, ...(existing?.slug ? {} : { slug: b.slug }) }; }
+function projectIn(b, existing = null) { const categoryCheck = validateCategory(b.category ?? b.cat ?? existing?.category ?? 'house'); if (categoryCheck.errors) return { errors: categoryCheck.errors }; const c = categoryCheck.category; const images = b.images || (b.image ? [b.image] : []); const limited = limitImageArray(images); if (limited.errors) return { errors: limited.errors }; return { category: c, categoryNameAz: b.catName || b.categoryNameAz || catMap[c]?.az, categoryNameRu: b.catNameRu || b.categoryNameRu || catMap[c]?.ru, categoryNameEn: b.catNameEn || b.categoryNameEn || catMap[c]?.en, titleAz: b.titleAz || b.title || '', titleRu: b.titleRu, titleEn: b.titleEn, descriptionAz: b.descAz || b.desc || b.descriptionAz, descriptionRu: b.descRu || b.descriptionRu, descriptionEn: b.descEn || b.descriptionEn, area: String(b.area || ''), stories: Number(b.stories) || 1, rooms: Number(b.rooms) || 1, buildTimeAz: b.buildTimeAz || b.buildTime, buildTimeRu: b.buildTimeRu, buildTimeEn: b.buildTimeEn, coverImage: b.image || b.coverImage || images[0], images, ...(existing?.slug ? {} : { slug: b.slug }) }; }
 function galleryOut(g) { return { id: g.id, src: g.mediaUrl, mediaUrl: g.mediaUrl, images: jsonArray(g.images), title: g.titleAz, titleAz: g.titleAz, titleRu: g.titleRu, titleEn: g.titleEn, type: g.type, archived: g.archived, sortOrder: g.sortOrder }; }
 function galleryIn(b) { const images = b.images || (b.src ? [b.src] : []); const limited = limitImageArray(images); if (limited.errors) return { errors: limited.errors }; return { mediaUrl: b.src || b.mediaUrl || '', images, titleAz: b.titleAz || b.title || '', titleRu: b.titleRu, titleEn: b.titleEn, type: b.type || 'image', sortOrder: Number(b.sortOrder) || 0 }; }
 function getYouTubeId(url = '') { const value = String(url || '').trim(); const patterns = [/[?&]v=([^&]+)/i, /youtu\.be\/([^?&#/]+)/i, /youtube\.com\/embed\/([^?&#/]+)/i, /youtube\.com\/shorts\/([^?&#/]+)/i]; for (const pattern of patterns) { const match = value.match(pattern); if (match?.[1]) return decodeURIComponent(match[1]).replace(/[^a-zA-Z0-9_-]/g, ''); } return ''; }
@@ -226,10 +244,10 @@ async function findProjectBySlug(slug) {
 }
 async function findWorkBySlug(slug) {
   const safe = sanitizeSlug(slug);
-  const bySlug = await prisma.workItem.findFirst({ where: { slug: safe, active:true } });
+  const bySlug = await prisma.workItem.findFirst({ where: { slug: safe, active:true, archived:false } });
   if (bySlug) return bySlug;
   const id = slugId(slug);
-  return isUuid(id) ? prisma.workItem.findFirst({ where:{ id, active:true } }) : null;
+  return isUuid(id) ? prisma.workItem.findFirst({ where:{ id, active:true, archived:false } }) : null;
 }
 
 const msgOut = (m) => ({ id: m.id, legacyId: m.legacyId, name: m.name || m.fullname || '', fullname: m.fullname || m.name || '', phone: m.phone, email: m.email || 'N/A', message: m.message, isRead: m.isRead ?? m.read ?? false, read: m.isRead ?? m.read ?? false, createdAt: m.createdAt, updatedAt: m.updatedAt, date: m.createdAt ? m.createdAt.toLocaleDateString('az-AZ') : '' });
@@ -264,13 +282,13 @@ app.post('/api/projects/:id/view', wrap(async (req,res)=>{
 
 
 app.get(['/api/work-items', '/api/works'], wrap(async (req, res) => {
-  const includeInactive = req.query.includeInactive === 'true';
+  const includeInactive = req.query.includeInactive === 'true' || req.query.includeArchived === 'true';
   if (includeInactive && req.headers['x-admin-auth'] !== 'true' && req.query.admin !== 'true') return res.status(401).json({ ok:false, error:'ADMIN_AUTH_REQUIRED' });
-  const where = { ...(includeInactive ? {} : { active:true }), ...(req.query.category ? { category:String(req.query.category) } : {}), ...(req.query.featured === 'true' ? { featured:true } : {}) };
+  const where = { ...(includeInactive ? {} : { active:true, archived:false }), ...(req.query.category ? { category:normalizeCategoryValue(req.query.category) } : {}), ...(req.query.featured === 'true' ? { featured:true } : {}) };
   res.json((await prisma.workItem.findMany({ where, orderBy:[{sortOrder:'asc'},{featured:'desc'},{createdAt:'desc'}] })).map(workOut));
 }));
 app.get(['/api/work-items/slug/:slug','/api/works/slug/:slug'], wrap(async (req,res)=>{ const item=await findWorkBySlug(req.params.slug); if(!item) return res.status(404).json({ok:false,error:'WORK_ITEM_NOT_FOUND'}); res.set('Cache-Control','public, max-age=60, stale-while-revalidate=300'); res.json(workOut(item)); }));
-app.get('/api/work-items/:id', wrap(async (req, res) => { const item = await prisma.workItem.findUnique({ where:{ id:String(req.params.id) } }); if(!item) return res.status(404).json({ok:false,error:'WORK_ITEM_NOT_FOUND'}); if(!item.active && req.headers['x-admin-auth'] !== 'true' && req.query.admin !== 'true') return res.status(401).json({ok:false,error:'ADMIN_AUTH_REQUIRED'}); res.json(workOut(item)); }));
+app.get(['/api/work-items/:id', '/api/works/:id'], wrap(async (req, res) => { const item = await prisma.workItem.findUnique({ where:{ id:String(req.params.id) } }); if(!item) return res.status(404).json({ok:false,error:'WORK_ITEM_NOT_FOUND'}); if(!item.active && req.headers['x-admin-auth'] !== 'true' && req.query.admin !== 'true') return res.status(401).json({ok:false,error:'ADMIN_AUTH_REQUIRED'}); res.json(workOut(item)); }));
 app.post(['/api/work-items', '/api/works'], requireAdmin, wrap(async (req,res)=>{
   const uploadCount = [req.body?.coverImage, ...(Array.isArray(req.body?.images) ? req.body.images : [])].filter(Boolean).length;
   console.info('[works:create:start]', { endpoint:req.originalUrl, recordType:'workItem', uploadCount, destinationDir:uploadBucketFolders.works });
@@ -286,11 +304,12 @@ app.post(['/api/work-items', '/api/works'], requireAdmin, wrap(async (req,res)=>
     res.status(isDbError(err) ? 503 : 500).json({ ok:false, error:'WORK_CREATE_FAILED', message:'İş məlumatları yadda saxlanılmadı.', code:err?.code });
   }
 }));
-app.put('/api/work-items/reorder', requireAdmin, wrap(async (req,res)=>{ await Promise.all((req.body.items||[]).map((it,i)=>prisma.workItem.update({where:{id:String(it.id)},data:{sortOrder:Number.isInteger(Number(it.sortOrder)) ? Number(it.sortOrder) : i}}))); res.json({ok:true}); }));
-app.put('/api/work-items/:id', requireAdmin, wrap(async (req,res)=>{ const existing=await prisma.workItem.findUnique({where:{id:String(req.params.id)}}); if(!existing) return res.status(404).json({ok:false,error:'WORK_ITEM_NOT_FOUND'}); const v=validateWorkBody(req.body, existing); if(v.errors) return res.status(400).json({ok:false,errors:v.errors}); res.json(workOut(await prisma.workItem.update({where:{id:existing.id},data:v.data}))); }));
-app.patch('/api/work-items/:id/status', requireAdmin, wrap(async (req,res)=>{ const w=await prisma.workItem.findUnique({where:{id:String(req.params.id)}}); if(!w) return res.status(404).json({ok:false,error:'WORK_ITEM_NOT_FOUND'}); res.json(workOut(await prisma.workItem.update({where:{id:w.id},data:{active:req.body.active ?? !w.active}}))); }));
-app.patch('/api/work-items/:id/featured', requireAdmin, wrap(async (req,res)=>{ const w=await prisma.workItem.findUnique({where:{id:String(req.params.id)}}); if(!w) return res.status(404).json({ok:false,error:'WORK_ITEM_NOT_FOUND'}); res.json(workOut(await prisma.workItem.update({where:{id:w.id},data:{featured:req.body.featured ?? !w.featured}}))); }));
-app.delete('/api/work-items/:id', requireAdmin, wrap(async (req,res)=>{ const w=await prisma.workItem.findUnique({where:{id:String(req.params.id)}}); if(w){ await prisma.workItem.delete({where:{id:w.id}}); await safeDeleteUnusedWorkFiles([w.coverImage, ...jsonArray(w.images)], w.id); } res.json({ok:true}); }));
+app.put(['/api/work-items/reorder', '/api/works/reorder'], requireAdmin, wrap(async (req,res)=>{ await Promise.all((req.body.items||[]).map((it,i)=>prisma.workItem.update({where:{id:String(it.id)},data:{sortOrder:Number.isInteger(Number(it.sortOrder)) ? Number(it.sortOrder) : i}}))); res.json({ok:true}); }));
+app.put(['/api/work-items/:id', '/api/works/:id'], requireAdmin, wrap(async (req,res)=>{ const existing=await prisma.workItem.findUnique({where:{id:String(req.params.id)}}); if(!existing) return res.status(404).json({ok:false,error:'WORK_ITEM_NOT_FOUND'}); const v=validateWorkBody(req.body, existing); if(v.errors) return res.status(400).json({ok:false,errors:v.errors}); res.json(workOut(await prisma.workItem.update({where:{id:existing.id},data:v.data}))); }));
+app.patch(['/api/work-items/:id/archive', '/api/works/:id/archive'], requireAdmin, wrap(async (req,res)=>{ const w=await prisma.workItem.findUnique({where:{id:String(req.params.id)}}); if(!w) return res.status(404).json({ok:false,error:'WORK_ITEM_NOT_FOUND'}); const archived = req.body.archived ?? !w.archived; res.json(workOut(await prisma.workItem.update({where:{id:w.id},data:{archived}}))); }));
+app.patch(['/api/work-items/:id/status', '/api/works/:id/status'], requireAdmin, wrap(async (req,res)=>{ const w=await prisma.workItem.findUnique({where:{id:String(req.params.id)}}); if(!w) return res.status(404).json({ok:false,error:'WORK_ITEM_NOT_FOUND'}); res.json(workOut(await prisma.workItem.update({where:{id:w.id},data:{active:req.body.active ?? !w.active}}))); }));
+app.patch(['/api/work-items/:id/featured', '/api/works/:id/featured'], requireAdmin, wrap(async (req,res)=>{ const w=await prisma.workItem.findUnique({where:{id:String(req.params.id)}}); if(!w) return res.status(404).json({ok:false,error:'WORK_ITEM_NOT_FOUND'}); res.json(workOut(await prisma.workItem.update({where:{id:w.id},data:{featured:req.body.featured ?? !w.featured}}))); }));
+app.delete(['/api/work-items/:id', '/api/works/:id'], requireAdmin, wrap(async (req,res)=>{ const w=await prisma.workItem.findUnique({where:{id:String(req.params.id)}}); if(w){ await prisma.workItem.delete({where:{id:w.id}}); await safeDeleteUnusedWorkFiles([w.coverImage, ...jsonArray(w.images)], w.id); } res.json({ok:true}); }));
 
 app.get('/api/gallery', wrap(async (req,res)=>res.json((await prisma.galleryItem.findMany({ where: req.query.includeArchived === 'true' ? {} : { archived:false }, orderBy:[{sortOrder:'asc'},{id:'desc'}] })).map(galleryOut))));
 app.post('/api/gallery', wrap(async (req,res)=>{ const data = galleryIn(req.body); if (data.errors) return res.status(400).json({ok:false,errors:data.errors}); res.status(201).json(galleryOut(await prisma.galleryItem.create({ data }))); }));

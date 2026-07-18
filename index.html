@@ -236,7 +236,7 @@
                 selectedWorkItemIndex: -1,
                 activeWorkImageIndex: 0,
                 editingWorkItemId: null,
-                workForm: { category: 'Taxta Ev', titleAz: '', titleRu: '', titleEn: '', descriptionAz: '', descriptionRu: '', descriptionEn: '', locationAz: '', locationRu: '', locationEn: '', completionDate: '', coverImage: '', images: [], featured: false, active: true, sortOrder: 0 },
+                workForm: { category: 'house', titleAz: '', titleRu: '', titleEn: '', descriptionAz: '', descriptionRu: '', descriptionEn: '', locationAz: '', locationRu: '', locationEn: '', completionDate: '', coverImage: '', images: [], featured: false, active: true, sortOrder: 0 },
                 workCoverFile: null,
                 workImageFiles: [],
                 galleryItems: [],
@@ -779,7 +779,7 @@
                 normalizeProject(project = {}) {
                     const images = this.normalizeImageList(project.images);
                     const image = this.normalizeImageUrl(project.image || project.coverImage || project.cover || images[0] || '');
-                    const cat = String(project.cat || project.category || 'default');
+                    const cat = this.normalizeCategory(project.cat || project.category || 'house');
                     return {
                         id: project.id ?? '',
                         slug: project.slug || '',
@@ -1061,7 +1061,7 @@
                         const settled = await Promise.allSettled([
                             publicFetch('/api/projects'),
                             publicFetch('/api/gallery'),
-                            publicFetch(this.adminLoggedIn ? '/api/work-items?includeInactive=true' : '/api/work-items'),
+                            publicFetch(this.adminLoggedIn ? '/api/works?includeArchived=true' : '/api/works'),
                             this.safeApi('/api/banners', cached('bc_banners_list', [])),
                             this.safeApi('/api/stats', cached('bc_stats', this.stats))
                         ]);
@@ -2324,16 +2324,23 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                 },
 
 
-                workCategories() { return ['all', 'Taxta Ev', 'Restoran', 'Besedka', 'Hamam & Sauna']; },
+                projectCategories() { return ['all', 'house', 'restaurant', 'gazebo', 'sauna']; },
+                normalizeCategory(value = 'house') {
+                    const key = String(value || 'house').trim().toLowerCase();
+                    const aliases = { 'taxta ev':'house', 'taxta evlər':'house', restoran:'restaurant', restoranlar:'restaurant', besedka:'gazebo', besedkalar:'gazebo', bath:'sauna', hamam:'sauna', 'hamam & sauna':'sauna', 'hamam və sauna':'sauna' };
+                    return aliases[key] || key;
+                },
+                workCategories() { return this.projectCategories(); },
                 workCategoryLabel(category) {
-                    if (category === 'all') return this.lang === 'az' ? 'Bütün' : (this.lang === 'ru' ? 'Все' : 'All');
-                    const map = { 'Taxta Ev': { az:'Taxta Evlər', ru:'Деревянные дома', en:'Wooden Houses' }, Restoran:{az:'Restoranlar',ru:'Рестораны',en:'Restaurants'}, Besedka:{az:'Besedkalar',ru:'Беседки',en:'Gazebos'}, 'Hamam & Sauna':{az:'Hamam & Sauna',ru:'Бани и сауны',en:'Bath & Sauna'}, 'Digər':{az:'Digər',ru:'Другое',en:'Other'} };
-                    return map[category]?.[this.lang] || category;
+                    const normalized = category === 'all' ? 'all' : this.normalizeCategory(category);
+                    if (normalized === 'all') return this.lang === 'az' ? 'Bütün' : (this.lang === 'ru' ? 'Все' : 'All');
+                    const map = { house: { az:'Taxta Evlər', ru:'Деревянные дома', en:'Wooden Houses' }, restaurant:{az:'Restoranlar',ru:'Рестораны',en:'Restaurants'}, gazebo:{az:'Besedkalar',ru:'Беседки',en:'Gazebos'}, sauna:{az:'Hamam & Sauna',ru:'Бани и сауны',en:'Bath & Sauna'} };
+                    return map[normalized]?.[this.lang] || category;
                 },
                 normalizeWorkItem(item = {}) {
                     const images = this.normalizeImageList(item.images);
                     const coverImage = this.normalizeImageUrl(item.coverImage || item.image || images[0] || '');
-                    return { id:item.id || '', slug:item.slug || '', category:item.category || 'Digər', title:item.title || item.titleAz || '', titleAz:item.titleAz || item.title || '', titleRu:item.titleRu || item.title || '', titleEn:item.titleEn || item.title || '', description:item.description || item.descriptionAz || '', descriptionAz:item.descriptionAz || item.description || '', descriptionRu:item.descriptionRu || item.description || '', descriptionEn:item.descriptionEn || item.description || '', location:item.location || item.locationAz || '', locationAz:item.locationAz || item.location || '', locationRu:item.locationRu || item.location || '', locationEn:item.locationEn || item.location || '', completionDate:item.completionDate || '', coverImage, image:coverImage, images:images.length ? images : (coverImage ? [coverImage] : []), sortOrder:Number(item.sortOrder)||0, featured:Boolean(item.featured), active:item.active !== false, createdAt:item.createdAt || '' };
+                    return { id:item.id || '', slug:item.slug || '', category:this.normalizeCategory(item.category || 'house'), title:item.title || item.titleAz || '', titleAz:item.titleAz || item.title || '', titleRu:item.titleRu || item.title || '', titleEn:item.titleEn || item.title || '', description:item.description || item.descriptionAz || '', descriptionAz:item.descriptionAz || item.description || '', descriptionRu:item.descriptionRu || item.description || '', descriptionEn:item.descriptionEn || item.description || '', location:item.location || item.locationAz || '', locationAz:item.locationAz || item.location || '', locationRu:item.locationRu || item.location || '', locationEn:item.locationEn || item.location || '', completionDate:item.completionDate || '', area:item.area || '', stories:item.stories ?? '', rooms:item.rooms ?? '', buildTime:item.buildTime || item.buildTimeAz || '', buildTimeAz:item.buildTimeAz || item.buildTime || '', buildTimeRu:item.buildTimeRu || item.buildTime || '', buildTimeEn:item.buildTimeEn || item.buildTime || '', coverImage, image:coverImage, images:images.length ? images : (coverImage ? [coverImage] : []), sortOrder:Number(item.sortOrder)||0, archived:Boolean(item.archived), featured:Boolean(item.featured), active:item.active !== false, createdAt:item.createdAt || '' };
                 },
                 normalizeWorkItems(payload, fallback = []) { const items = this.asArray(payload).map(item => this.normalizeWorkItem(item)); return items.length ? items : fallback.map(item => this.normalizeWorkItem(item)); },
                 localizedWorkTitle(item) { return this.lang === 'en' ? (item.titleEn || item.titleAz) : (this.lang === 'ru' ? (item.titleRu || item.titleAz) : item.titleAz); },
@@ -2354,7 +2361,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                 clearWorkCover() { if (this.creatingWork) return; this.workCoverFile = null; this.workForm.coverImage = ''; },
                 setWorkImageFiles(event) { if (this.creatingWork) return; const files = [...(event.target.files || [])]; if (files.some(file => !this.isAllowedImageFile(file))) { this.showToast('Format dəstəklənmir', 'Bu şəkil formatı dəstəklənmir.'); event.target.value = ''; return; } if (files.length + (this.workForm.images || []).length > MAX_IMAGES_PER_ITEM) { this.showToast('Limit', 'Bir layihəyə maksimum 40 şəkil əlavə edə bilərsiniz.'); event.target.value = ''; return; } if (files.some(file => this.isHeicImageFile(file))) this.showToast('HEIC şəkli seçildi', 'Önizləmə bu brauzerdə mövcud deyil, lakin fayl yüklənəcək.'); this.workImageFiles = files; },
                 removePendingWorkImage(index) { if (this.creatingWork) return; this.workImageFiles = this.workImageFiles.filter((_, i) => i !== index); },
-                resetWorkForm(force = false) { if (this.creatingWork && !force) return; this.editingWorkItemId = null; this.workForm = { category: 'Taxta Ev', titleAz: '', titleRu: '', titleEn: '', descriptionAz: '', descriptionRu: '', descriptionEn: '', locationAz: '', locationRu: '', locationEn: '', completionDate: '', coverImage: '', images: [], featured: false, active: true, sortOrder: (this.workItems?.length || 0) }; this.workCoverFile = null; this.workImageFiles = []; this.workUploadProgress = ''; },
+                resetWorkForm(force = false) { if (this.creatingWork && !force) return; this.editingWorkItemId = null; this.workForm = { category: 'house', titleAz: '', titleRu: '', titleEn: '', descriptionAz: '', descriptionRu: '', descriptionEn: '', locationAz: '', locationRu: '', locationEn: '', completionDate: '', coverImage: '', images: [], featured: false, active: true, sortOrder: (this.workItems?.length || 0) }; this.workCoverFile = null; this.workImageFiles = []; this.workUploadProgress = ''; },
                 editWorkItem(item) { if (this.creatingWork) return; this.editingWorkItemId = item.id; this.workForm = { ...item, completionDate: item.completionDate ? String(item.completionDate).slice(0,10) : '' }; this.workCoverFile = null; this.workImageFiles = []; this.workUploadProgress = ''; },
                 async saveWorkItem() {
                     if (this.creatingWork) return;
@@ -2375,7 +2382,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                         this.workUploadProgress = 'Məlumatlar saxlanılır...';
                         const wasEditingWorkItem = Boolean(this.editingWorkItemId);
                         const body = { ...this.workForm, titleRu: this.workForm.titleRu || this.workForm.titleAz, titleEn: this.workForm.titleEn || this.workForm.titleAz, descriptionRu: this.workForm.descriptionRu || this.workForm.descriptionAz, descriptionEn: this.workForm.descriptionEn || this.workForm.descriptionAz, locationRu: this.workForm.locationRu || this.workForm.locationAz, locationEn: this.workForm.locationEn || this.workForm.locationAz, coverImage: cover, images: [...(this.workForm.images || []), ...more].filter(Boolean), sortOrder: Number(this.workForm.sortOrder) || 0, active: Boolean(this.workForm.active), featured: Boolean(this.workForm.featured), completionDate: this.workForm.completionDate || null };
-                        await this.api(this.editingWorkItemId ? `/api/work-items/${this.editingWorkItemId}` : '/api/work-items', { method: this.editingWorkItemId ? 'PUT' : 'POST', body: JSON.stringify(body) });
+                        await this.api(this.editingWorkItemId ? `/api/works/${this.editingWorkItemId}` : '/api/works', { method: this.editingWorkItemId ? 'PUT' : 'POST', body: JSON.stringify(body) });
                         await this.loadData();
                         this.resetWorkForm(true);
                         this.showToast('Uğurlu!', wasEditingWorkItem ? 'İş yeniləndi.' : 'İş uğurla əlavə edildi.');
@@ -2389,16 +2396,16 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                 },
                 removeWorkImage(index) { if (this.creatingWork) return; this.workForm.images = (this.workForm.images || []).filter((_, i) => i !== index); },
                 moveWorkImage(index, dir) { if (this.creatingWork) return; const arr=[...(this.workForm.images || [])]; const j=index+dir; if(j<0||j>=arr.length)return; [arr[index],arr[j]]=[arr[j],arr[index]]; this.workForm.images=arr; },
-                async toggleWorkStatus(item) { await this.api(`/api/work-items/${item.id}/status`, { method:'PATCH', body:JSON.stringify({ active: !item.active }) }); await this.loadData(); },
-                async toggleWorkFeatured(item) { await this.api(`/api/work-items/${item.id}/featured`, { method:'PATCH', body:JSON.stringify({ featured: !item.featured }) }); await this.loadData(); },
-                async deleteWorkItem(item) { if(!confirm('Silinsin?')) return; await this.api(`/api/work-items/${item.id}`, { method:'DELETE' }); await this.loadData(); },
-                async moveWorkItem(item, dir) { const arr=[...this.workItems]; const i=arr.findIndex(x=>x.id===item.id), j=i+dir; if(i<0||j<0||j>=arr.length)return; [arr[i],arr[j]]=[arr[j],arr[i]]; await this.api('/api/work-items/reorder', { method:'PUT', body:JSON.stringify({ items: arr.map((x,k)=>({id:x.id, sortOrder:k})) }) }); await this.loadData(); },
+                async toggleWorkStatus(item) { await this.api(`/api/works/${item.id}/archive`, { method:'PATCH', body:JSON.stringify({ archived: !item.archived }) }); await this.loadData(); },
+                async toggleWorkFeatured(item) { await this.api(`/api/works/${item.id}/featured`, { method:'PATCH', body:JSON.stringify({ featured: !item.featured }) }); await this.loadData(); },
+                async deleteWorkItem(item) { if(!confirm('Silinsin?')) return; await this.api(`/api/works/${item.id}`, { method:'DELETE' }); await this.loadData(); },
+                async moveWorkItem(item, dir) { const arr=[...this.workItems]; const i=arr.findIndex(x=>x.id===item.id), j=i+dir; if(i<0||j<0||j>=arr.length)return; [arr[i],arr[j]]=[arr[j],arr[i]]; await this.api('/api/works/reorder', { method:'PUT', body:JSON.stringify({ items: arr.map((x,k)=>({id:x.id, sortOrder:k})) }) }); await this.loadData(); },
 
                 get filteredProjects() {
                     if (this.filterCategory === 'all') {
                         return Array.isArray(this.projects) ? this.projects : [];
                     }
-                    return (Array.isArray(this.projects) ? this.projects : []).filter(p => p.cat === this.filterCategory);
+                    return (Array.isArray(this.projects) ? this.projects : []).filter(p => p.category === this.filterCategory);
                 },
                 get filteredWorkItems() {
                     const items = Array.isArray(this.workItems) ? this.workItems : [];
@@ -4139,7 +4146,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                     <button @click="filterCategory = 'house'" class="project-filter-button px-5 py-2.5 rounded-xl font-bold text-sm transition" :class="filterCategory === 'house' ? 'bg-forest-700 text-white shadow-md' : 'bg-white text-stone-600 hover:bg-stone-100 border border-stone-200'" x-text="lang === 'az' ? 'Taxta Evlər' : (lang === 'ru' ? 'Деревянные дома' : 'Wooden Houses')">Taxta Evlər</button>
                     <button @click="filterCategory = 'restaurant'" class="project-filter-button px-5 py-2.5 rounded-xl font-bold text-sm transition" :class="filterCategory === 'restaurant' ? 'bg-forest-700 text-white shadow-md' : 'bg-white text-stone-600 hover:bg-stone-100 border border-stone-200'" x-text="lang === 'az' ? 'Restoranlar' : (lang === 'ru' ? 'Рестораны' : 'Restaurants')">Restoranlar</button>
                     <button @click="filterCategory = 'gazebo'" class="project-filter-button px-5 py-2.5 rounded-xl font-bold text-sm transition" :class="filterCategory === 'gazebo' ? 'bg-forest-700 text-white shadow-md' : 'bg-white text-stone-600 hover:bg-stone-100 border border-stone-200'" x-text="lang === 'az' ? 'Besedkalar' : (lang === 'ru' ? 'Беседки' : 'Gazebos')">Besedkalar</button>
-                    <button @click="filterCategory = 'bath'" class="project-filter-button px-5 py-2.5 rounded-xl font-bold text-sm transition" :class="filterCategory === 'bath' ? 'bg-forest-700 text-white shadow-md' : 'bg-white text-stone-600 hover:bg-stone-100 border border-stone-200'" x-text="lang === 'az' ? 'Hamam & Sauna' : (lang === 'ru' ? 'Бани & Сауны' : 'Bath & Sauna')">Hamam & Sauna</button>
+                    <button @click="filterCategory = 'sauna'" class="project-filter-button px-5 py-2.5 rounded-xl font-bold text-sm transition" :class="filterCategory === 'sauna' ? 'bg-forest-700 text-white shadow-md' : 'bg-white text-stone-600 hover:bg-stone-100 border border-stone-200'" x-text="lang === 'az' ? 'Hamam & Sauna' : (lang === 'ru' ? 'Бани & Сауны' : 'Bath & Sauna')">Hamam & Sauna</button>
                 </div>
 
                 <template x-if="!projectsLoaded">
@@ -4520,7 +4527,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                                     <option value="house">Taxta Evlər</option>
                                     <option value="restaurant">Restoranlar</option>
                                     <option value="gazebo">Besedkalar</option>
-                                    <option value="bath">Hamam & Sauna</option>
+                                    <option value="sauna">Hamam & Sauna</option>
                                 </select>
                             </div>
                             <div>
@@ -4654,7 +4661,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                             <h3 x-text="editingWorkItemId ? 'İşi redaktə et' : 'Yeni iş'"></h3>
                             <button type="button" @click="resetWorkForm()" :disabled="creatingWork" class="admin-reset-button">Formu təmizlə</button>
                         </div>
-                        <div class="admin-field"><label>Kateqoriya</label><select x-model="workForm.category" :disabled="creatingWork"><template x-for="c in ['Taxta Ev','Restoran','Besedka','Hamam & Sauna','Digər']"><option :value="c" x-text="c"></option></template></select></div>
+                        <div class="admin-field"><label>Kateqoriya</label><select x-model="workForm.category" :disabled="creatingWork"><option value="house">Taxta Evlər</option><option value="restaurant">Restoranlar</option><option value="gazebo">Besedkalar</option><option value="sauna">Hamam & Sauna</option></select></div>
                         <div class="admin-field"><label>Başlıq</label><input x-model="workForm.titleAz" :disabled="creatingWork"></div>
                         <div class="admin-field"><label>Açıqlama</label><textarea x-model="workForm.descriptionAz" :disabled="creatingWork"></textarea></div>
                         <div class="admin-field"><label>Ünvan</label><input x-model="workForm.locationAz" :disabled="creatingWork"></div>
@@ -4667,7 +4674,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                     <div class="admin-work-list-card">
                         <div class="admin-work-list-head"><h3>Mövcud işlər</h3><span x-text="workItems.length"></span></div>
                         <div x-show="!workItemsLoaded" class="p-6 rounded-2xl skeleton-shimmer">Yüklənir...</div><div x-show="workItemsLoaded && !workItems.length" class="admin-empty-state"><i class="fa-solid fa-briefcase"></i><strong>Hələ iş əlavə edilməyib</strong><small>Yuxarıdakı formdan ilk işi yaradın.</small></div>
-                        <div class="admin-work-list"><template x-for="item in workItems" :key="item.id"><div class="admin-work-item"><img :src="item.coverImage || fallbackWorkImage()" @error="setWorkImageFallback($event)" alt=""><div class="admin-work-item-body"><p x-text="item.titleAz"></p><small x-text="item.category"></small><div><span :class="item.active ? 'ok' : 'off'" x-text="item.active ? 'Aktiv' : 'Deaktiv'"></span><span x-show="item.featured" class="featured">Seçilmiş</span></div></div><div class="admin-work-actions"><button @click="moveWorkItem(item,-1)">↑</button><button @click="moveWorkItem(item,1)">↓</button><button @click="editWorkItem(item)" :disabled="creatingWork">Redaktə et</button><button @click="toggleWorkStatus(item)" x-text="item.active ? 'Deaktiv et' : 'Aktiv et'"></button><button @click="toggleWorkFeatured(item)" x-text="item.featured ? 'Seçilməmiş' : 'Seçilmiş'"></button><button @click="deleteWorkItem(item)" class="danger">Sil</button></div></div></template></div>
+                        <div class="admin-work-list"><template x-for="item in workItems" :key="item.id"><div class="admin-work-item"><img :src="item.coverImage || fallbackWorkImage()" @error="setWorkImageFallback($event)" alt=""><div class="admin-work-item-body"><p x-text="item.titleAz"></p><small x-text="workCategoryLabel(item.category)"></small><div><span :class="item.archived ? 'off' : 'ok'" x-text="item.archived ? 'Arxivdə' : 'Aktiv'"></span><span x-show="item.featured" class="featured">Seçilmiş</span></div></div><div class="admin-work-actions"><button @click="moveWorkItem(item,-1)">↑</button><button @click="moveWorkItem(item,1)">↓</button><button @click="editWorkItem(item)" :disabled="creatingWork">Redaktə et</button><button @click="toggleWorkStatus(item)" x-text="item.archived ? 'Arxivdən çıxar' : 'Arxivlə'"></button><button @click="toggleWorkFeatured(item)" x-text="item.featured ? 'Seçilməmiş' : 'Seçilmiş'"></button><button @click="deleteWorkItem(item)" class="danger">Sil</button></div></div></template></div>
                     </div>
                 </div>
 
