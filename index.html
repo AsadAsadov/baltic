@@ -2891,12 +2891,23 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
         }
         .app-main {
             width: 100%;
-            flex: 0 0 auto;
+            flex: 1 0 auto;
+            display: flex;
+            flex-direction: column;
             padding-bottom: 0;
         }
         .site-footer {
             flex: 0 0 auto;
             margin-top: 48px;
+        }
+        body:has(.login-page-wrap) .site-footer {
+            margin-top: 0;
+        }
+        body:has(.login-page-wrap) .app-main,
+        body:has(.login-page-wrap) .page-shell {
+            flex: 1 0 auto;
+            display: flex;
+            flex-direction: column;
         }
 
         .contact-page {
@@ -3333,9 +3344,9 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
             #mobileMenuPanel .mobile-menu-link:hover,
             #mobileMenuPanel .mobile-menu-link:focus-visible { background: rgba(255, 255, 255, 0.1); color: #f5dcd0; }
         }
-        .login-page-wrap { position: relative; isolation: isolate; width: 100%; min-height: calc(100svh - var(--header-height)); display: flex; align-items: center; justify-content: center; padding: 3rem 1rem; overflow: hidden; background: #f8f9f7; }
-        .login-page-wrap::before { content: ""; position: absolute; inset: -18px; z-index: -2; background-image: url('/loginbackground.jpg'); background-position: center center; background-repeat: no-repeat; background-size: cover; filter: blur(12px) brightness(.95) saturate(.9); transform: scale(1.08); transform-origin: center; }
-        .login-page-wrap::after { content: ""; position: absolute; inset: 0; z-index: -1; background: rgba(248,249,247,.82); }
+        .login-page-wrap { position: relative; isolation: isolate; width: 100%; flex: 1 0 auto; min-height: calc(100svh - var(--header-height)); display: grid; place-items: center; padding: 3rem 1rem; overflow: hidden; background: #f8f9f7; }
+        .login-page-wrap::before { content: ""; position: absolute; inset: 0; z-index: -2; background-image: url('/loginbackground.jpg'); background-position: center center; background-repeat: no-repeat; background-size: cover; filter: blur(5px) brightness(.87) saturate(.95) contrast(.96); transform: scale(1.04); transform-origin: center; }
+        .login-page-wrap::after { content: ""; position: absolute; inset: 0; z-index: -1; background: rgba(248,249,247,.6); }
         .login-card-premium { width: 92%; max-width: 456px; border-radius: 28px; border: 1px solid #E8ECE8; background: #fff; box-shadow: 0 28px 80px rgba(20, 43, 32, .10), 0 8px 24px rgba(20, 43, 32, .06); padding: 40px; color: #14261d; overflow: hidden; animation: login-card-enter 250ms ease both; }
         @keyframes login-card-enter { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
         .login-field { display: grid; gap: 8px; }
@@ -3360,7 +3371,12 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
             .login-page-wrap {
                 min-height: calc(100svh - var(--header-height));
                 padding: 24px 0 40px;
-                align-items: center;
+                place-items: center;
+            }
+            .login-page-wrap::before {
+                background-position: center center;
+                filter: blur(4px) brightness(.88) saturate(.95) contrast(.96);
+                transform: scale(1.035);
             }
             .login-card-premium {
                 width: 92%;
@@ -3373,9 +3389,10 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
             .login-card-premium form { gap: 14px; }
             .login-card-premium form.space-y-4 > :not([hidden]) ~ :not([hidden]) { --tw-space-y-reverse: 0; margin-top: 14px; margin-bottom: calc(14px * var(--tw-space-y-reverse)); }
             .bottom-mobile-nav:has(.bottom-mobile-nav__item.is-active) { display: grid; }
-            body:has(.login-page-wrap:not([style*="display: none"])) main,
-            body:has(.login-page-wrap:not([style*="display: none"])) .page-shell { padding-bottom: 0 !important; }
-            body:has(.login-page-wrap:not([style*="display: none"])) .bottom-mobile-nav { display: none !important; }
+            body:has(.login-page-wrap) main,
+            body:has(.login-page-wrap) .page-shell { padding-bottom: 0 !important; }
+            body:has(.login-page-wrap) .site-footer { margin-top: 0; }
+            body:has(.login-page-wrap) .bottom-mobile-nav { display: none !important; }
         }
 
         .project-card__cta { color: #fff !important; background: rgba(25, 95, 61, .88) !important; border: 1px solid rgba(255,255,255,.35); backdrop-filter: blur(12px); text-shadow: 0 1px 2px rgba(0,0,0,.25); }
@@ -3461,7 +3478,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
             html, body { min-height: 100%; overflow-x: hidden; }
             body { background: #0B1915; }
             .app-main {
-                flex: 0 0 auto;
+                flex: 1 0 auto;
             }
             .header-main {
                 height: 76px;
