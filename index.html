@@ -698,9 +698,22 @@
                     this.syncDetailGalleryState();
                     this.updateMeta();
                 },
+                stripHtml(value = '') { const div = document.createElement('div'); div.innerHTML = String(value || ''); return div.textContent || div.innerText || ''; },
+                createExcerpt(text, maxLength = 140) {
+                    const clean = this.stripHtml(text).replace(/\s+/g, ' ').trim();
+                    const limit = Number(maxLength) || 140;
+                    if (!clean) return '';
+                    if ([...clean].length <= limit) return clean;
+                    const clipped = [...clean].slice(0, limit + 1).join('');
+                    const boundary = clipped.search(/\s+\S*$/u);
+                    const excerpt = (boundary > 0 ? clipped.slice(0, boundary) : [...clean].slice(0, limit).join('')).trim();
+                    return `${excerpt}…`;
+                },
+                localizedProjectDescription(item = {}) { return this.lang === 'en' ? (item.descriptionEn || item.descEn || item.descriptionAz || item.descAz || item.desc || item.description) : (this.lang === 'ru' ? (item.descriptionRu || item.descRu || item.descriptionAz || item.descAz || item.desc || item.description) : (item.descriptionAz || item.descAz || item.desc || item.description)); },
+                projectCardDescription(item = {}) { const short = this.lang === 'en' ? item.shortDescriptionEn : (this.lang === 'ru' ? item.shortDescriptionRu : item.shortDescriptionAz); return this.createExcerpt((short && short !== this.localizedProjectDescription(item)) ? short : this.localizedProjectDescription(item), 140); },
                 openDetail(item, type = 'project') { if (!item?.id) return; this.page = 'detail'; this.notFoundKind = ''; this.detailType = type; this.detailItem = item; this.detailSlug = this.itemSlug(item); this.syncDetailGalleryState(); const url = type === 'project' ? this.projectUrl(item) : this.workUrl(item); if (this.normalizePathname(location.pathname) !== url) history.pushState({}, '', url); this.updateMeta(); window.scrollTo({top:0, behavior:'auto'}); },
                 detailTitle(item = this.detailItem) { if (!item) return ''; return this.detailType === 'work' ? this.localizedWorkTitle(item) : (this.lang === 'en' ? (item.titleEn || item.title) : (this.lang === 'ru' ? (item.titleRu || item.title) : item.title)); },
-                detailDescription(item = this.detailItem) { if (!item) return ''; return this.detailType === 'work' ? this.localizedWorkDescription(item) : (this.lang === 'en' ? (item.descriptionEn || item.descEn || item.desc) : (this.lang === 'ru' ? (item.descriptionRu || item.descRu || item.desc) : (item.descriptionAz || item.descAz || item.desc))); },
+                detailDescription(item = this.detailItem) { if (!item) return ''; return this.detailType === 'work' ? this.localizedWorkDescription(item) : this.localizedProjectDescription(item); },
                 detailImages(item = this.detailItem) { const images = Array.isArray(item?.images) && item.images.length ? item.images : [item?.coverImage || item?.image].filter(Boolean); return images.filter(Boolean); },
                 syncDetailGalleryState() { this.detailGalleryState = { images: this.detailImages(this.detailItem), activeIndex: 0 }; },
                 detailImage() { const images = this.detailGalleryState.images?.length ? this.detailGalleryState.images : this.detailImages(); return images[this.detailGalleryState.activeIndex] || images[0] || ''; },
@@ -1590,7 +1603,30 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                     }});
                 },
                 revokeProjectPreviewUrls() { (this.selectedProjectImages || []).forEach(item => { if (item.type === 'new' && item.previewUrl) URL.revokeObjectURL(item.previewUrl); }); },
-                resetProjectForm() { this.revokeProjectPreviewUrls(); this.selectedProjectImages = []; this.projectPreviewImg = ''; this.projectPreviewImages = []; this.projectPreviewImgFile = null; this.projectPreviewImagesFiles = []; this.newProj = { id: null, cat: 'house', titleAz: '', titleRu: '', titleEn: '', descAz: '', descRu: '', descEn: '', area: '100', stories: '1', rooms: '3', buildTimeAz: '2 ay', buildTimeRu: '2 месяца', buildTimeEn: '2 months', image: '' }; this.projectImageInputKey += 1; this.$nextTick(() => this.initProjectImageSortable()); },
+                defaultProjectCreateForm() { return { id: null, cat: 'house', titleAz: '', titleRu: '', titleEn: '', descAz: '', descRu: '', descEn: '', area: '100', stories: '1', rooms: '3', buildTimeAz: '2 ay', buildTimeRu: '2 месяца', buildTimeEn: '2 months', image: '' }; },
+                resetProjectCreateForm() {
+                    this.revokeProjectPreviewUrls();
+                    if (this.projectSortable) { this.projectSortable.destroy(); this.projectSortable = null; }
+                    this.selectedProjectImages = [];
+                    this.projectPreviewImg = '';
+                    this.projectPreviewImages = [];
+                    this.projectPreviewImgFile = null;
+                    this.projectPreviewImagesFiles = [];
+                    this.newProj = this.defaultProjectCreateForm();
+                    this.showProjectTranslations = false;
+                    ['newProjTitle', 'newProjDesc', 'newProjBuildTime'].forEach(key => {
+                        clearTimeout(this.translationTimers[key]);
+                        this.translationStatus[key] = false;
+                    });
+                    ['newProj.titleRu', 'newProj.titleEn', 'newProj.descRu', 'newProj.descEn', 'newProj.buildTimeRu', 'newProj.buildTimeEn'].forEach(path => delete this.manualTranslationOverrides[path]);
+                    if (this.$refs.projectImageInput) this.$refs.projectImageInput.value = '';
+                    this.projectImageInputKey += 1;
+                    this.$nextTick(() => {
+                        this.initProjectImageSortable();
+                        this.$refs.projectCreateCategory?.focus?.();
+                    });
+                },
+                resetProjectForm() { this.resetProjectCreateForm(); },
 
                 handleMultiFileSelect(event, previewProperty, collectionProperty) {
                     const files = Array.from(event.target.files || []);
@@ -1825,83 +1861,24 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                 saveProject() {
                     if (this.actionLoading.projectSave) return;
                     this.triggerAction(async () => {
+                        const isEditMode = Boolean(this.newProj.id);
                         const orderedProjectImages = Array.isArray(this.selectedProjectImages) ? [...this.selectedProjectImages] : [];
                         const finalImages = orderedProjectImages.length
                             ? await Promise.all(orderedProjectImages.map(item => item.type === 'existing' ? item.url : this.uploadMedia(item.file, 'projects')))
                             : ['https://images.unsplash.com/photo-1510798831971-661eb04b3739?auto=format&fit=crop&q=80&w=800'];
                         const finalImage = finalImages[0];
                         this.ensureAutoTranslations([['newProj.titleAz','newProj.titleRu','newProj.titleEn'], ['newProj.descAz','newProj.descRu','newProj.descEn'], ['newProj.buildTimeAz','newProj.buildTimeRu','newProj.buildTimeEn']]);
-                        const categoryMap = {
-                            house: { az: 'Taxta Ev', ru: 'Деревянный Дом', en: 'Wooden House' },
-                            restaurant: { az: 'Restoran', ru: 'Ресторан', en: 'Restaurant' },
-                            gazebo: { az: 'Besedka', ru: 'Беседка', en: 'Gazebo' },
-                            bath: { az: 'Hamam & Sauna', ru: 'Бани & Сауны', en: 'Bath & Sauna' }
-                        };
-
-                        if (this.newProj.id) {
-                            // Edit Mode
-                            this.projects = (Array.isArray(this.projects) ? this.projects : []).map(p => {
-                                if (p.id === this.newProj.id) {
-                                    return {
-                                        ...p,
-                                        cat: this.newProj.cat,
-                                        catName: (categoryMap[this.newProj.cat] || categoryMap.house).az,
-                                        catNameRu: (categoryMap[this.newProj.cat] || categoryMap.house).ru,
-                                        catNameEn: (categoryMap[this.newProj.cat] || categoryMap.house).en,
-                                        title: this.newProj.titleAz,
-                                        titleRu: this.newProj.titleRu,
-                                        titleEn: this.newProj.titleEn,
-                                        desc: this.newProj.descAz,
-                                        descRu: this.newProj.descRu,
-                                        descEn: this.newProj.descEn,
-                                        area: this.newProj.area,
-                                        stories: parseInt(this.newProj.stories),
-                                        rooms: parseInt(this.newProj.rooms),
-                                        buildTime: this.newProj.buildTimeAz,
-                                        buildTimeRu: this.newProj.buildTimeRu,
-                                        buildTimeEn: this.newProj.buildTimeEn,
-                                        image: finalImage,
-                                        images: finalImages
-                                    };
-                                }
-                                return p;
-                            });
-                            this.showToast('Uğurlu', 'Layihə uğurla yeniləndi!');
-                        } else {
-                            // Add Mode
-                            const added = {
-                                id: Date.now(),
-                                cat: this.newProj.cat,
-                                catName: (categoryMap[this.newProj.cat] || categoryMap.house).az,
-                                catNameRu: (categoryMap[this.newProj.cat] || categoryMap.house).ru,
-                                catNameEn: (categoryMap[this.newProj.cat] || categoryMap.house).en,
-                                title: this.newProj.titleAz,
-                                titleRu: this.newProj.titleRu,
-                                titleEn: this.newProj.titleEn,
-                                desc: this.newProj.descAz,
-                                descRu: this.newProj.descRu,
-                                descEn: this.newProj.descEn,
-                                area: this.newProj.area,
-                                stories: parseInt(this.newProj.stories) || 1,
-                                rooms: parseInt(this.newProj.rooms) || 3,
-                                buildTime: this.newProj.buildTimeAz || '2 ay',
-                                buildTimeRu: this.newProj.buildTimeRu || '2 месяца',
-                                buildTimeEn: this.newProj.buildTimeEn || '2 months',
-                                image: finalImage,
-                                images: finalImages,
-                                views: 0,
-                                archived: false
-                            };
-                            this.projects = Array.isArray(this.projects) ? this.projects : [];
-                            this.projects.unshift(added);
-                            this.showToast('Uğurlu', 'Yeni layihə kataloqa əlavə edildi!');
-                        }
-
-                        await this.api(this.newProj.id ? `/api/projects/${this.newProj.id}` : '/api/projects', { method: this.newProj.id ? 'PUT' : 'POST', body: JSON.stringify({ ...this.newProj, image: finalImage, images: finalImages }) });
+                        const endpoint = isEditMode ? `/api/projects/${this.newProj.id}` : '/api/projects';
+                        const method = isEditMode ? 'PUT' : 'POST';
+                        await this.api(endpoint, { method, body: JSON.stringify({ ...this.newProj, image: finalImage, images: finalImages }) });
                         await this.loadData();
                         this.cacheSave();
-                        // Reset Form
-                        this.resetProjectForm();
+                        if (isEditMode) {
+                            this.showToast('Uğurlu', 'Layihə uğurla yeniləndi!');
+                        } else {
+                            this.showToast('Uğurlu', 'Layihə uğurla əlavə edildi!');
+                            this.resetProjectCreateForm();
+                        }
                     }, false, 'projectSave');
                 },
 
@@ -2317,8 +2294,10 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                         const text = this.getPath(sourcePath);
                         this.translationStatus[statusKey] = true;
                         const [ru, en] = await Promise.all([this.translateText(text, 'ru'), this.translateText(text, 'en')]);
-                        if (!this.manualTranslationOverrides[ruPath]) this.setPath(ruPath, ru);
-                        if (!this.manualTranslationOverrides[enPath]) this.setPath(enPath, en);
+                        if (this.getPath(sourcePath) === text) {
+                            if (!this.manualTranslationOverrides[ruPath]) this.setPath(ruPath, ru);
+                            if (!this.manualTranslationOverrides[enPath]) this.setPath(enPath, en);
+                        }
                         this.translationStatus[statusKey] = false;
                     }, 700);
                 },
@@ -3298,8 +3277,8 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
             }
             .project-grid {
                 display: grid !important;
-                grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-                gap: 13px !important;
+                grid-template-columns: minmax(0, 1fr) !important;
+                gap: 16px !important;
                 width: 100%;
                 align-items: stretch;
                 align-content: start;
@@ -3309,6 +3288,8 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
             }
             .project-grid > template { display: contents; }
             .project-card {
+                display: flex !important;
+                flex-direction: column;
                 height: 100%;
                 min-width: 0;
                 border-radius: 18px !important;
@@ -3339,7 +3320,11 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                 text-overflow: ellipsis;
                 white-space: nowrap;
             }
+            .project-card__main { min-height: 0; }
             .project-card__body {
+                display: flex;
+                flex-direction: column;
+                flex: 1;
                 padding: 12px 12px 10px !important;
             }
             .project-card__body.space-y-4 > :not([hidden]) ~ :not([hidden]) {
@@ -3358,14 +3343,16 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
             }
             .project-card__desc {
                 display: -webkit-box;
-                min-height: 36px;
+                min-height: calc(1.55em * 3);
                 overflow: hidden;
                 -webkit-box-orient: vertical;
-                -webkit-line-clamp: 2;
+                -webkit-line-clamp: 3;
+                margin-bottom: 14px;
                 font-size: 13px !important;
-                line-height: 1.38 !important;
+                line-height: 1.55 !important;
             }
             .project-card__fallback {
+                margin-top: auto;
                 padding: 0 12px 12px !important;
             }
             .project-card__fallback button {
@@ -4170,8 +4157,8 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                         <div x-show="!(Array.isArray(filteredProjects) && filteredProjects.filter(p => !p.archived).length)" class="empty-state projects-empty rounded-3xl border border-stone-200 bg-white p-10 text-center text-stone-500 font-bold" x-text="lang === 'az' ? 'Bu kateqoriyada layihə yoxdur' : (lang === 'ru' ? 'В этой категории проектов нет.' : 'There are no projects in this category.')"></div>
                         <div x-show="Array.isArray(filteredProjects) && filteredProjects.filter(p => !p.archived).length > 0" class="project-grid grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                     <template x-for="(proj, index) in (Array.isArray(filteredProjects) ? filteredProjects : []).filter(p => !p.archived)" :key="proj.id">
-                        <a :href="projectUrl(proj)" class="project-card group bg-white rounded-3xl overflow-hidden shadow-sm transition-all duration-[450ms] border border-stone-200/60 flex flex-col justify-between hover:shadow-2xl hover:shadow-forest-950/12 hover:border-wood-200">
-                            <div>
+                        <a :href="projectUrl(proj)" class="project-card group bg-white rounded-3xl overflow-hidden shadow-sm transition-all duration-[450ms] border border-stone-200/60 flex flex-col hover:shadow-2xl hover:shadow-forest-950/12 hover:border-wood-200">
+                            <div class="project-card__main flex flex-col flex-1">
                                 <div class="project-card__media relative h-64 overflow-hidden">
                                     <img :src="(proj.images && proj.images[0]) || proj.image" class="project-card__image w-full h-full object-cover transition-transform duration-[500ms] ease-out" :alt="proj.title">
                                     <div class="project-card__overlay absolute inset-0 bg-gradient-to-t from-forest-950/65 via-forest-950/10 to-transparent opacity-0 transition-opacity duration-[450ms]"></div>
@@ -4182,7 +4169,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                                 </div>
                                 <div class="project-card__body p-6 space-y-4">
                                     <h3 class="project-card__title text-xl font-bold text-stone-900 transition-all duration-[450ms]" x-text="lang === 'en' ? proj.titleEn : (lang === 'ru' ? proj.titleRu : proj.title)">Taxta Ev</h3>
-                                    <p class="project-card__desc text-stone-500 text-sm leading-relaxed" x-text="lang === 'en' ? proj.descEn : (lang === 'ru' ? proj.descRu : proj.desc)">Açıqlama</p>
+                                    <template x-if="projectCardDescription(proj)"><p class="project-card__desc text-stone-500 text-sm leading-relaxed" x-text="projectCardDescription(proj)">Açıqlama</p></template>
                                 </div>
                             </div>
                             <div class="project-card__fallback p-6 pt-0">
@@ -4529,7 +4516,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                         <div class="grid grid-cols-2 gap-3">
                             <div>
                                 <label x-text="lang==='az'?'Kateqoriya':(lang==='ru'?'Категория':'Category')">Kateqoriya</label>
-                                <select x-model="newProj.cat" class="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg text-stone-800 mt-1 font-medium tracking-normal">
+                                <select x-ref="projectCreateCategory" x-model="newProj.cat" class="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg text-stone-800 mt-1 font-medium tracking-normal">
                                     <option value="house">Taxta Evlər</option>
                                     <option value="restaurant">Restoranlar</option>
                                     <option value="gazebo">Besedkalar</option>
