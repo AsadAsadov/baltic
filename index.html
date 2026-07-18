@@ -231,6 +231,7 @@
                 adminInitializationError: '',
                 adminLoadVersion: 0,
                 adminCache: {},
+                bcCache: window.bcCache || (window.bcCache = {}),
                 showAdminTabManager: false,
                 adminTitleTapCount: 0,
                 adminTitleTapTimer: null,
@@ -560,6 +561,7 @@
 
                 changeLang(newLang) {
                     this.lang = newLang;
+                    this.rememberCacheData('translations', this.dict);
                     this.updateMeta();
                 },
 
@@ -601,6 +603,7 @@
                     if (!url) return;
                     if (this.normalizePathname(location.pathname) !== url && options.push !== false) history.pushState({}, '', url);
                     this.setPage(pageName);
+                    this.ensurePageData(pageName);
                     this.updateMeta();
                     this.mobileMenuOpen = false;
                     this.$nextTick(() => {
@@ -693,6 +696,7 @@
                         this.resolveDetailFromRoute();
                     } else if (Object.prototype.hasOwnProperty.call(this.publicRouteMap, clean)) {
                         this.page = this.publicRouteMap[clean];
+                        this.ensurePageData(this.page);
                     } else if (clean === '/admin') {
                         this.page = (this.adminLoggedIn || this.hasAdminSessionHint() || this.adminAuthChecking) ? 'admin' : 'login';
                         if (this.page === 'admin' && this.adminLoggedIn) this.initializeAdminPanel();
@@ -711,7 +715,7 @@
                     const id = this.detailSlug.split('-').pop();
                     let item = (Array.isArray(list) ? list : []).find(x => String(x.id) === String(id) || this.itemSlug(x) === this.detailSlug);
                     if (!item) {
-                        try { item = this.detailType === 'project' ? this.normalizeProject(await this.api(`/api/projects/slug/${encodeURIComponent(this.detailSlug)}`)) : this.normalizeWorkItem(await this.api(`/api/works/slug/${encodeURIComponent(this.detailSlug)}`)); } catch (e) { console.warn('Detail route not found', e); }
+                        try { item = await this.refreshDetailFromApi(this.detailSlug, this.detailType); } catch (e) { console.warn('Detail route not found', e); }
                     }
                     this.detailItem = item || null;
                     if (!item) {
@@ -734,7 +738,23 @@
                 },
                 localizedProjectDescription(item = {}) { return this.lang === 'en' ? (item.descriptionEn || item.descEn || item.descriptionAz || item.descAz || item.desc || item.description) : (this.lang === 'ru' ? (item.descriptionRu || item.descRu || item.descriptionAz || item.descAz || item.desc || item.description) : (item.descriptionAz || item.descAz || item.desc || item.description)); },
                 projectCardDescription(item = {}) { const short = this.lang === 'en' ? item.shortDescriptionEn : (this.lang === 'ru' ? item.shortDescriptionRu : item.shortDescriptionAz); return this.createExcerpt((short && short !== this.localizedProjectDescription(item)) ? short : this.localizedProjectDescription(item), 140); },
-                openDetail(item, type = 'project') { if (!item?.id) return; this.page = 'detail'; this.notFoundKind = ''; this.detailType = type; this.detailItem = item; this.detailSlug = this.itemSlug(item); this.syncDetailGalleryState(); const url = type === 'project' ? this.projectUrl(item) : this.workUrl(item); if (this.normalizePathname(location.pathname) !== url) history.pushState({}, '', url); this.updateMeta(); window.scrollTo({top:0, behavior:'auto'}); },
+                openDetail(item, type = 'project') { if (!item?.id) return; this.page = 'detail'; this.notFoundKind = ''; this.detailType = type; this.detailItem = item; this.detailSlug = this.itemSlug(item); this.syncDetailGalleryState(); const url = type === 'project' ? this.projectUrl(item) : this.workUrl(item); if (this.normalizePathname(location.pathname) !== url) history.pushState({}, '', url); this.updateMeta(); window.scrollTo({top:0, behavior:'auto'}); this.refreshDetailFromApi(this.detailSlug, type).catch(() => {}); },
+                async refreshDetailFromApi(slug = this.detailSlug, type = this.detailType) {
+                    if (!slug || !type) return null;
+                    const cacheKey = `detail:${type}:${slug}`;
+                    const entry = this.cacheEntry(cacheKey);
+                    if (entry.data) return entry.data;
+                    if (entry.promise) return entry.promise;
+                    const path = type === 'work' ? `/api/works/slug/${encodeURIComponent(slug)}` : `/api/projects/slug/${encodeURIComponent(slug)}`;
+                    const run = this.api(path).then(data => {
+                        const item = type === 'work' ? this.normalizeWorkItem(data) : this.normalizeProject(data);
+                        this.rememberCacheData(cacheKey, item);
+                        if (this.page === 'detail' && this.detailType === type && this.detailSlug === slug) { this.detailItem = item; this.syncDetailGalleryState(); this.updateMeta(); }
+                        return item;
+                    }).finally(() => { this.cacheEntry(cacheKey).promise = null; });
+                    entry.promise = run;
+                    return run;
+                },
                 detailTitle(item = this.detailItem) { if (!item) return ''; return this.detailType === 'work' ? this.localizedWorkTitle(item) : (this.lang === 'en' ? (item.titleEn || item.title) : (this.lang === 'ru' ? (item.titleRu || item.title) : item.title)); },
                 detailDescription(item = this.detailItem) { if (!item) return ''; return this.detailType === 'work' ? this.localizedWorkDescription(item) : this.localizedProjectDescription(item); },
                 detailImages(item = this.detailItem) { const images = Array.isArray(item?.images) && item.images.length ? item.images : [item?.coverImage || item?.image].filter(Boolean); return images.filter(Boolean); },
@@ -1036,22 +1056,28 @@
                 },
 
                 async loadHeroSlides(adminInitial = false) {
-                    try {
-                        const data = await this.api(this.adminLoggedIn ? '/api/hero-slides?admin=true' : '/api/hero-slides', adminInitial ? { cache: 'no-store' } : {});
+                    const cacheKey = adminInitial ? 'admin:hero' : 'hero';
+                    const entry = this.cacheEntry(cacheKey);
+                    if (!adminInitial && entry.data) { this.slides = entry.data; this.slidesLoaded = true; return entry.data; }
+                    if (entry.promise) return entry.promise;
+                    const run = this.api(this.adminLoggedIn ? '/api/hero-slides?admin=true' : '/api/hero-slides', adminInitial ? { cache: 'no-store' } : {}).then(data => {
                         const freshSlides = this.getValidHeroSlides(data, []);
                         this.slides = freshSlides;
                         this.slidesLoaded = true;
+                        this.rememberCacheData(cacheKey, freshSlides);
                         if (this.activeSlide >= this.activeHeroSlides().length) this.activeSlide = 0;
                         if (freshSlides.length) this.cacheHeroSlides(freshSlides);
                         this.preloadFirstHeroMedia();
                         this.$nextTick(() => this.syncHeroVideoAudio());
                         return freshSlides;
-                    } catch (error) {
+                    }).catch(error => {
                         console.warn('Failed /api/hero-slides; keeping cached hero slides if available.', error);
                         this.slidesLoaded = true;
                         if (adminInitial) throw error;
                         return this.slides;
-                    }
+                    }).finally(() => { this.cacheEntry(cacheKey).promise = null; });
+                    entry.promise = run;
+                    return run;
                 },
 
                 initApp() {
@@ -1070,7 +1096,7 @@
                         this.loadAdminTabVisibility().catch(error => console.warn('Admin tab visibility loaded from fallback.', error));
                         if (this.normalizePathname(location.pathname) === '/admin') this.applyRoute('/admin');
                         if (this.page === 'admin' && this.adminLoggedIn) this.initializeAdminPanel();
-                        else this.loadData().then(() => this.resolveDetailFromRoute()).catch(error => console.warn('Initial API data loaded from fallback/cache.', error));
+                        else this.ensurePageData(this.page).then(() => this.resolveDetailFromRoute()).catch(error => console.warn('Initial API data loaded from fallback/cache.', error));
                     });
                     this.loadHomeSectionImages().catch(error => console.warn('Home section images loaded from fallback.', error));
                 },
@@ -1121,36 +1147,57 @@
 
                 retryAdminInitialization() { this.initializeAdminPanel(); },
 
+                cacheEntry(key) { return this.bcCache[key] || (this.bcCache[key] = { data: null, loadedAt: 0, promise: null }); },
+                rememberCacheData(key, data) { const entry = this.cacheEntry(key); entry.data = data; entry.loadedAt = Date.now(); entry.promise = null; return data; },
+                cachedFetch(key, path, normalizer, fallback, assign, options = {}) {
+                    const adminInitial = !!options.adminInitial;
+                    const force = !!options.force;
+                    const cacheKey = adminInitial ? `admin:${key}` : key;
+                    const entry = this.cacheEntry(cacheKey);
+                    const persistedKey = key === 'banners' ? 'bc_banners_list' : `bc_${key}`;
+                    const localFallback = () => adminInitial ? fallback : (JSON.parse(localStorage.getItem(persistedKey) || 'null') || fallback);
+                    if (!force && entry.data) { assign(entry.data); return Promise.resolve(entry.data); }
+                    if (!force && entry.promise) return entry.promise.then(value => { assign(value); return value; });
+                    const promise = this.api(path, adminInitial ? { cache: 'no-store' } : {}).then(data => {
+                        const value = normalizer(data, fallback);
+                        this.rememberCacheData(cacheKey, value);
+                        assign(value);
+                        return value;
+                    }).catch(error => {
+                        console.warn(`Failed ${path}; using cached/local fallback if available.`, error);
+                        const value = entry.data || normalizer(localFallback(), fallback);
+                        assign(value);
+                        return value;
+                    }).finally(() => { this.cacheEntry(cacheKey).promise = null; });
+                    entry.promise = promise;
+                    return promise;
+                },
+                preloadPageData(pageName) { this.ensurePageData(pageName, { preload: true }).catch(() => {}); },
+                ensurePageData(pageName = this.page, options = {}) {
+                    const sectionsByPage = { home: ['banners'], projects: ['projects'], works: ['works'], gallery: ['gallery'], detail: [this.detailType === 'work' ? 'works' : 'projects'] };
+                    const sections = sectionsByPage[pageName] || [];
+                    return sections.length ? this.loadData({ sections, background: options.preload }) : Promise.resolve();
+                },
+
                 async loadData(options = {}) {
                     const adminInitial = !!options.adminInitial;
-                    const sections = new Set(options.sections || ['projects', 'gallery', 'works', 'banners', 'stats', ...(this.adminLoggedIn ? ['messages'] : [])]);
+                    const sections = new Set(options.sections || ['projects', 'banners']);
                     const version = options.version || this.adminLoadVersion;
-                    const cached = (key, fallback) => adminInitial ? fallback : (JSON.parse(localStorage.getItem(key) || 'null') || fallback);
                     const fetchOnce = async (key, path, normalizer, fallback, assign) => {
                         if (adminInitial && this.adminCache[key]?.loadingPromise) return this.adminCache[key].loadingPromise;
-                        if (adminInitial && this.adminCache[key]?.loadedAt && Date.now() - this.adminCache[key].loadedAt < 120000) return this.adminCache[key].data;
-                        const promise = this.api(path, adminInitial ? { cache: 'no-store' } : {}).then(data => {
-                            if (adminInitial && version !== this.adminLoadVersion) return null;
-                            const value = normalizer(data, fallback);
-                            assign(value);
-                            if (adminInitial) this.adminCache[key] = { data: value, loadedAt: Date.now(), loadingPromise: null };
-                            return value;
-                        }).catch(error => {
-                            console.warn(`Failed ${path}; using local fallback if available.`, error);
-                            const value = normalizer(cached(key === 'banners' ? 'bc_banners_list' : `bc_${key}`, fallback), fallback);
-                            assign(value);
-                            return value;
-                        }).finally(() => { if (adminInitial && this.adminCache[key]) this.adminCache[key].loadingPromise = null; });
+                        if (adminInitial && this.adminCache[key]?.loadedAt && Date.now() - this.adminCache[key].loadedAt < 120000) { assign(this.adminCache[key].data); return this.adminCache[key].data; }
+                        const wrappedAssign = value => { if (!adminInitial || version === this.adminLoadVersion) assign(value); if (adminInitial) this.adminCache[key] = { data: value, loadedAt: Date.now(), loadingPromise: null }; };
+                        const promise = this.cachedFetch(key, path, normalizer, fallback, wrappedAssign, { adminInitial, force: adminInitial });
                         if (adminInitial) this.adminCache[key] = { ...(this.adminCache[key] || {}), loadingPromise: promise };
                         return promise;
                     };
                     try {
                         const tasks = [];
-                        if (sections.has('projects')) { this.projectsLoaded = false; tasks.push(fetchOnce('projects', adminInitial ? '/api/projects?includeArchived=true' : '/api/projects', (d,f)=>this.normalizeProjects(d,f), adminInitial ? [] : defaultProjects, v => { this.projects = v; this.projectsLoaded = true; })); }
-                        if (sections.has('gallery')) { this.galleryLoaded = false; tasks.push(fetchOnce('gallery', adminInitial ? '/api/gallery?includeArchived=true' : '/api/gallery', (d,f)=>this.normalizeGallery(d,f), adminInitial ? [] : defaultGallery, v => { this.galleryItems = v; this.galleryLoaded = true; })); }
-                        if (sections.has('works')) { this.workItemsLoaded = false; tasks.push(fetchOnce('works', this.adminLoggedIn ? '/api/works?includeArchived=true' : '/api/works', (d,f)=>this.normalizeWorkItems(d,f), [], v => { this.workItems = v; this.workItemsLoaded = true; })); }
+                        if (sections.has('projects')) { if (!this.projects.length) this.projectsLoaded = false; tasks.push(fetchOnce('projects', adminInitial ? '/api/projects?includeArchived=true' : '/api/projects', (d,f)=>this.normalizeProjects(d,f), adminInitial ? [] : defaultProjects, v => { this.projects = v; this.projectsLoaded = true; })); }
+                        if (sections.has('gallery')) { if (!this.galleryItems.length) this.galleryLoaded = false; tasks.push(fetchOnce('gallery', adminInitial ? '/api/gallery?includeArchived=true' : '/api/gallery', (d,f)=>this.normalizeGallery(d,f), adminInitial ? [] : defaultGallery, v => { this.galleryItems = v; this.galleryLoaded = true; })); }
+                        if (sections.has('works')) { if (!this.workItems.length) this.workItemsLoaded = false; tasks.push(fetchOnce('works', adminInitial ? '/api/works?includeArchived=true' : '/api/works', (d,f)=>this.normalizeWorkItems(d,f), [], v => { this.workItems = v; this.workItemsLoaded = true; })); }
                         if (sections.has('banners')) tasks.push(fetchOnce('banners', '/api/banners', (d)=>this.normalizeBanners(d, null), [], v => { this.banners = v; this.mainBanner = this.firstActiveBanner() || v[0] || this.normalizeBanner({}, 'both'); this.restartAdRotation(); }));
-                        if (sections.has('stats')) tasks.push(fetchOnce('stats', '/api/stats', d=>({ ...this.stats, ...(d || {}) }), this.stats, v => { this.stats = v; }));
+                        if (sections.has('stats')) tasks.push(fetchOnce('stats', '/api/stats', d=>({ ...this.stats, ...(d || {}) }), this.stats, v => { this.stats = v; }, { adminInitial, force: adminInitial }));
                         if (sections.has('messages') && this.adminLoggedIn) tasks.push(fetchOnce('messages', '/api/messages', d=>this.asArray(d), [], v => { this.messages = v; }));
                         await Promise.allSettled(tasks);
                         if (!adminInitial) this.cacheSave();
@@ -1167,19 +1214,31 @@
                 },
 
                 async loadHomeSectionImages(adminInitial = false) {
-                    try {
-                        const fetchOptions = adminInitial ? { cache: 'no-store' } : {};
-                        const [why, adv] = await Promise.all([this.api('/api/home-section-images/why_wood', fetchOptions), this.api('/api/home-section-images/advantages', fetchOptions)]);
-                        const whyItems = this.normalizeHomeSectionImages(why);
-                        const advItems = this.normalizeHomeSectionImages(adv);
-                        this.homeGalleryImages = whyItems.length ? whyItems : defaultHomeGalleryImages;
-                        this.homeAdvantagesImages = advItems.length ? advItems : defaultHomeAdvantagesImages;
-                    } catch (error) {
-                        console.warn('Home section images could not be loaded.', error);
-                        if (adminInitial) throw error;
-                        this.homeGalleryImages = defaultHomeGalleryImages;
-                        this.homeAdvantagesImages = defaultHomeAdvantagesImages;
-                    }
+                    const cacheKey = adminInitial ? 'admin:siteInfo' : 'siteInfo';
+                    const entry = this.cacheEntry(cacheKey);
+                    if (!adminInitial && entry.data) { this.homeGalleryImages = entry.data.why; this.homeAdvantagesImages = entry.data.adv; return entry.data; }
+                    if (entry.promise) return entry.promise;
+                    const run = (async () => {
+                        try {
+                            const fetchOptions = adminInitial ? { cache: 'no-store' } : {};
+                            const [why, adv] = await Promise.all([this.api('/api/home-section-images/why_wood', fetchOptions), this.api('/api/home-section-images/advantages', fetchOptions)]);
+                            const whyItems = this.normalizeHomeSectionImages(why);
+                            const advItems = this.normalizeHomeSectionImages(adv);
+                            const data = { why: whyItems.length ? whyItems : defaultHomeGalleryImages, adv: advItems.length ? advItems : defaultHomeAdvantagesImages };
+                            this.homeGalleryImages = data.why;
+                            this.homeAdvantagesImages = data.adv;
+                            this.rememberCacheData(cacheKey, data);
+                            return data;
+                        } catch (error) {
+                            console.warn('Home section images could not be loaded.', error);
+                            if (adminInitial) throw error;
+                            this.homeGalleryImages = defaultHomeGalleryImages;
+                            this.homeAdvantagesImages = defaultHomeAdvantagesImages;
+                            return { why: this.homeGalleryImages, adv: this.homeAdvantagesImages };
+                        }
+                    })().finally(() => { this.cacheEntry(cacheKey).promise = null; });
+                    entry.promise = run;
+                    return run;
                 },
 
                 visibleHomeGalleryImages() {
@@ -1892,17 +1951,21 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                 hasAdminSessionHint() { return sessionStorage.getItem('bc_admin_session_hint') === 'true'; },
                 setAdminSessionHint(value) { if (value) sessionStorage.setItem('bc_admin_session_hint', 'true'); else sessionStorage.removeItem('bc_admin_session_hint'); },
                 async checkAdminSession() {
+                    const entry = this.cacheEntry('adminSession');
+                    if (entry.data && Date.now() - entry.loadedAt < 60000) { this.adminLoggedIn = entry.data.authenticated === true; this.adminAuthChecking = false; return entry.data; }
+                    if (entry.promise) return entry.promise;
                     this.adminAuthChecking = true;
-                    try {
-                        const session = await this.api('/api/admin/session', { cache: 'no-store' });
+                    const run = this.api('/api/admin/session', { cache: 'no-store' }).then(session => {
                         this.adminLoggedIn = session?.authenticated === true;
                         this.setAdminSessionHint(this.adminLoggedIn);
-                    } catch (error) {
+                        return this.rememberCacheData('adminSession', session || { authenticated: false });
+                    }).catch(error => {
                         this.adminLoggedIn = false;
                         this.setAdminSessionHint(false);
-                    } finally {
-                        this.adminAuthChecking = false;
-                    }
+                        return this.rememberCacheData('adminSession', { authenticated: false });
+                    }).finally(() => { this.adminAuthChecking = false; this.cacheEntry('adminSession').promise = null; });
+                    entry.promise = run;
+                    return run;
                 },
 
                 handleAdminSessionExpired() {
@@ -2539,7 +2602,19 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                 localizedWorkTitle(item) { return this.lang === 'en' ? (item.titleEn || item.titleAz) : (this.lang === 'ru' ? (item.titleRu || item.titleAz) : item.titleAz); },
                 localizedWorkDescription(item) { return this.lang === 'en' ? (item.descriptionEn || item.descriptionAz) : (this.lang === 'ru' ? (item.descriptionRu || item.descriptionAz) : item.descriptionAz); },
                 localizedWorkLocation(item) { return this.lang === 'en' ? (item.locationEn || item.locationAz) : (this.lang === 'ru' ? (item.locationRu || item.locationAz) : item.locationAz); },
-                formatWorkDate(value) { if (!value) return ''; try { return new Date(value).toLocaleDateString(this.lang === 'az' ? 'az-AZ' : (this.lang === 'ru' ? 'ru-RU' : 'en-US'), { year:'numeric', month:'short' }); } catch { return ''; } },
+                formatDate(value) {
+                    if (!value) return '';
+                    const raw = String(value).trim();
+                    const full = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
+                    if (full) return `${full[3]}.${full[2]}.${full[1]}`;
+                    const monthYear = raw.match(/^(\d{4})[-\s]?M?(\d{1,2})$/i) || raw.match(/^M?(\d{1,2})[.\-/](\d{4})$/i);
+                    if (monthYear) { const y = monthYear[2].length === 4 ? monthYear[2] : monthYear[1]; const m = monthYear[2].length === 4 ? monthYear[1] : monthYear[2]; return `${String(m).padStart(2,'0')}.${y}`; }
+                    const date = new Date(raw);
+                    if (Number.isNaN(date.getTime())) return raw.replace(/\bM(\d{1,2})\b/gi, (_, m) => String(m).padStart(2, '0'));
+                    return `${String(date.getDate()).padStart(2,'0')}.${String(date.getMonth()+1).padStart(2,'0')}.${date.getFullYear()}`;
+                },
+                formatMonthYear(value) { return this.formatDate(value); },
+                formatWorkDate(value) { return this.formatDate(value); },
                 openWorkModal(item, index = 0) { this.selectedWorkItem = item; this.selectedWorkItemIndex = index; this.activeWorkImageIndex = 0; this.lastWorkFocus = document.activeElement; document.body.classList.add('modal-open'); this.$nextTick(() => document.querySelector('.work-modal-close')?.focus()); },
                 closeWorkModal() { this.selectedWorkItem = null; this.selectedWorkItemIndex = -1; document.body.classList.remove('modal-open'); this.$nextTick(() => this.lastWorkFocus?.focus?.()); },
                 currentWorkImages() { const item = this.selectedWorkItem || {}; return (Array.isArray(item.images) && item.images.length) ? item.images : (item.coverImage ? [item.coverImage] : []); },
@@ -4085,7 +4160,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                 <!-- Desktop Nav (Optimized sizes to prevent breaking/wrapping on Ru/En selection) -->
                 <nav class="hidden md:flex items-center gap-3 lg:gap-6 xl:gap-8 font-semibold text-xs lg:text-sm xl:text-base">
                     <template x-for="item in navItems()" :key="item.p">
-                        <a :href="pageUrl(item.p)" class="transition relative py-2" :class="page === 'home' && !isHeaderScrolled ? 'text-white hover:text-wood-200 drop-shadow' : (activeNavPage() === item.p ? 'text-forest-700' : 'text-stone-700 hover:text-forest-700')">
+                        <a :href="pageUrl(item.p)" @mouseenter="preloadPageData(item.p)" @focus="preloadPageData(item.p)" class="transition relative py-2" :class="page === 'home' && !isHeaderScrolled ? 'text-white hover:text-wood-200 drop-shadow' : (activeNavPage() === item.p ? 'text-forest-700' : 'text-stone-700 hover:text-forest-700')">
                             <span x-text="t(item.k)"></span>
                             <span x-show="activeNavPage() === item.p" class="absolute bottom-0 left-0 right-0 h-0.5 bg-wood-500 rounded" x-transition></span>
                         </a>
@@ -4153,8 +4228,8 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                                 </template>
                                 <template x-if="getHeroMediaKind(slide) !== 'video' || isYouTubeUrl(getHeroMediaUrl(slide))">
                                     <div class="absolute inset-0 bg-[#06110e] overflow-hidden">
-                                        <img :src="getHeroVisualUrl(slide)" class="hero-slide-media-bg" aria-hidden="true" alt="">
-                                        <img :src="getHeroVisualUrl(slide)" class="hero-slide-media hero-slide-media-main" :class="getHeroMediaFit(slide) === 'contain' ? 'object-contain bg-[#06110e]' : 'object-cover'" alt="Hero background">
+                                        <img :src="getHeroVisualUrl(slide)" class="hero-slide-media-bg" decoding="async" fetchpriority="high" aria-hidden="true" alt="">
+                                        <img :src="getHeroVisualUrl(slide)" class="hero-slide-media hero-slide-media-main" decoding="async" fetchpriority="high" :class="getHeroMediaFit(slide) === 'contain' ? 'object-contain bg-[#06110e]' : 'object-cover'" alt="Hero background">
                                     </div>
                                 </template>
                                 <div class="hero-overlay absolute inset-0"></div>
@@ -4217,7 +4292,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                     <div class="ad-box flex flex-col items-center py-2">
                         <div class="ad-frame relative" :style="`--ad-width: ${Math.min(bannerForSide($el.closest('[data-ad-side]')?.dataset.adSide || 'left').width || 260, 260)}px; --ad-height: ${bannerForSide($el.closest('[data-ad-side]')?.dataset.adSide || 'left').height || 600}px;`">
                             <a :href="bannerForSide('left').link || '#'" target="_blank" rel="noopener" class="block w-full h-full relative group" @click="incrementAdClick($el.closest('[data-ad-side]')?.dataset.adSide || 'left')">
-                                <template x-if="currentBannerForSide('left').mediaType === 'image'"><img :src="currentBannerForSide('left').src || currentBannerForSide('left').mediaUrl" class="ad-media group-hover:scale-105 transition duration-500" alt="Reklam banneri"></template>
+                                <template x-if="currentBannerForSide('left').mediaType === 'image'"><img :src="currentBannerForSide('left').src || currentBannerForSide('left').mediaUrl" class="ad-media group-hover:scale-105 transition duration-500" loading="lazy" decoding="async" alt="Reklam banneri"></template>
                                 <template x-if="currentBannerForSide('left').mediaType === 'video'"><video :src="currentBannerForSide('left').src || currentBannerForSide('left').mediaUrl" autoplay muted loop playsinline class="ad-media"></video></template>
                             </a>
                         </div>
@@ -4411,7 +4486,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                     <div class="ad-box flex flex-col items-center py-2">
                         <div class="ad-frame relative" :style="`--ad-width: ${Math.min(bannerForSide($el.closest('[data-ad-side]')?.dataset.adSide || 'right').width || 260, 260)}px; --ad-height: ${bannerForSide($el.closest('[data-ad-side]')?.dataset.adSide || 'right').height || 600}px;`">
                             <a :href="bannerForSide('right').link || '#'" target="_blank" rel="noopener" class="block w-full h-full relative group" @click="incrementAdClick($el.closest('[data-ad-side]')?.dataset.adSide || 'right')">
-                                <template x-if="currentBannerForSide('right').mediaType === 'image'"><img :src="currentBannerForSide('right').src || currentBannerForSide('right').mediaUrl" class="ad-media group-hover:scale-105 transition duration-500" alt="Reklam banneri"></template>
+                                <template x-if="currentBannerForSide('right').mediaType === 'image'"><img :src="currentBannerForSide('right').src || currentBannerForSide('right').mediaUrl" class="ad-media group-hover:scale-105 transition duration-500" loading="lazy" decoding="async" alt="Reklam banneri"></template>
                                 <template x-if="currentBannerForSide('right').mediaType === 'video'"><video :src="currentBannerForSide('right').src || currentBannerForSide('right').mediaUrl" autoplay muted loop playsinline class="ad-media"></video></template>
                             </a>
                         </div>
@@ -4428,7 +4503,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                     <div class="ad-box flex flex-col items-center py-2">
                         <div class="ad-frame relative" :style="`--ad-width: ${Math.min(bannerForSide($el.closest('[data-ad-side]')?.dataset.adSide || 'left').width || 260, 260)}px; --ad-height: ${bannerForSide($el.closest('[data-ad-side]')?.dataset.adSide || 'left').height || 600}px;`">
                             <a :href="bannerForSide('left').link || '#'" target="_blank" rel="noopener" class="block w-full h-full relative group" @click="incrementAdClick($el.closest('[data-ad-side]')?.dataset.adSide || 'left')">
-                                <template x-if="currentBannerForSide('left').mediaType === 'image'"><img :src="currentBannerForSide('left').src || currentBannerForSide('left').mediaUrl" class="ad-media group-hover:scale-105 transition duration-500" alt="Reklam banneri"></template>
+                                <template x-if="currentBannerForSide('left').mediaType === 'image'"><img :src="currentBannerForSide('left').src || currentBannerForSide('left').mediaUrl" class="ad-media group-hover:scale-105 transition duration-500" loading="lazy" decoding="async" alt="Reklam banneri"></template>
                                 <template x-if="currentBannerForSide('left').mediaType === 'video'"><video :src="currentBannerForSide('left').src || currentBannerForSide('left').mediaUrl" autoplay muted loop playsinline class="ad-media"></video></template>
                             </a>
                         </div>
@@ -4471,7 +4546,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                         <a :href="projectUrl(proj)" class="project-card group bg-white rounded-3xl overflow-hidden shadow-sm transition-all duration-[450ms] border border-stone-200/60 flex flex-col hover:shadow-2xl hover:shadow-forest-950/12 hover:border-wood-200">
                             <div class="project-card__main flex flex-col flex-1">
                                 <div class="project-card__media relative h-64 overflow-hidden">
-                                    <img :src="(proj.images && proj.images[0]) || proj.image" class="project-card__image w-full h-full object-cover transition-transform duration-[500ms] ease-out" :alt="proj.title">
+                                    <img :src="(proj.images && proj.images[0]) || proj.image" class="project-card__image w-full h-full object-cover transition-transform duration-[500ms] ease-out" loading="lazy" decoding="async" :alt="proj.title">
                                     <div class="project-card__overlay absolute inset-0 bg-gradient-to-t from-forest-950/65 via-forest-950/10 to-transparent opacity-0 transition-opacity duration-[450ms]"></div>
                                     <span class="project-card__badge absolute top-4 left-4 bg-forest-950/85 text-white backdrop-blur text-xs font-bold px-3 py-1 rounded-full uppercase" x-text="lang === 'en' ? proj.catNameEn : (lang === 'ru' ? proj.catNameRu : proj.catName)">Taxta Ev</span>
                                     <span class="project-card__cta absolute left-5 right-5 bottom-5 translate-y-4 opacity-0 rounded-xl border border-white/40 py-3 text-sm font-black text-white shadow-lg backdrop-blur transition-all duration-[450ms]">
@@ -4515,7 +4590,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                         <div x-show="filteredWorkItems.length" class="work-grid">
                             <template x-for="(item, index) in filteredWorkItems" :key="item.id">
                                 <a :href="workUrl(item)" class="work-card group flex h-full flex-col overflow-hidden rounded-[20px] border border-stone-200/80 bg-white text-left shadow-sm transition hover:-translate-y-1 hover:shadow-xl hover:shadow-forest-950/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-forest-700" :aria-label="localizedWorkTitle(item)">
-                                    <div class="relative aspect-[4/3] overflow-hidden bg-stone-100"><img :src="item.coverImage || fallbackWorkImage()" @error="setWorkImageFallback($event)" :alt="localizedWorkTitle(item)" class="h-full w-full object-cover transition duration-500 group-hover:scale-105"><span class="absolute left-2 top-2 rounded-full bg-forest-950/85 px-2.5 py-1 text-[10px] font-black uppercase text-white" x-text="workCategoryLabel(item.category)"></span></div>
+                                    <div class="relative aspect-[4/3] overflow-hidden bg-stone-100"><img :src="item.coverImage || fallbackWorkImage()" @error="setWorkImageFallback($event)" :alt="localizedWorkTitle(item)" class="h-full w-full object-cover transition duration-500 group-hover:scale-105" loading="lazy" decoding="async"><span class="absolute left-2 top-2 rounded-full bg-forest-950/85 px-2.5 py-1 text-[10px] font-black uppercase text-white" x-text="workCategoryLabel(item.category)"></span></div>
                                     <div class="flex flex-1 flex-col gap-2 p-3 sm:p-4"><h2 class="line-clamp-2 text-sm sm:text-lg font-black leading-tight text-forest-950" x-text="localizedWorkTitle(item)"></h2><p x-show="localizedWorkLocation(item)" class="truncate text-[11px] sm:text-sm font-semibold text-stone-500"><i class="fa-solid fa-location-dot text-wood-500"></i> <span x-text="localizedWorkLocation(item)"></span></p><p x-show="formatWorkDate(item.completionDate)" class="text-[11px] font-bold text-stone-400" x-text="formatWorkDate(item.completionDate)"></p><span class="mt-auto inline-flex items-center gap-1 text-xs font-black text-forest-700"><span x-text="t('workViewDetails')"></span><i class="fa-solid fa-arrow-right"></i></span></div>
                                 </a>
                             </template>
@@ -4548,7 +4623,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                                 </div>
                             </template>
                             <template x-if="img.type === 'image'">
-                                <img :src="(img.images && img.images[0]) || img.src" class="w-full h-full object-cover group-hover:scale-105 transition duration-500" :alt="img.title">
+                                <img :src="(img.images && img.images[0]) || img.src" class="w-full h-full object-cover group-hover:scale-105 transition duration-500" loading="lazy" decoding="async" :alt="img.title">
                             </template>
                             <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition duration-300 flex items-center justify-center z-20">
                                 <p class="text-white font-bold text-sm uppercase tracking-wider text-center px-2" x-text="lang === 'en' ? img.titleEn : (lang === 'ru' ? img.titleRu : img.title)">Görüntü</p>
@@ -4570,7 +4645,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                     <section class="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(300px,1fr)] items-start">
                         <div class="min-w-0 space-y-4">
                             <div class="relative rounded-[22px] border border-stone-200 bg-[#f5f5f2] overflow-hidden min-h-[320px] sm:min-h-[480px] max-h-[760px] flex items-center justify-center">
-                                <button type="button" class="block h-full min-h-[320px] sm:min-h-[480px] w-full cursor-zoom-in" @click="detailLightboxOpen=true" aria-label="Şəkli böyüt"><img :src="detailImage()" :alt="detailTitle()" class="h-full w-full max-h-[760px] object-contain" loading="eager"></button>
+                                <button type="button" class="block h-full min-h-[320px] sm:min-h-[480px] w-full cursor-zoom-in" @click="detailLightboxOpen=true" aria-label="Şəkli böyüt"><img :src="detailImage()" :alt="detailTitle()" class="h-full w-full max-h-[760px] object-contain" loading="eager" decoding="async" fetchpriority="high"></button>
                                 <template x-if="detailGalleryState.images.length > 1"><button type="button" class="absolute left-3 top-1/2 -translate-y-1/2 h-11 w-11 rounded-full bg-white/85 text-forest-900 shadow" @click.stop="prevDetailImage()" aria-label="Əvvəlki şəkil"><i class="fa-solid fa-chevron-left"></i></button></template>
                                 <template x-if="detailGalleryState.images.length > 1"><button type="button" class="absolute right-3 top-1/2 -translate-y-1/2 h-11 w-11 rounded-full bg-white/85 text-forest-900 shadow" @click.stop="nextDetailImage()" aria-label="Növbəti şəkil"><i class="fa-solid fa-chevron-right"></i></button></template>
                                 <span x-show="detailGalleryState.images.length > 1" class="absolute bottom-3 right-3 rounded-full bg-white/90 px-3 py-1 text-xs font-black text-forest-900" x-text="`${detailGalleryState.activeIndex+1} / ${detailGalleryState.images.length}`"></span>
@@ -4582,7 +4657,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                         <aside class="space-y-4 lg:sticky lg:top-28"><section x-show="detailSpecs().length" class="grid grid-cols-2 gap-3"><template x-for="spec in detailSpecs()" :key="spec.label"><div class="rounded-2xl border border-stone-200 bg-white p-4 shadow-sm"><div class="flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.14em] text-stone-500"><i class="fa-solid text-forest-700" :class="spec.icon"></i><span x-text="spec.label"></span></div><strong class="mt-2 block text-xl font-black text-forest-950" x-text="spec.value"></strong></div></template></section><div class="rounded-3xl border border-stone-200 bg-white p-6 shadow-sm"><h2 class="text-xl font-black text-forest-950" x-text="detailType==='work'?'Bu işlə maraqlanırsınız?':'Bu layihə ilə maraqlanırsınız?'">Bu layihə ilə maraqlanırsınız?</h2><p class="mt-2 text-sm leading-6 text-stone-600">Ətraflı məlumat və fərdi layihələndirmə üçün bizimlə əlaqə saxlayın.</p><a :href="detailWhatsappUrl()" target="_blank" rel="noopener noreferrer" class="mt-5 flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-[#25D366] px-4 py-3 font-black text-white"><i class="fa-brands fa-whatsapp"></i> WhatsApp-la müraciət et</a><button type="button" @click="shareDetail()" class="mt-3 flex h-12 w-full items-center justify-center gap-2 rounded-2xl border border-forest-200 bg-white font-black text-forest-800"><i class="fa-solid fa-share-nodes"></i> Linki paylaş</button></div></aside>
                     </section>
                     <section x-show="hasDetailDescription()" class="rounded-3xl border border-stone-200 bg-white p-6 sm:p-8 shadow-sm"><h2 class="text-2xl font-black text-forest-950" x-text="detailType==='work'?'İş haqqında':'Layihə haqqında'">Layihə haqqında</h2><p class="mt-4 max-w-5xl whitespace-pre-line text-[17px] leading-8 text-stone-600" x-text="detailDescription()"></p></section>
-                    <section x-show="similarDetailItems().length" class="pt-6 sm:pt-10 space-y-5"><h2 class="text-2xl sm:text-3xl font-black text-forest-950" x-text="detailType==='work'?'Oxşar işlər':'Oxşar layihələr'">Oxşar layihələr</h2><div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-5"><template x-for="item in similarDetailItems()" :key="item.id"><a :href="detailType==='work'?workUrl(item):projectUrl(item)" class="group text-left rounded-3xl overflow-hidden bg-white border border-stone-200 shadow-sm hover:shadow-xl transition"><img :src="item.coverImage||item.image||fallbackWorkImage()" @error="setWorkImageFallback($event)" class="aspect-[4/3] w-full object-cover" loading="lazy"><div class="p-5"><span class="text-xs font-black uppercase tracking-[0.14em] text-forest-700" x-text="detailType==='work'?workCategoryLabel(item.category):(item.catName||item.category)"></span><h3 class="mt-2 font-black text-forest-950 group-hover:text-forest-700" x-text="detailType==='work'?localizedWorkTitle(item):(item.title||item.titleAz)"></h3><p x-show="item.area" class="mt-2 text-sm font-bold text-stone-500" x-text="formatAreaValue(item.area)"></p></div></a></template></div></section>
+                    <section x-show="similarDetailItems().length" class="pt-6 sm:pt-10 space-y-5"><h2 class="text-2xl sm:text-3xl font-black text-forest-950" x-text="detailType==='work'?'Oxşar işlər':'Oxşar layihələr'">Oxşar layihələr</h2><div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-5"><template x-for="item in similarDetailItems()" :key="item.id"><a :href="detailType==='work'?workUrl(item):projectUrl(item)" class="group text-left rounded-3xl overflow-hidden bg-white border border-stone-200 shadow-sm hover:shadow-xl transition"><img :src="item.coverImage||item.image||fallbackWorkImage()" @error="setWorkImageFallback($event)" class="aspect-[4/3] w-full object-cover" loading="lazy" decoding="async"><div class="p-5"><span class="text-xs font-black uppercase tracking-[0.14em] text-forest-700" x-text="detailType==='work'?workCategoryLabel(item.category):(item.catName||item.category)"></span><h3 class="mt-2 font-black text-forest-950 group-hover:text-forest-700" x-text="detailType==='work'?localizedWorkTitle(item):(item.title||item.titleAz)"></h3><p x-show="item.area" class="mt-2 text-sm font-bold text-stone-500" x-text="formatAreaValue(item.area)"></p></div></a></template></div></section>
                     <div x-show="detailLightboxOpen" x-cloak class="fixed inset-0 z-[9999] bg-black/95 p-4 flex items-center justify-center" @click="detailLightboxOpen=false"><button class="absolute top-4 right-4 h-12 w-12 rounded-full bg-white/15 text-white" @click.stop="detailLightboxOpen=false" aria-label="Bağla"><i class="fa-solid fa-xmark"></i></button><button x-show="detailGalleryState.images.length > 1" class="absolute left-4 h-12 w-12 rounded-full bg-white/15 text-white" @click.stop="prevDetailImage()" aria-label="Əvvəlki şəkil"><i class="fa-solid fa-chevron-left"></i></button><img :src="detailImage()" class="max-h-full max-w-full object-contain" :alt="detailTitle()"><span class="absolute bottom-4 rounded-full bg-white/15 px-4 py-2 text-sm font-black text-white" x-text="`${detailGalleryState.activeIndex+1} / ${detailGalleryState.images.length}`"></span><button x-show="detailGalleryState.images.length > 1" class="absolute right-4 h-12 w-12 rounded-full bg-white/15 text-white" @click.stop="nextDetailImage()" aria-label="Növbəti şəkil"><i class="fa-solid fa-chevron-right"></i></button></div>
                 </article></template>
             </div>
@@ -4599,7 +4674,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                                 <p class="whitespace-pre-line" x-text="lang === 'ru' ? (t('aboutTextRu') || t('aboutTextAz')) : (lang === 'en' ? (t('aboutTextEn') || t('aboutTextAz')) : t('aboutTextAz'))">BALTIC CASPIAN LTD 2008-ci ildə yaradılmışdır.</p>
                             </div>
                         </div>
-                        <img src="https://images.unsplash.com/photo-1549692520-acc6669e2f0c?auto=format&fit=crop&q=80&w=1000" class="about-intro-image" alt="Baltic Caspian LTD wooden construction workspace">
+                        <img src="https://images.unsplash.com/photo-1549692520-acc6669e2f0c?auto=format&fit=crop&q=80&w=1000" class="about-intro-image" loading="lazy" decoding="async" alt="Baltic Caspian LTD wooden construction workspace">
                     </div>
                 </section>
 
@@ -5076,7 +5151,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                     <div class="ad-box flex flex-col items-center py-2">
                         <div class="ad-frame relative" :style="`--ad-width: ${Math.min(bannerForSide($el.closest('[data-ad-side]')?.dataset.adSide || 'right').width || 260, 260)}px; --ad-height: ${bannerForSide($el.closest('[data-ad-side]')?.dataset.adSide || 'right').height || 600}px;`">
                             <a :href="bannerForSide('right').link || '#'" target="_blank" rel="noopener" class="block w-full h-full relative group" @click="incrementAdClick($el.closest('[data-ad-side]')?.dataset.adSide || 'right')">
-                                <template x-if="currentBannerForSide('right').mediaType === 'image'"><img :src="currentBannerForSide('right').src || currentBannerForSide('right').mediaUrl" class="ad-media group-hover:scale-105 transition duration-500" alt="Reklam banneri"></template>
+                                <template x-if="currentBannerForSide('right').mediaType === 'image'"><img :src="currentBannerForSide('right').src || currentBannerForSide('right').mediaUrl" class="ad-media group-hover:scale-105 transition duration-500" loading="lazy" decoding="async" alt="Reklam banneri"></template>
                                 <template x-if="currentBannerForSide('right').mediaType === 'video'"><video :src="currentBannerForSide('right').src || currentBannerForSide('right').mediaUrl" autoplay muted loop playsinline class="ad-media"></video></template>
                             </a>
                         </div>
