@@ -205,10 +205,12 @@
                 IMAGE_VIDEO_ACCEPT,
 
                 // Admin authentication
-                adminLoggedIn: localStorage.getItem('bc_admin_logged') === 'true',
+                adminLoggedIn: false,
                 adminUsername: '',
                 adminPassword: '',
                 adminLoginError: '',
+                adminLoginLoading: false,
+                adminPasswordVisible: false,
                 adminTab: 'dashboard', // dashboard, messages, projects, works, gallery, hero, home-images, ads
                 adminTabs: [
                     { key: 'dashboard', labelKey: 'adminTabStats' },
@@ -738,7 +740,6 @@
 
                 async api(path, options = {}) {
                     const headers = options.body instanceof FormData ? { ...(options.headers || {}) } : { 'Content-Type': 'application/json', ...(options.headers || {}) };
-                    if (this.adminLoggedIn) headers['x-admin-auth'] = 'true';
                     const fetchOptions = { ...options, headers };
                     const isAdminRequest = path.startsWith('/api/messages') || path.startsWith('/api/stats') || path.includes('admin=true') || path.includes('includeArchived=true') || path.startsWith('/api/admin-panel-settings') || (this.adminLoggedIn && (path.startsWith('/api/projects') || path.startsWith('/api/works') || path.startsWith('/api/gallery') || path.startsWith('/api/banners') || path.startsWith('/api/hero-slides') || path.startsWith('/api/home-section-images')));
                     if (isAdminRequest && !fetchOptions.cache) fetchOptions.cache = 'no-store';
@@ -747,6 +748,7 @@
                     const contentType = res.headers.get('content-type') || '';
                     const data = contentType.includes('application/json') ? await res.json().catch(() => null) : await res.text().catch(() => '');
                     if (!res.ok) {
+                        if (res.status === 401 && isAdminRequest) { this.handleAdminSessionExpired(); }
                         if (res.status === 404 && path.startsWith('/api/')) console.warn('API not available. Make sure Render deployment is Web Service, not Static Site.');
                         const message = data?.message || data?.error || (typeof data === 'string' && data) || `API ${res.status}: ${path}`;
                         const error = new Error(message);
@@ -1047,9 +1049,12 @@
                     this.initRevealAnimations();
                     this.initStatsCounter();
                     window.addEventListener('pageshow', event => { if (event.persisted && this.page === 'admin' && this.adminLoggedIn) this.initializeAdminPanel(); });
-                    this.loadAdminTabVisibility().catch(error => console.warn('Admin tab visibility loaded from fallback.', error));
-                    if (this.page === 'admin' && this.adminLoggedIn) this.initializeAdminPanel();
-                    else this.loadData().then(() => this.resolveDetailFromRoute()).catch(error => console.warn('Initial API data loaded from fallback/cache.', error));
+                    this.checkAdminSession().then(() => {
+                        this.loadAdminTabVisibility().catch(error => console.warn('Admin tab visibility loaded from fallback.', error));
+                        if (this.normalizePathname(location.pathname) === '/admin') this.applyRoute('/admin');
+                        if (this.page === 'admin' && this.adminLoggedIn) this.initializeAdminPanel();
+                        else this.loadData().then(() => this.resolveDetailFromRoute()).catch(error => console.warn('Initial API data loaded from fallback/cache.', error));
+                    });
                     this.loadHomeSectionImages().catch(error => console.warn('Home section images loaded from fallback.', error));
                 },
 
@@ -1863,22 +1868,56 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                     this.cacheSave();
                 },
 
-                handleAdminLogin() {
-                    if (this.adminUsername === 'admin' && this.adminPassword === 'admin') {
-                        this.adminLoggedIn = true;
-                        this.adminLoginError = '';
-                        this.initializeAdminPanel();
-                        localStorage.setItem('bc_admin_logged', 'true');
-                        this.setPage('admin');
-                        this.showToast('Giriş Uğurludur', 'Admin İdarəetmə Paneli aktivdir!');
-                    } else {
-                        this.adminLoginError = 'Məlumatlar yanlışdır.';
+                async checkAdminSession() {
+                    try {
+                        const session = await this.api('/api/admin/session', { cache: 'no-store' });
+                        this.adminLoggedIn = session?.authenticated === true;
+                    } catch (error) {
+                        this.adminLoggedIn = false;
                     }
                 },
 
-                handleAdminLogout() {
+                handleAdminSessionExpired() {
+                    if (!this.adminLoggedIn && this.page === 'login') return;
                     this.adminLoggedIn = false;
-                    localStorage.removeItem('bc_admin_logged');
+                    this.messages = [];
+                    this.adminInitializationError = '';
+                    this.adminInitializing = true;
+                    this.adminLoginError = 'Sessiyanın vaxtı bitib. Yenidən daxil olun.';
+                    if (this.normalizePathname(location.pathname) === '/admin') this.page = 'login';
+                },
+
+                async handleAdminLogin() {
+                    if (this.adminLoginLoading) return;
+                    this.adminLoginError = '';
+                    this.adminLoginLoading = true;
+                    try {
+                        const response = await this.api('/api/admin/login', {
+                            method: 'POST',
+                            body: JSON.stringify({ username: this.adminUsername.trim(), password: this.adminPassword })
+                        });
+                        if (response?.authenticated !== true) throw new Error('Giriş təsdiqlənmədi.');
+                        this.adminLoggedIn = true;
+                        this.adminUsername = '';
+                        this.adminPassword = '';
+                        this.adminPasswordVisible = false;
+                        this.setPage('admin');
+                        await this.initializeAdminPanel();
+                        this.showToast('Giriş uğurludur', 'İdarəetmə sistemi aktivdir.');
+                    } catch (error) {
+                        this.adminPassword = '';
+                        this.adminLoginError = error?.message || 'İstifadəçi adı və ya şifrə yanlışdır';
+                    } finally {
+                        this.adminLoginLoading = false;
+                    }
+                },
+
+                async handleAdminLogout() {
+                    try { await this.api('/api/admin/logout', { method: 'POST' }); }
+                    catch (error) { console.warn('Admin logout request failed.', error); }
+                    this.adminLoggedIn = false;
+                    this.adminUsername = '';
+                    this.adminPassword = '';
                     this.messages = [];
                     this.adminInitializationError = '';
                     this.adminInitializing = true;
@@ -2982,11 +3021,21 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
         }
         .login-page-wrap { width: 100%; min-height: calc(100svh - var(--header-height)); display: flex; align-items: center; justify-content: center; padding: 2rem 1rem; }
         .login-card-premium { width: calc(100vw - 32px); max-width: 440px; border-radius: 28px; border: 1px solid rgba(255,255,255,.12); background: linear-gradient(145deg, #0b1712, #1a251f); box-shadow: 0 28px 80px rgba(0,0,0,.22); padding: 1.5rem; color: #fff; overflow: hidden; }
-        .login-icon-badge { width: 58px; height: 58px; border-radius: 20px; display: inline-flex; align-items: center; justify-content: center; background: linear-gradient(135deg, rgba(51,115,79,.95), rgba(184,138,96,.9)); color: #fff; box-shadow: 0 18px 45px rgba(0,0,0,.24); }
+        .login-icon-badge { width: 58px; height: 58px; border-radius: 20px; display: inline-flex; align-items: center; justify-content: center; background: linear-gradient(135deg, rgba(51,115,79,.95), rgba(184,138,96,.9)); color: #fff; box-shadow: 0 18px 45px rgba(0,0,0,.24); font-weight: 950; letter-spacing: -.04em; }
+        .login-field { display: grid; gap: 8px; }
+        .login-field label { color: rgba(255,255,255,.76); font-size: 12px; font-weight: 850; letter-spacing: .02em; }
         .login-input { width: 100%; height: 56px; border-radius: 18px; border: 1px solid rgba(255,255,255,.14); background: rgba(255,255,255,.07); color: #fff; padding: 0 1rem; font-size: .95rem; outline: none; transition: border-color .2s ease, box-shadow .2s ease, background .2s ease; }
+        .login-password-wrap { position: relative; }
+        .login-password-wrap .login-input { padding-right: 3.25rem; }
+        .login-password-toggle { position: absolute; top: 50%; right: 10px; transform: translateY(-50%); width: 38px; height: 38px; border-radius: 14px; color: rgba(255,255,255,.72); background: rgba(255,255,255,.08); transition: background .2s ease, color .2s ease; }
+        .login-password-toggle:hover, .login-password-toggle:focus-visible { background: rgba(184,138,96,.22); color: #fff; outline: 2px solid rgba(184,138,96,.46); outline-offset: 2px; }
         .login-input::placeholder { color: rgba(255,255,255,.55); }
         .login-input:focus { border-color: rgba(184,138,96,.86); box-shadow: 0 0 0 4px rgba(51, 115, 79, .22); background: rgba(255,255,255,.1); }
+        .login-error { padding: .8rem .9rem; border-radius: 16px; border: 1px solid rgba(248,113,113,.28); background: rgba(248,113,113,.13); color: #fecaca; font-size: 12px; font-weight: 800; }
         .login-submit-button { height: 58px; border-radius: 18px; background: linear-gradient(135deg, #33734f, #1f5f3d 55%, #b88a60); box-shadow: 0 18px 42px rgba(0,0,0,.25); }
+        .login-submit-button:disabled { cursor: wait; opacity: .72; filter: saturate(.86); }
+        .login-spinner { width: 18px; height: 18px; border: 2px solid rgba(255,255,255,.35); border-top-color: #fff; border-radius: 999px; animation: bc-spin .8s linear infinite; }
+        @keyframes bc-spin { to { transform: rotate(360deg); } }
         .login-home-link { color: rgba(255,255,255,.72); }
         .login-home-link:hover { color: #f5d0b5; }
         @media (min-width: 640px) { .login-card-premium { padding: 2rem; } }
@@ -4461,26 +4510,35 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
             <div x-show="page === 'login'" x-cloak class="login-page-wrap">
                 <div class="login-card-premium space-y-6">
                     <div class="text-center space-y-3">
-                        <div class="login-icon-badge mx-auto">
-                            <i class="fa-solid fa-lock text-xl"></i>
+                        <div class="login-icon-badge mx-auto" aria-hidden="true">
+                            <span>BC</span>
                         </div>
                         <div class="space-y-1">
-                            <h2 class="text-2xl font-black text-white">Admin Panel</h2>
-                            <p class="text-sm text-white/70">İdarəetmə panelinə daxil olun</p>
+                            <h2 class="text-2xl font-black text-white">İdarəetmə Sistemi</h2>
+                            <p class="text-sm text-white/70">Səlahiyyətli istifadəçilər üçün təhlükəsiz giriş</p>
                         </div>
                     </div>
 
                     <form @submit.prevent="handleAdminLogin()" class="space-y-4">
-                        <input type="text" x-model="adminUsername" required class="login-input" placeholder="Username">
-                        <input type="password" x-model="adminPassword" required class="login-input" placeholder="Password">
-                        
-                        <template x-if="adminLoginError">
-                            <div class="p-3 bg-red-500/12 border border-red-300/20 text-red-100 text-xs rounded-xl" x-text="adminLoginError"></div>
-                        </template>
+                        <div class="login-field">
+                            <label for="admin-username">İstifadəçi adı</label>
+                            <input id="admin-username" type="text" x-model="adminUsername" required class="login-input" placeholder="İstifadəçi adı" autocomplete="username" :disabled="adminLoginLoading">
+                        </div>
+                        <div class="login-field">
+                            <label for="admin-password">Şifrə</label>
+                            <div class="login-password-wrap">
+                                <input id="admin-password" :type="adminPasswordVisible ? 'text' : 'password'" x-model="adminPassword" required class="login-input" placeholder="Şifrə" autocomplete="current-password" :disabled="adminLoginLoading">
+                                <button type="button" class="login-password-toggle" @click="adminPasswordVisible = !adminPasswordVisible" :aria-label="adminPasswordVisible ? 'Şifrəni gizlət' : 'Şifrəni göstər'">
+                                    <i class="fa-solid" :class="adminPasswordVisible ? 'fa-eye-slash' : 'fa-eye'"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="login-error" x-show="adminLoginError" x-cloak x-text="adminLoginError" aria-live="polite"></div>
 
-                        <button type="submit" class="login-submit-button w-full text-white font-bold transition flex items-center justify-center gap-2 hover:brightness-110">
-                            <i class="fa-solid fa-lock"></i>
-                            <span>Daxil ol</span>
+                        <button type="submit" :disabled="adminLoginLoading" :aria-busy="adminLoginLoading" class="login-submit-button w-full text-white font-bold transition flex items-center justify-center gap-2 hover:brightness-110">
+                            <span x-show="adminLoginLoading" x-cloak class="login-spinner" aria-hidden="true"></span>
+                            <i x-show="!adminLoginLoading" x-cloak class="fa-solid fa-lock"></i>
+                            <span x-text="adminLoginLoading ? 'Yoxlanılır...' : 'Daxil ol'">Daxil ol</span>
                         </button>
                     </form>
                     <a href="/" class="login-home-link mx-auto flex items-center justify-center gap-2 text-sm font-bold transition">
