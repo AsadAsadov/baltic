@@ -168,6 +168,7 @@
             return {
                 lang: 'az',
                 page: 'home',
+                notFoundKind: '',
                 mobileMenuOpen: false,
                 isHeaderScrolled: false,
                 isCalculatorOpen: false,
@@ -537,6 +538,26 @@
 
                 changeLang(newLang) {
                     this.lang = newLang;
+                    this.updateMeta();
+                },
+
+                publicRoutes: { home: '/', projects: '/layiheler', works: '/islerimiz', gallery: '/qalereya', about: '/haqqimizda', contact: '/elaqe' },
+                publicRouteMap: { '/': 'home', '/layiheler': 'projects', '/islerimiz': 'works', '/qalereya': 'gallery', '/haqqimizda': 'about', '/elaqe': 'contact' },
+                navItems() { return [{p:'home',k:'navHome'},{p:'projects',k:'navProjects'},{p:'works',k:'navWorks'},{p:'gallery',k:'navGallery'},{p:'about',k:'navAbout'},{p:'contact',k:'navContact'}]; },
+                pageUrl(pageName) { return this.publicRoutes[pageName] || '/'; },
+                activeNavPage() {
+                    if (this.page === 'detail') return this.detailType === 'work' ? 'works' : 'projects';
+                    return this.publicRoutes[this.page] ? this.page : '';
+                },
+                normalizePathname(pathname = location.pathname) {
+                    let clean = String(pathname || '/').split('?')[0].split('#')[0].replace(/\/+/g, '/');
+                    try { clean = decodeURI(clean); } catch (error) { /* keep original path when malformed */ }
+                    clean = clean.replace(/\/+$/, '') || '/';
+                    return clean;
+                },
+                isPublicAppPath(pathname = location.pathname) {
+                    const clean = this.normalizePathname(pathname);
+                    return clean === '/' || Object.prototype.hasOwnProperty.call(this.publicRouteMap, clean) || /^\/(layiheler|islerimiz)\/[^/]+$/.test(clean);
                 },
 
                 setPage(newPage) {
@@ -546,18 +567,22 @@
                     this.detailGalleryState = { images: [], activeIndex: 0 };
                     this.detailLightboxOpen = false;
                     this.page = newPage;
+                    this.notFoundKind = '';
                     this.adminLoginError = '';
                     this.closeMobileMenu();
                     window.scrollTo({ top: 0, behavior: 'smooth' });
                     this.$nextTick(() => this.updateHeaderScrollState());
                 },
 
-                navigateTo(pageName) {
-                    history.pushState({}, '', pageName === 'home' ? '/' : `/${pageName}`);
+                navigateTo(pageName, options = {}) {
+                    const url = this.pageUrl(pageName);
+                    if (!url) return;
+                    if (this.normalizePathname(location.pathname) !== url && options.push !== false) history.pushState({}, '', url);
                     this.setPage(pageName);
+                    this.updateMeta();
                     this.mobileMenuOpen = false;
                     this.$nextTick(() => {
-                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                        window.scrollTo({ top: 0, behavior: options.smooth ? 'smooth' : 'auto' });
                         this.updateHeaderScrollState();
                     });
                 },
@@ -610,20 +635,52 @@
                 projectUrl(item = {}) { return `/layiheler/${this.itemSlug(item)}`; },
                 workUrl(item = {}) { return `/islerimiz/${this.itemSlug(item)}`; },
                 initRouter() {
-                    window.addEventListener('popstate', () => this.applyRoute(location.pathname));
+                    window.addEventListener('popstate', () => {
+                        this.closeMobileMenu();
+                        this.applyRoute(location.pathname, false);
+                    });
+                    document.addEventListener('click', (event) => this.handlePublicLinkClick(event));
                     this.applyRoute(location.pathname, false);
                 },
+                handlePublicLinkClick(event) {
+                    if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+                    const anchor = event.target.closest?.('a[href]');
+                    if (!anchor || anchor.target === '_blank' || anchor.hasAttribute('download')) return;
+                    const url = new URL(anchor.getAttribute('href'), location.origin);
+                    if (url.origin !== location.origin) return;
+                    if (!this.isPublicAppPath(url.pathname)) return;
+                    event.preventDefault();
+                    const clean = this.normalizePathname(url.pathname);
+                    if (this.normalizePathname(location.pathname) !== clean || location.search !== url.search) history.pushState({}, '', `${clean}${url.search || ''}`);
+                    this.applyRoute(clean, false);
+                    window.scrollTo({ top: 0, behavior: 'auto' });
+                },
                 applyRoute(pathname = location.pathname, push = false) {
-                    const clean = String(pathname || '/').replace(/\/+$/, '') || '/';
-                    const match = clean.match(/^\/(layiheler|islerimiz)\/([^/?#]+)$/);
-                    if (match) {
-                        this.page = 'detail'; this.detailType = match[1] === 'layiheler' ? 'project' : 'work'; this.detailSlug = decodeURIComponent(match[2]); this.detailGalleryState = { images: [], activeIndex: 0 }; this.resolveDetailFromRoute();
+                    const clean = this.normalizePathname(pathname);
+                    const detailMatch = clean.match(/^\/(layiheler|islerimiz)\/([^/]+)$/);
+                    this.detailType = '';
+                    this.detailSlug = '';
+                    this.detailItem = null;
+                    this.notFoundKind = '';
+                    this.detailGalleryState = { images: [], activeIndex: 0 };
+                    this.detailLightboxOpen = false;
+                    if (detailMatch) {
+                        this.page = 'detail';
+                        this.detailType = detailMatch[1] === 'layiheler' ? 'project' : 'work';
+                        this.detailSlug = decodeURIComponent(detailMatch[2]);
+                        this.resolveDetailFromRoute();
+                    } else if (Object.prototype.hasOwnProperty.call(this.publicRouteMap, clean)) {
+                        this.page = this.publicRouteMap[clean];
+                    } else if (clean === '/admin') {
+                        this.page = this.adminLoggedIn ? 'admin' : 'login';
                     } else {
-                        const page = clean === '/' ? 'home' : clean.slice(1);
-                        if (['home','projects','works','gallery','about','contact','admin'].includes(page)) this.page = page;
+                        this.page = 'notFound';
+                        this.notFoundKind = 'page';
                     }
-                    if (push) history.pushState({}, '', clean);
+                    if (push && this.normalizePathname(location.pathname) !== clean) history.pushState({}, '', clean);
+                    this.closeMobileMenu();
                     this.updateMeta();
+                    this.$nextTick(() => this.updateHeaderScrollState());
                 },
                 async resolveDetailFromRoute() {
                     if (this.page !== 'detail' || !this.detailType || !this.detailSlug) return;
@@ -634,10 +691,14 @@
                         try { item = this.detailType === 'project' ? this.normalizeProject(await this.api(`/api/projects/slug/${encodeURIComponent(this.detailSlug)}`)) : this.normalizeWorkItem(await this.api(`/api/works/slug/${encodeURIComponent(this.detailSlug)}`)); } catch (e) { console.warn('Detail route not found', e); }
                     }
                     this.detailItem = item || null;
+                    if (!item) {
+                        this.page = 'notFound';
+                        this.notFoundKind = this.detailType === 'work' ? 'work' : 'project';
+                    }
                     this.syncDetailGalleryState();
                     this.updateMeta();
                 },
-                openDetail(item, type = 'project') { if (!item?.id) return; this.page = 'detail'; this.detailType = type; this.detailItem = item; this.detailSlug = this.itemSlug(item); this.syncDetailGalleryState(); history.pushState({}, '', type === 'project' ? this.projectUrl(item) : this.workUrl(item)); this.updateMeta(); window.scrollTo({top:0, behavior:'smooth'}); },
+                openDetail(item, type = 'project') { if (!item?.id) return; this.page = 'detail'; this.notFoundKind = ''; this.detailType = type; this.detailItem = item; this.detailSlug = this.itemSlug(item); this.syncDetailGalleryState(); const url = type === 'project' ? this.projectUrl(item) : this.workUrl(item); if (this.normalizePathname(location.pathname) !== url) history.pushState({}, '', url); this.updateMeta(); window.scrollTo({top:0, behavior:'auto'}); },
                 detailTitle(item = this.detailItem) { if (!item) return ''; return this.detailType === 'work' ? this.localizedWorkTitle(item) : (this.lang === 'en' ? (item.titleEn || item.title) : (this.lang === 'ru' ? (item.titleRu || item.title) : item.title)); },
                 detailDescription(item = this.detailItem) { if (!item) return ''; return this.detailType === 'work' ? this.localizedWorkDescription(item) : (this.lang === 'en' ? (item.descriptionEn || item.descEn || item.desc) : (this.lang === 'ru' ? (item.descriptionRu || item.descRu || item.desc) : (item.descriptionAz || item.descAz || item.desc))); },
                 detailImages(item = this.detailItem) { const images = Array.isArray(item?.images) && item.images.length ? item.images : [item?.coverImage || item?.image].filter(Boolean); return images.filter(Boolean); },
@@ -656,7 +717,7 @@
                 similarDetailItems() { const list = this.detailType === 'work' ? this.workItems : this.projects; const item = this.detailItem || {}; return (Array.isArray(list) ? list : []).filter(x => x.id !== item.id && !x.archived && ((x.category && x.category === item.category) || (x.cat && x.cat === item.cat))).slice(0,3); },
                 detailWhatsappUrl() { const message = `Salam. “${this.detailTitle()}” ilə maraqlanıram: ${location.href}`; return `https://wa.me/994553221109?text=${encodeURIComponent(message)}`; },
                 async shareDetail() { const data = { title: this.detailTitle(), text: this.detailDescription(), url: location.href }; try { if (navigator.share) await navigator.share(data); else if (navigator.clipboard) { await navigator.clipboard.writeText(location.href); this.showToast?.('Link kopyalandı', location.href); } else { const input = document.createElement('input'); input.value = location.href; document.body.appendChild(input); input.select(); document.execCommand('copy'); input.remove(); this.showToast?.('Link kopyalandı', location.href); } } catch (e) { if (e?.name !== 'AbortError') console.warn('Share failed', e); } },
-                updateMeta() { const title = this.detailItem ? `${this.detailTitle()} | Baltic Caspian` : 'Baltic Caspian | Premium Taxta Evlər'; const desc = (this.detailDescription() || 'Premium taxta evlər, tamamlanmış işlər və layihələr.').slice(0,155); document.title = title; document.querySelector('meta[name="description"]')?.setAttribute('content', desc); document.querySelector('meta[property="og:title"]')?.setAttribute('content', title); document.querySelector('meta[property="og:description"]')?.setAttribute('content', desc); document.querySelector('meta[property="og:url"]')?.setAttribute('content', location.href); document.querySelector('meta[property="og:image"]')?.setAttribute('content', this.detailImage() || '/uploads/hero'); },
+                updateMeta() { const staticMeta = { home:['Baltic Caspian | Taxta Evlərin Tikintisi','Premium taxta evlərin layihələndirilməsi və tikintisi.'], projects:['Taxta Ev Layihələri | Baltic Caspian','Baltic Caspian taxta ev layihələri və fərdi memarlıq həlləri.'], works:['İşlərimiz | Baltic Caspian','Baltic Caspian tərəfindən tamamlanmış taxta ev işləri.'], gallery:['Qalereya | Baltic Caspian','Taxta evlər, tikinti prosesi və tamamlanmış layihələrin qalereyası.'], about:['Haqqımızda | Baltic Caspian','Baltic Caspian komandası, dəyərləri və taxta ev tikintisi təcrübəsi.'], contact:['Əlaqə | Baltic Caspian','Baltic Caspian ilə əlaqə saxlayın və taxta ev layihənizi planlayın.'], notFound:['Səhifə tapılmadı | Baltic Caspian','Axtardığınız səhifə tapılmadı.'] }; const title = this.detailItem ? `${this.detailTitle()} | Baltic Caspian` : (staticMeta[this.page]?.[0] || staticMeta.notFound[0]); const desc = (this.detailItem ? (this.detailDescription() || 'Baltic Caspian layihə detalları.') : (staticMeta[this.page]?.[1] || staticMeta.notFound[1])).slice(0,155); document.title = title; document.querySelector('meta[name="description"]')?.setAttribute('content', desc); document.querySelector('meta[name="robots"]')?.setAttribute('content', 'index,follow'); document.querySelector('link[rel="canonical"]')?.setAttribute('href', location.origin + this.normalizePathname(location.pathname)); document.querySelector('meta[property="og:title"]')?.setAttribute('content', title); document.querySelector('meta[property="og:description"]')?.setAttribute('content', desc); document.querySelector('meta[property="og:url"]')?.setAttribute('content', location.href); document.querySelector('meta[property="og:image"]')?.setAttribute('content', this.detailImage() || '/uploads/hero'); },
 
                 async api(path, options = {}) {
                     const headers = options.body instanceof FormData ? { ...(options.headers || {}) } : { 'Content-Type': 'application/json', ...(options.headers || {}) };
@@ -3713,7 +3774,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between items-center h-16 lg:h-[72px]">
                 <!-- Logo -->
-                <a @click.prevent="setPage('home')" href="#" class="flex items-center gap-3 group">
+                <a href="/" class="flex items-center gap-3 group">
                     <div class="w-10 h-10 lg:w-12 lg:h-12 bg-forest-700 rounded-xl flex items-center justify-center text-white shadow-md shadow-forest-900/20 group-hover:bg-wood-600 transition duration-300">
                         <i class="fa-solid fa-tree-city text-xl lg:text-2xl"></i>
                     </div>
@@ -3725,10 +3786,10 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
 
                 <!-- Desktop Nav (Optimized sizes to prevent breaking/wrapping on Ru/En selection) -->
                 <nav class="hidden md:flex items-center gap-3 lg:gap-6 xl:gap-8 font-semibold text-xs lg:text-sm xl:text-base">
-                    <template x-for="item in [{p:'home',k:'navHome'},{p:'projects',k:'navProjects'},{p:'works',k:'navWorks'},{p:'gallery',k:'navGallery'},{p:'about',k:'navAbout'},{p:'contact',k:'navContact'}]" :key="item.p">
-                        <a @click.prevent="setPage(item.p)" href="#" class="transition relative py-2" :class="page === 'home' && !isHeaderScrolled ? 'text-white hover:text-wood-200 drop-shadow' : (page === item.p ? 'text-forest-700' : 'text-stone-700 hover:text-forest-700')">
+                    <template x-for="item in navItems()" :key="item.p">
+                        <a :href="pageUrl(item.p)" class="transition relative py-2" :class="page === 'home' && !isHeaderScrolled ? 'text-white hover:text-wood-200 drop-shadow' : (activeNavPage() === item.p ? 'text-forest-700' : 'text-stone-700 hover:text-forest-700')">
                             <span x-text="t(item.k)"></span>
-                            <span x-show="page === item.p" class="absolute bottom-0 left-0 right-0 h-0.5 bg-wood-500 rounded" x-transition></span>
+                            <span x-show="activeNavPage() === item.p" class="absolute bottom-0 left-0 right-0 h-0.5 bg-wood-500 rounded" x-transition></span>
                         </a>
                     </template>
                 </nav>
@@ -3757,10 +3818,10 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                         </div>
                     </div>
 
-                    <button @click="setPage(adminLoggedIn ? 'admin' : 'login')" class="hidden sm:flex mobile-header-login h-9 items-center gap-1.5 px-3 rounded-full border text-xs font-bold transition shadow-sm" :class="page === 'home' && !isHeaderScrolled ? 'bg-white/15 border-white/25 text-white hover:bg-white/25 drop-shadow' : 'bg-white border-stone-200 text-forest-900 hover:border-wood-300 hover:text-wood-700'">
+                    <a href="/admin" class="hidden sm:flex mobile-header-login h-9 items-center gap-1.5 px-3 rounded-full border text-xs font-bold transition shadow-sm" :class="page === 'home' && !isHeaderScrolled ? 'bg-white/15 border-white/25 text-white hover:bg-white/25 drop-shadow' : 'bg-white border-stone-200 text-forest-900 hover:border-wood-300 hover:text-wood-700'">
                         <i class="fa-solid text-[11px]" :class="adminLoggedIn ? 'fa-user-shield' : 'fa-lock'"></i>
                         <span x-text="adminLoggedIn ? (lang === 'ru' ? 'Панель' : 'Panel') : (lang === 'az' ? 'Giriş' : (lang === 'ru' ? 'Вход' : 'Login'))">Giriş</span>
-                    </button>
+                    </a>
 
                 </div>
             </div>
@@ -3823,9 +3884,9 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                             <p x-show="(activeHeroSlides()[activeSlide] || {}).desc || (lang === 'en' && (activeHeroSlides()[activeSlide] || {}).descEn) || (lang === 'ru' && (activeHeroSlides()[activeSlide] || {}).descRu)" class="hero-desc font-light" x-text="lang === 'en' ? (activeHeroSlides()[activeSlide] || {}).descEn || (activeHeroSlides()[activeSlide] || {}).desc : (lang === 'ru' ? (activeHeroSlides()[activeSlide] || {}).descRu || (activeHeroSlides()[activeSlide] || {}).desc : (activeHeroSlides()[activeSlide] || {}).desc)"></p>
 
                             <div class="hero-actions flex pt-1">
-                                <a @click.prevent="openCalculator()" href="#" class="inline-flex h-[46px] items-center justify-center gap-2 rounded-[14px] border border-white/30 bg-white/10 px-[18px] py-[11px] text-[14px] font-black text-white shadow-lg transition hover:bg-white/20">
+                                <button type="button" @click="openCalculator()" class="inline-flex h-[46px] items-center justify-center gap-2 rounded-[14px] border border-white/30 bg-white/10 px-[18px] py-[11px] text-[14px] font-black text-white shadow-lg transition hover:bg-white/20">
                                     <span x-text="t('calcBtn')">Qiymət Hesabla</span>
-                                </a>
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -4203,7 +4264,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
             <div x-show="page === 'detail'" x-cloak class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 ad-safe-content" @keydown.arrow-right.window="nextDetailImage()" @keydown.arrow-left.window="prevDetailImage()" @keydown.escape.window="detailLightboxOpen=false">
                 <template x-if="!detailItem"><div class="space-y-6"><div class="h-8 w-52 rounded skeleton-shimmer"></div><div class="h-12 w-2/3 rounded skeleton-shimmer"></div><div class="h-32 rounded-3xl skeleton-shimmer"></div><div class="h-96 rounded-[2rem] skeleton-shimmer"></div></div></template>
                 <template x-if="detailItem"><article class="space-y-10">
-                    <nav class="text-sm font-bold text-stone-500"><a href="/" @click.prevent="navigateTo('home')">Ana səhifə</a><span class="mx-2">/</span><a :href="detailType==='project'?'/projects':'/works'" @click.prevent="navigateTo(detailType==='project'?'projects':'works')" x-text="detailType==='project'?t('navProjects'):t('navWorks')"></a><span class="mx-2">/</span><span class="text-forest-800" x-text="detailTitle()"></span></nav>
+                    <nav class="text-sm font-bold text-stone-500"><a href="/">Ana səhifə</a><span class="mx-2">/</span><a :href="detailType==='project'?'/layiheler':'/islerimiz'" x-text="detailType==='project'?t('navProjects'):t('navWorks')"></a><span class="mx-2">/</span><span class="text-forest-800" x-text="detailTitle()"></span></nav>
                     <section class="detail-intro space-y-4">
                         <span class="inline-flex rounded-full border border-forest-200 bg-forest-50 px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-forest-800" x-text="detailCategoryLabel()"></span>
                         <h1 class="max-w-[850px] text-[clamp(32px,4vw,56px)] leading-[1.05] font-black tracking-tight text-forest-950" x-text="detailTitle()"></h1>
@@ -4343,11 +4404,22 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                     <span class="text-wood-600 font-bold uppercase tracking-widest text-sm" x-text="page === 'sea-breeze' ? 'Sea Breeze' : (page === 'announcements' ? 'Elanlar' : (page === 'mortgage' ? 'İpoteka' : 'Vakansiya'))"></span>
                     <h1 class="text-3xl sm:text-5xl font-black text-forest-950" x-text="page === 'sea-breeze' ? 'Sea Breeze Haqqında' : (page === 'announcements' ? 'Elanlar' : (page === 'mortgage' ? 'İpoteka' : 'Vakansiya'))"></h1>
                     <p class="text-stone-600 leading-relaxed">Bu bölmə haqqında məlumat tezliklə yenilənəcək. Ətraflı məlumat üçün bizimlə əlaqə saxlayın.</p>
-                    <button @click="setPage('contact')" class="inline-flex items-center justify-center rounded-2xl bg-forest-700 px-5 py-3 font-bold text-white shadow hover:bg-forest-800">Əlaqə saxlayın</button>
+                    <a href="/elaqe" class="inline-flex items-center justify-center rounded-2xl bg-forest-700 px-5 py-3 font-bold text-white shadow hover:bg-forest-800">Əlaqə saxlayın</a>
                 </div>
             </div>
 
             <!-- 6. ADMIN LOGIN PAGE -->
+
+            <section x-show="page === 'notFound'" x-cloak class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-20 text-center space-y-6 ad-safe-content">
+                <p class="text-sm font-black uppercase tracking-[0.25em] text-wood-600">404</p>
+                <h1 class="text-4xl sm:text-5xl font-black text-forest-950" x-text="notFoundKind === 'project' ? 'Layihə tapılmadı' : (notFoundKind === 'work' ? 'İş tapılmadı' : 'Səhifə tapılmadı')">Səhifə tapılmadı</h1>
+                <p class="text-stone-500 text-lg">Axtardığınız ünvan mövcud deyil və ya silinib.</p>
+                <div class="flex flex-col sm:flex-row items-center justify-center gap-3">
+                    <a href="/" class="inline-flex h-12 items-center justify-center rounded-2xl bg-forest-700 px-6 font-bold text-white shadow hover:bg-forest-800">Ana səhifə</a>
+                    <a href="/layiheler" class="inline-flex h-12 items-center justify-center rounded-2xl border border-forest-700 px-6 font-bold text-forest-800 hover:bg-forest-50">Layihələr</a>
+                </div>
+            </section>
+
             <div x-show="page === 'login'" x-cloak class="login-page-wrap">
                 <div class="login-card-premium space-y-6">
                     <div class="text-center space-y-3">
@@ -4373,10 +4445,10 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                             <span>Daxil ol</span>
                         </button>
                     </form>
-                    <button type="button" @click="navigateTo('home')" class="login-home-link mx-auto flex items-center justify-center gap-2 text-sm font-bold transition">
+                    <a href="/" class="login-home-link mx-auto flex items-center justify-center gap-2 text-sm font-bold transition">
                         <i class="fa-solid fa-arrow-left"></i>
                         <span>Sayta qayıt</span>
-                    </button>
+                    </a>
                 </div>
             </div>
 
@@ -4882,7 +4954,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                 <div class="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-7">
                     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-7 lg:gap-10">
                         <div class="space-y-4">
-                            <a href="#" class="flex items-center gap-3">
+                            <a href="/" class="flex items-center gap-3">
                                 <div class="w-10 h-10 bg-forest-700 rounded-lg flex items-center justify-center text-white"><i class="fa-solid fa-tree-city text-xl"></i></div>
                                 <span class="text-lg font-black tracking-tight text-stone-100">BALTIC CASPIAN</span>
                             </a>
@@ -4897,12 +4969,12 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                         <div class="space-y-4">
                             <h4 class="text-stone-100 font-semibold tracking-wider text-sm uppercase" x-text="t('footerMenu')">Faydalı Keçidlər</h4>
                             <ul class="space-y-2 text-stone-400 text-sm">
-                                <li><a @click.prevent="navigateTo('home')" href="#" class="transition-all duration-[250ms] ease-in-out hover:text-[#D59A72]" x-text="t('navHome')">Ana Səhifə</a></li>
-                                <li><a @click.prevent="navigateTo('projects')" href="#" class="transition-all duration-[250ms] ease-in-out hover:text-[#D59A72]" x-text="t('navProjects')">Layihələr</a></li>
-                                <li><a @click.prevent="navigateTo('works')" href="#" class="transition-all duration-[250ms] ease-in-out hover:text-[#D59A72]" x-text="t('navWorks')">İşlərimiz</a></li>
-                                <li><a @click.prevent="navigateTo('gallery')" href="#" class="transition-all duration-[250ms] ease-in-out hover:text-[#D59A72]" x-text="t('navGallery')">Qalereya</a></li>
-                                <li><a @click.prevent="navigateTo('about')" href="#" class="transition-all duration-[250ms] ease-in-out hover:text-[#D59A72]" x-text="t('navAbout')">Haqqımızda</a></li>
-                                <li><a @click.prevent="navigateTo('contact')" href="#" class="transition-all duration-[250ms] ease-in-out hover:text-[#D59A72]" x-text="t('navContact')">Əlaqə</a></li>
+                                <li><a href="/" class="transition-all duration-[250ms] ease-in-out hover:text-[#D59A72]" x-text="t('navHome')">Ana Səhifə</a></li>
+                                <li><a href="/layiheler" class="transition-all duration-[250ms] ease-in-out hover:text-[#D59A72]" x-text="t('navProjects')">Layihələr</a></li>
+                                <li><a href="/islerimiz" class="transition-all duration-[250ms] ease-in-out hover:text-[#D59A72]" x-text="t('navWorks')">İşlərimiz</a></li>
+                                <li><a href="/qalereya" class="transition-all duration-[250ms] ease-in-out hover:text-[#D59A72]" x-text="t('navGallery')">Qalereya</a></li>
+                                <li><a href="/haqqimizda" class="transition-all duration-[250ms] ease-in-out hover:text-[#D59A72]" x-text="t('navAbout')">Haqqımızda</a></li>
+                                <li><a href="/elaqe" class="transition-all duration-[250ms] ease-in-out hover:text-[#D59A72]" x-text="t('navContact')">Əlaqə</a></li>
                             </ul>
                         </div>
 
@@ -4933,26 +5005,26 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
     </div>
 
     <nav class="bottom-mobile-nav md:hidden" :class="page === 'detail' || (selectedWorkItem && selectedWorkItem.id) || isMapSheetOpen || isMapNavigationHidden ? 'hidden' : ''" aria-label="Bottom mobile navigation">
-        <button type="button" @click="navigateTo('home')" class="bottom-mobile-nav__item" :class="{ 'is-active': page === 'home' }">
+        <a href="/" class="bottom-mobile-nav__item" :class="{ 'is-active': activeNavPage() === 'home' }">
             <i class="fa-solid fa-house"></i>
             <span x-text="t('navHome')">Ana səhifə</span>
-        </button>
-        <button type="button" @click="navigateTo('projects')" class="bottom-mobile-nav__item" :class="{ 'is-active': page === 'projects' }">
+        </a>
+        <a href="/layiheler" class="bottom-mobile-nav__item" :class="{ 'is-active': activeNavPage() === 'projects' }">
             <i class="fa-solid fa-tree-city"></i>
             <span x-text="t('navProjects')">Layihələr</span>
-        </button>
-        <button type="button" @click="navigateTo('works')" class="bottom-mobile-nav__item" :class="{ 'is-active': page === 'works' }">
+        </a>
+        <a href="/islerimiz" class="bottom-mobile-nav__item" :class="{ 'is-active': activeNavPage() === 'works' }">
             <i class="fa-solid fa-briefcase"></i>
             <span x-text="t('navWorks')">İşlərimiz</span>
-        </button>
-        <button type="button" @click="navigateTo('gallery')" class="bottom-mobile-nav__item" :class="{ 'is-active': page === 'gallery' }">
+        </a>
+        <a href="/qalereya" class="bottom-mobile-nav__item" :class="{ 'is-active': activeNavPage() === 'gallery' }">
             <i class="fa-solid fa-images"></i>
             <span x-text="t('navGallery')">Qalereya</span>
-        </button>
-        <button type="button" @click="navigateTo('contact')" class="bottom-mobile-nav__item" :class="{ 'is-active': page === 'contact' }">
+        </a>
+        <a href="/elaqe" class="bottom-mobile-nav__item" :class="{ 'is-active': activeNavPage() === 'contact' }">
             <i class="fa-solid fa-phone"></i>
             <span x-text="t('navContact')">Əlaqə</span>
-        </button>
+        </a>
     </nav>
 
     <!-- MOBILE MAP APP CHOICE SHEET -->
