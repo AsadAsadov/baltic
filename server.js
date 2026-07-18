@@ -18,10 +18,37 @@ const allowedUploadBuckets = ['projects', 'gallery', 'hero', 'banners', 'home', 
 const UPLOAD_SIZE_LIMIT_BYTES = 150 * 1024 * 1024;
 const uploadRoot = path.join(__dirname, 'uploads');
 const uploadBucketFolders = Object.fromEntries(allowedUploadBuckets.map(bucket => [bucket, path.join(uploadRoot, bucket)]));
+const STANDARD_IMAGE_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/avif', 'image/gif', 'image/bmp', 'image/tiff']);
+const HEIC_MIME_TYPES = new Set(['image/heic', 'image/heif', 'image/heic-sequence', 'image/heif-sequence']);
+const STANDARD_IMAGE_EXTENSIONS = new Set(['.jpg', '.jpeg', '.png', '.webp', '.avif', '.gif', '.bmp', '.tif', '.tiff']);
+const HEIC_EXTENSIONS = new Set(['.heic', '.heif']);
+const REJECTED_UNSANITIZED_IMAGE_MIME_TYPES = new Set(['image/svg+xml']);
+const allowedVideoExt = new Set(['.mp4', '.webm', '.mov']);
+const getUploadExtension = (name = '') => path.extname(path.basename(String(name || ''))).toLowerCase().replace(/[^a-z0-9.]/g, '');
+const isAllowedImageUpload = (file) => {
+  if (!file || !file.originalname) return false;
+  const mimeType = String(file.mimetype || '').toLowerCase().trim();
+  const extension = getUploadExtension(file.originalname);
+  if (REJECTED_UNSANITIZED_IMAGE_MIME_TYPES.has(mimeType) || extension === '.svg') return false;
+  if (STANDARD_IMAGE_MIME_TYPES.has(mimeType)) return STANDARD_IMAGE_EXTENSIONS.has(extension);
+  if (HEIC_MIME_TYPES.has(mimeType)) return HEIC_EXTENSIONS.has(extension);
+  if ((mimeType === '' || mimeType === 'application/octet-stream') && HEIC_EXTENSIONS.has(extension)) return true;
+  return false;
+};
+const isAllowedVideoUpload = (file) => {
+  const ext = getUploadExtension(file?.originalname || '');
+  const type = String(file?.mimetype || '').toLowerCase().trim();
+  return allowedVideoExt.has(ext) && (type.startsWith('video/') || type === 'application/octet-stream' || type === 'video/quicktime');
+};
+const isAllowedUploadFile = (file, bucket) => isAllowedImageUpload(file) || isAllowedVideoUpload(file);
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: {
     fileSize: UPLOAD_SIZE_LIMIT_BYTES
+  },
+  fileFilter: (req, file, cb) => {
+    if (isAllowedUploadFile(file, req.body?.bucket)) return cb(null, true);
+    return cb(new Error('Yalnız dəstəklənən şəkil formatlarını seçin.'), false);
   }
 });
 const ensureUploadBucketFolder = async (bucket) => {
@@ -42,20 +69,6 @@ const safeUploadFilename = (name = 'upload') => {
   return `${base}${ext}`;
 };
 const MAX_IMAGES_PER_ITEM = 40;
-const ALLOWED_IMAGE_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/avif', 'image/gif', 'image/bmp', 'image/tiff', 'image/heic', 'image/heif']);
-const REJECTED_UNSANITIZED_IMAGE_MIME_TYPES = new Set(['image/svg+xml']);
-const allowedImageExt = new Set(['.jpg', '.jpeg', '.png', '.webp', '.avif', '.gif', '.bmp', '.tif', '.tiff', '.heic', '.heif']);
-const rejectedUnsanitizedImageExt = new Set(['.svg']);
-const allowedVideoExt = new Set(['.mp4', '.webm', '.mov']);
-const isAllowedUploadFile = (file, bucket) => {
-  const ext = path.extname(safeUploadFilename(file?.originalname || '')).toLowerCase();
-  const type = String(file?.mimetype || '').toLowerCase();
-  if (rejectedUnsanitizedImageExt.has(ext) || REJECTED_UNSANITIZED_IMAGE_MIME_TYPES.has(type)) return false;
-  const isHeifOctetStream = ['.heic', '.heif'].includes(ext) && type === 'application/octet-stream';
-  const isImage = allowedImageExt.has(ext) && (ALLOWED_IMAGE_MIME_TYPES.has(type) || isHeifOctetStream);
-  const isVideo = allowedVideoExt.has(ext) && (type.startsWith('video/') || type === 'application/octet-stream' || type === 'video/quicktime');
-  return isImage || isVideo;
-};
 const limitImageArray = (images, label = 'images') => {
   if (!Array.isArray(images)) return { errors: [`${label} must be an array`] };
   if (images.length > MAX_IMAGES_PER_ITEM) return { errors: [`${label} cannot contain more than ${MAX_IMAGES_PER_ITEM} images`] };
@@ -351,6 +364,9 @@ app.use((err, req, res, next) => {
     });
   }
   if (isDbError(err)) return dbUnavailable(res, err);
+  if (err?.message === 'Yalnız dəstəklənən şəkil formatlarını seçin.') {
+    return res.status(400).json({ ok: false, error: 'UNSUPPORTED_FILE_TYPE', message: 'Bu şəkil formatı dəstəklənmir.' });
+  }
   res.status(err.code === 'P2025' ? 404 : 500).json({ ok: false, error: err.message || 'Server error' });
 });
 
