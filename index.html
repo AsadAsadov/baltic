@@ -239,6 +239,13 @@
                 projectAdminSearch: '',
                 projectAdminCategoryFilter: 'all',
                 projectAdminStatusFilter: 'all',
+                workAdminSearch: '',
+                workAdminCategoryFilter: 'all',
+                workAdminStatusFilter: 'all',
+                workAdminFeaturedFilter: 'all',
+                galleryAdminSearch: '',
+                galleryAdminTypeFilter: 'all',
+                galleryAdminStatusFilter: 'all',
                 projectSaveStage: '',
                 projectUploadProgress: { done: 0, total: 0 },
                 workItems: [],
@@ -381,8 +388,8 @@
                     'catGazebo': { az: 'Besedkalar', ru: 'Беседки', en: 'Gazebos' },
                     'catBath': { az: 'Hamam & Sauna', ru: 'Бани & Сауны', en: 'Bath & Sauna' },
                     'rooms': { az: 'Otaq', ru: 'Комнат', en: 'Rooms' },
-                    'visualShowcase': { az: 'İnşaat Qalereyası', ru: 'Галерея Объектов', en: 'Media Gallery' },
-                    'galleryDesc': { az: 'Tamamladığımız layihələrdən xarici və daxili dizayn görüntüləri.', ru: 'Кадры экстерьеров и интерьеров.', en: 'Real snapshots of finished constructions.' },
+                    'visualShowcase': { az: 'Taxta Memarlıq Qalereyası', ru: 'Галерея деревянной архитектуры', en: 'Wood Architecture Gallery' },
+                    'galleryDesc': { az: 'Taxta evlərdən besedkalara, restoranlardan fərdi konstruksiyalara qədər müxtəlif layihə, dizayn və tətbiq nümunələri.', ru: 'Различные проекты, дизайнерские и реализованные решения — от деревянных домов и беседок до ресторанов и индивидуальных конструкций.', en: 'A selection of projects, designs and completed solutions, from wooden houses and gazebos to restaurants and custom structures.' },
                     'aboutSubtitle': { az: 'Baltic Caspian LTD', ru: 'Baltic Caspian LTD', en: 'Baltic Caspian LTD' },
                     'aboutTitle': { az: '2008-ci İldən Ekologiyanın Zirvəsindəyik', ru: 'С 2008 года на Пике Экологичности', en: 'At the Pinnacle of Eco-Living Since 2008' },
                     'aboutTextAz': { az: 'BALTIC CASPIAN LTD 2008-ci ildə yaradılmışdır. Əsas fəaliyyətimiz ağacın kəsilməsi və rəndələnməsidir. Təsisçilərimiz 1998-ci ildən ev tikintisində ağac emalı və yapışdırılmış tirlərin istehsalı sahəsində ixtisaslaşmışdır.\n\nMüştərinin istəyinə uyğun olaraq fərdi qaydada evlər, yay evləri, hamamlar və s. istehsal olunur. BALTIC CASPIAN LTD Rusiyadan şam və küknar ağacı idxal edir.\n\nİstehsalatda yeni rəndələmə maşınlarından istifadə olunur ki, bu da həm daxili, həm də xarici bazarda satış üçün böyük həcmdə məhsul istehsal etməyə imkan verir.', ru: '', en: '' },
@@ -2078,6 +2085,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                     this.triggerAction(async () => {
                         this.galleryItems = (Array.isArray(this.galleryItems) ? this.galleryItems : []).filter(g => g.id !== id);
                         await this.api(`/api/gallery/${id}`, { method: 'DELETE' });
+                        this.adminCache.gallery = { data: this.galleryItems, loadedAt: Date.now(), loadingPromise: null };
                         this.cacheSave();
                         this.showToast('Silindi', 'Məzmun silindi.');
                     }, false, 'deleteId', id);
@@ -2087,6 +2095,8 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                     this.triggerAction(async () => {
                         const updated = await this.api(`/api/gallery/${item.id}/archive`, { method: 'PATCH' });
                         item.archived = updated.archived;
+                        this.galleryItems = (Array.isArray(this.galleryItems) ? this.galleryItems : []).map(g => g.id === item.id ? { ...g, archived: item.archived } : g);
+                        this.adminCache.gallery = { data: this.galleryItems, loadedAt: Date.now(), loadingPromise: null };
                         this.cacheSave();
                         this.showToast('Arxiv Statusu', item.archived ? 'Arxivləndi.' : 'Arxivdən çıxarıldı.');
                     });
@@ -2534,6 +2544,33 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                 prevWorkImage() { const n=this.currentWorkImages().length; if(n>1) this.activeWorkImageIndex=(this.activeWorkImageIndex-1+n)%n; },
                 nextWorkImage() { const n=this.currentWorkImages().length; if(n>1) this.activeWorkImageIndex=(this.activeWorkImageIndex+1)%n; },
                 workWhatsAppUrl(item) { return `https://wa.me/994553221109?text=${encodeURIComponent('Salam, '+this.localizedWorkTitle(item)+' işi ilə bağlı məlumat almaq istəyirəm.')}`; },
+
+                adminWorkTitle(item = {}) { return item.titleAz || item.title || item.titleRu || item.titleEn || ''; },
+                adminWorkExcerpt(item = {}) { return item.descriptionAz || item.description || item.descriptionRu || item.descriptionEn || ''; },
+                adminWorkLocation(item = {}) { return item.locationAz || item.location || item.locationRu || item.locationEn || ''; },
+                filteredAdminWorks() {
+                    const search = String(this.workAdminSearch || '').trim().toLowerCase();
+                    return (Array.isArray(this.workItems) ? this.workItems : []).filter(item => {
+                        const categoryOk = this.workAdminCategoryFilter === 'all' || item.category === this.workAdminCategoryFilter;
+                        const statusOk = this.workAdminStatusFilter === 'all' || (this.workAdminStatusFilter === 'archived' ? item.archived : !item.archived);
+                        const featuredOk = this.workAdminFeaturedFilter === 'all' || (this.workAdminFeaturedFilter === 'featured' ? item.featured : !item.featured);
+                        const haystack = [item.titleAz, item.titleRu, item.titleEn, item.descriptionAz, item.locationAz].filter(Boolean).join(' ').toLowerCase();
+                        return categoryOk && statusOk && featuredOk && (!search || haystack.includes(search));
+                    });
+                },
+                galleryItemTitle(item = {}) { return item.titleAz || item.title || ''; },
+                galleryTypeLabel(type = 'image', item = {}) { return type === 'video' ? (this.isYouTubeUrl(item.src || item.mediaUrl || '') ? 'YouTube' : 'Video') : 'Şəkil'; },
+                galleryPreviewUrl(item = {}) { return item.type === 'video' ? (this.getYouTubeThumbnail(item.src || item.mediaUrl) || item.src || item.mediaUrl || '') : ((Array.isArray(item.images) && item.images[0]) || item.src || item.mediaUrl || ''); },
+                filteredAdminGallery() {
+                    const search = String(this.galleryAdminSearch || '').trim().toLowerCase();
+                    return (Array.isArray(this.galleryItems) ? this.galleryItems : []).filter(item => {
+                        const typeOk = this.galleryAdminTypeFilter === 'all' || (this.galleryAdminTypeFilter === 'youtube' ? (item.type === 'video' && this.isYouTubeUrl(item.src || item.mediaUrl)) : item.type === this.galleryAdminTypeFilter);
+                        const statusOk = this.galleryAdminStatusFilter === 'all' || (this.galleryAdminStatusFilter === 'archived' ? item.archived : !item.archived);
+                        const haystack = [item.title, item.titleAz, item.titleRu, item.titleEn].filter(Boolean).join(' ').toLowerCase();
+                        return typeOk && statusOk && (!search || haystack.includes(search));
+                    });
+                },
+                async moveGalleryItem(item, dir) { const arr=[...(Array.isArray(this.galleryItems)?this.galleryItems:[])]; const i=arr.findIndex(x=>x.id===item.id), j=i+dir; if(i<0||j<0||j>=arr.length)return; [arr[i],arr[j]]=[arr[j],arr[i]]; this.galleryItems = arr.map((x,k)=>({ ...x, sortOrder:k })); this.adminCache.gallery = { data: this.galleryItems, loadedAt: Date.now(), loadingPromise: null }; this.cacheSave(); await this.api('/api/gallery/reorder', { method:'PUT', body:JSON.stringify({ items: this.galleryItems.map((x,k)=>({id:x.id, sortOrder:k})) }) }); },
                 fallbackWorkImage() { return 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300"><rect width="400" height="300" fill="#f5f2ec"/><text x="200" y="150" text-anchor="middle" fill="#7c6f64" font-family="Arial" font-size="22" font-weight="700">Baltic Caspian LTD</text></svg>`); },
                 setWorkImageFallback(event) { if (event?.target?.dataset?.fallbackApplied) return; event.target.dataset.fallbackApplied = 'true'; event.target.src = this.fallbackWorkImage(); event.target.classList.add('work-image-fallback'); },
                 setWorkCoverFile(event) { if (this.creatingWork) return; const file = event.target.files?.[0] || null; if (file && !this.isAllowedImageFile(file)) { this.showToast('Format dəstəklənmir', 'Bu şəkil formatı dəstəklənmir.'); event.target.value = ''; return; } if (file && this.isHeicImageFile(file)) this.showToast('HEIC şəkli seçildi', 'Önizləmə bu brauzerdə mövcud deyil, lakin fayl yüklənəcək.'); this.workCoverFile = file; },
@@ -2688,6 +2725,35 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
         .work-image-fallback { background: linear-gradient(135deg,#f5f2ec,#e8e1d7); color:#7c6f64; display:flex; align-items:center; justify-content:center; }
         @media (max-width: 900px) { .project-selected-images-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
         @media (max-width: 600px) { .project-selected-images-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+
+        .admin-works-layout, .admin-gallery-layout { width: calc(100% - 32px); max-width: 1180px; margin-inline: auto; display: grid; grid-template-columns: minmax(0, 1fr) !important; gap: 20px; align-items: start; }
+        .admin-work-form-card, .admin-gallery-form-card { max-width: 800px; width: 100%; }
+        .admin-work-list-card, .admin-gallery-list-card { width: 100%; overflow: visible; }
+        .admin-entity-toolbar { display: grid; gap: 12px; margin-bottom: 18px; }
+        .admin-work-toolbar { grid-template-columns: minmax(220px,1fr) 210px 150px 180px; }
+        .admin-gallery-toolbar { grid-template-columns: minmax(220px,1fr) 190px 150px; }
+        .admin-work-grid, .admin-gallery-grid { display: grid; gap: 18px; overflow: visible; max-height: none; }
+        .admin-work-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+        .admin-gallery-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+        .admin-work-premium-card, .admin-gallery-card { overflow: hidden; border: 1px solid rgba(214,208,198,.78); border-radius: 22px; background: linear-gradient(180deg,#fff,#fbfaf7); box-shadow: 0 10px 30px rgba(29,53,41,.07); display: flex; flex-direction: column; min-width: 0; }
+        .admin-card-featured { position:absolute; left:12px; top:12px; border-radius:999px; padding:6px 10px; background:#e8f5ec; color:#256d45; font-size:10px; font-weight:950; box-shadow:0 8px 18px rgba(0,0,0,.12); }
+        .admin-card-excerpt { margin-top: 10px; min-height: 40px; color:#6b6257; line-height:1.45; text-transform:none; letter-spacing:normal; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+        .admin-card-reorder { display:grid; grid-template-columns: 1fr 1fr; gap:8px; padding: 0 16px 10px; }
+        .admin-card-reorder button { min-height: 40px; border-radius: 12px; background:#f2efe8; color:#4c463f; font-weight:900; text-transform:none; }
+        .admin-work-actions { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+        .admin-project-actions .select { background:#edf7f2; color:#26724a; }
+        .admin-gallery-preview { position:relative; aspect-ratio: 4 / 3; margin: 12px 12px 0; overflow:hidden; border-radius:18px; background:linear-gradient(135deg,#eef3ed,#e3d8c8); }
+        .admin-gallery-preview img { width:100%; height:100%; object-fit:cover; display:block; }
+        .admin-gallery-type { position:absolute; left:10px; top:10px; border-radius:999px; padding:6px 9px; background:rgba(28,62,45,.9); color:#fff; font-size:10px; font-weight:950; }
+        .admin-play-badge { position:absolute; inset:0; margin:auto; width:48px; height:48px; border-radius:999px; background:rgba(255,255,255,.9); color:#b91c1c; display:flex; align-items:center; justify-content:center; box-shadow:0 10px 24px rgba(0,0,0,.18); }
+        .admin-gallery-body { padding:14px 16px; flex:1; }
+        .admin-gallery-body h4 { color:#1c3e2d; font-size:15px; line-height:1.3; font-weight:950; letter-spacing:normal; text-transform:none; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; min-height:39px; }
+        .admin-lang-badges { display:flex; gap:6px; min-height:22px; margin-top:8px; }
+        .admin-lang-badges span { border-radius:999px; background:#f5f2ec; color:#6b6257; padding:4px 8px; font-size:10px; font-weight:950; }
+        @media (max-width: 1199px) { .admin-work-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .admin-gallery-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } .admin-work-toolbar, .admin-gallery-toolbar { grid-template-columns: 1fr 1fr; } }
+        @media (max-width: 900px) { .admin-gallery-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+        @media (max-width: 767px) { .admin-works-layout, .admin-gallery-layout { width:100%; } .admin-work-grid, .admin-gallery-grid, .admin-work-toolbar, .admin-gallery-toolbar, .admin-work-actions, .admin-gallery-actions { grid-template-columns: 1fr; } .admin-project-actions button, .admin-card-reorder button { min-height:44px; } }
 
         .glass {
             background: rgba(255, 255, 255, 0.85);
@@ -4459,8 +4525,8 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
             <div x-show="page === 'gallery'" x-cloak class="gallery-page max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-12 ad-safe-content">
                 <div class="text-center max-w-3xl mx-auto space-y-4">
                     <span class="text-wood-600 font-bold uppercase tracking-widest text-sm block" x-text="t('navGallery')">Qalereya</span>
-                    <h1 class="text-3xl sm:text-5xl font-black text-forest-950" x-text="t('visualShowcase')">İnşaat Qalereyası</h1>
-                    <p class="text-stone-500 text-sm sm:text-base" x-text="t('galleryDesc')">Tamamladığımız layihələrdən xarici və daxili görüntülər.</p>
+                    <h1 class="text-3xl sm:text-5xl font-black text-forest-950" x-text="t('visualShowcase')">Taxta Memarlıq Qalereyası</h1>
+                    <p class="text-stone-500 text-sm sm:text-base" x-text="t('galleryDesc')">Taxta evlərdən besedkalara, restoranlardan fərdi konstruksiyalara qədər müxtəlif layihə, dizayn və tətbiq nümunələri.</p>
                 </div>
 
                 <div x-show="!galleryLoaded" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
@@ -4810,90 +4876,26 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                         <div class="admin-form-actions"><button type="button" @click="saveWorkItem()" :disabled="creatingWork" :aria-busy="creatingWork" class="admin-primary-action work-submit-button"><span x-show="!creatingWork" x-cloak x-text="editingWorkItemId ? 'Yadda saxla' : 'Yeni iş yarat'"></span><span x-show="creatingWork" x-cloak class="work-submit-loading"><span class="work-submit-spinner" aria-hidden="true"></span><span x-text="workUploadProgress || 'İş yaradılır...'"></span></span></button><button type="button" @click="resetWorkForm()" :disabled="creatingWork" class="admin-secondary-action">Ləğv et</button></div>
                     </div>
                     <div class="admin-work-list-card">
-                        <div class="admin-work-list-head"><h3>Mövcud işlər</h3><span x-text="workItems.length"></span></div>
-                        <div x-show="!workItemsLoaded" class="p-6 rounded-2xl skeleton-shimmer">Yüklənir...</div><div x-show="workItemsLoaded && !workItems.length" class="admin-empty-state"><i class="fa-solid fa-briefcase"></i><strong>Hələ iş əlavə edilməyib</strong><small>Yuxarıdakı formdan ilk işi yaradın.</small></div>
-                        <div class="admin-work-list"><template x-for="item in workItems" :key="item.id"><div class="admin-work-item"><img :src="item.coverImage || fallbackWorkImage()" @error="setWorkImageFallback($event)" alt=""><div class="admin-work-item-body"><p x-text="item.titleAz"></p><small x-text="workCategoryLabel(item.category)"></small><div><span :class="item.archived ? 'off' : 'ok'" x-text="item.archived ? 'Arxivdə' : 'Aktiv'"></span><span x-show="item.featured" class="featured">Seçilmiş</span></div></div><div class="admin-work-actions"><button @click="moveWorkItem(item,-1)">↑</button><button @click="moveWorkItem(item,1)">↓</button><button @click="editWorkItem(item)" :disabled="creatingWork">Redaktə et</button><button @click="toggleWorkStatus(item)" x-text="item.archived ? 'Arxivdən çıxar' : 'Arxivlə'"></button><button @click="toggleWorkFeatured(item)" x-text="item.featured ? 'Seçilməmiş' : 'Seçilmiş'"></button><button @click="deleteWorkItem(item)" class="danger">Sil</button></div></div></template></div>
+                        <div class="admin-work-list-head"><div><h3>Mövcud işlər <span x-text="`— ${filteredAdminWorks().length} iş`"></span></h3><p>Axtarış və filterlər lokal cache üzərində işləyir.</p></div></div>
+                        <div class="admin-entity-toolbar admin-work-toolbar"><input type="search" x-model.debounce.150ms="workAdminSearch" placeholder="İş adına görə axtar" class="admin-project-input"><select x-model="workAdminCategoryFilter" class="admin-project-input"><option value="all">Bütün kateqoriyalar</option><template x-for="cat in workCategories().filter(c => c !== 'all')" :key="cat"><option :value="cat" x-text="workCategoryLabel(cat)"></option></template></select><select x-model="workAdminStatusFilter" class="admin-project-input"><option value="all">Hamısı</option><option value="active">Aktiv</option><option value="archived">Arxiv</option></select><select x-model="workAdminFeaturedFilter" class="admin-project-input"><option value="all">Seçilmiş: hamısı</option><option value="featured">Seçilmiş</option><option value="plain">Seçilməmiş</option></select></div>
+                        <div x-show="!workItemsLoaded" class="p-6 rounded-2xl skeleton-shimmer">Yüklənir...</div><div x-show="workItemsLoaded && !filteredAdminWorks().length" class="admin-empty-state"><i class="fa-solid fa-briefcase"></i><strong>İş tapılmadı</strong><small>Filterləri dəyişin və ya yuxarıdakı formdan yeni iş yaradın.</small></div>
+                        <div class="admin-work-grid"><template x-for="item in filteredAdminWorks()" :key="item.id"><article class="admin-work-premium-card"><div class="admin-project-cover"><img :src="item.coverImage || fallbackWorkImage()" @error="setWorkImageFallback($event)" alt=""><span class="admin-project-status" :class="item.archived ? 'is-archived' : 'is-active'" x-text="item.archived ? 'Arxivdə' : 'Aktiv'"></span><span x-show="item.featured" class="admin-card-featured">Seçilmiş</span></div><div class="admin-project-body"><span class="admin-project-category" x-text="workCategoryLabel(item.category)"></span><h4 :title="adminWorkTitle(item)" x-text="adminWorkTitle(item)"></h4><p class="admin-card-excerpt" x-text="adminWorkExcerpt(item)"></p><div class="admin-project-specs"><span><i class="fa-solid fa-location-dot"></i><b x-text="adminWorkLocation(item) || '—'"></b></span><span><i class="fa-solid fa-calendar-check"></i><b x-text="formatWorkDate(item.completionDate) || '—'"></b></span><span><i class="fa-solid fa-arrow-down-1-9"></i><b x-text="item.sortOrder"></b></span><span><i class="fa-solid fa-images"></i><b x-text="`${(item.images || []).length} şəkil`"></b></span></div></div><div class="admin-card-reorder"><button @click="moveWorkItem(item,-1)">↑ Yuxarı</button><button @click="moveWorkItem(item,1)">↓ Aşağı</button></div><div class="admin-project-actions admin-work-actions"><button type="button" class="edit" @click="editWorkItem(item)" :disabled="creatingWork"><i class="fa-solid fa-pen-to-square"></i>Redaktə et</button><button type="button" class="archive" @click="toggleWorkStatus(item)" x-text="item.archived ? 'Aktiv et' : 'Arxivlə'"></button><button type="button" class="select" @click="toggleWorkFeatured(item)" x-text="item.featured ? 'Çıxar' : 'Seçilmiş et'"></button><button type="button" class="delete" @click="deleteWorkItem(item)"><i class="fa-regular fa-trash-can"></i>Sil</button></div></article></template></div>
                     </div>
                 </div>
 
-                <div x-show="adminTab === 'gallery'" x-transition class="grid grid-cols-1 lg:grid-cols-12 gap-8 text-xs font-bold uppercase tracking-wider text-stone-500">
-                    <div class="lg:col-span-5 bg-white p-6 rounded-3xl border border-stone-200/80 shadow-sm space-y-4">
+                <div x-show="adminTab === 'gallery'" x-transition class="admin-gallery-layout text-xs font-bold uppercase tracking-wider text-stone-500">
+                    <div class="admin-gallery-form-card bg-white p-6 rounded-3xl border border-stone-200/80 shadow-sm space-y-4">
                         <h3 class="text-lg font-black text-stone-900 tracking-normal mb-4" x-text="lang==='az'?'Yeni Media Elementi':'Новое медиа'">Yeni Media</h3>
-                        
-                        <div>
-                            <label x-text="lang==='az'?'Media Növü':'Тип медиа'">Media Növü</label>
-                            <select x-model="newGallery.type" class="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg text-stone-800 tracking-normal mt-1 font-medium">
-                                <option value="image">Şəkil</option>
-                                <option value="video">YouTube Video Linki</option>
-                            </select>
-                        </div>
-
-                        <!-- Realtime interactive preview panel inside the creator form -->
-                        <div class="p-4 bg-stone-100 rounded-2xl border border-dashed border-stone-300">
-                            <template x-if="newGallery.type === 'image'">
-                                <div>
-                                    <label class="block mb-2 text-stone-700" x-text="lang==='az'?'Lokal Şəkil Seçin':'Выбрать файл'">Şəkil faylı</label>
-                                    <input type="file" :accept="IMAGE_ACCEPT" multiple @change="handleMultiFileSelect($event, 'galleryPreviewImg', 'galleryPreviewImages')" class="w-full text-stone-600 font-medium tracking-normal text-xs">
-                                </div>
-                            </template>
-                            <template x-if="newGallery.type === 'video'">
-                                <div>
-                                    <label class="block mb-2 text-stone-700">YouTube Video URL</label>
-                                    <input type="text" x-model="galleryPreviewImg" class="w-full px-3 py-2 bg-white border border-stone-200 rounded-lg text-stone-800 tracking-normal font-medium" placeholder="https://www.youtube.com/watch?v=...">
-                                </div>
-                            </template>
-
-                            <!-- Live visual check preview for media elements -->
-                            <template x-if="galleryPreviewImg">
-                                <div class="mt-4 space-y-3">
-                                    <div class="relative w-full h-44 rounded-xl overflow-hidden shadow bg-black">
-                                        <template x-if="newGallery.type === 'image'"><img :src="galleryPreviewImg" class="w-full h-full object-cover"></template>
-                                        <template x-if="newGallery.type === 'video'"><iframe class="w-full h-full" :src="getYouTubeEmbed(galleryPreviewImg)" frameborder="0" allowfullscreen></iframe></template>
-                                        <template x-if="newGallery.type === 'image' && galleryPreviewImages.length > 1">
-                                            <div><button @click="prevGalleryPreview()" class="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-white/85 rounded-full"><i class="fa-solid fa-chevron-left"></i></button><button @click="nextGalleryPreview()" class="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-white/85 rounded-full"><i class="fa-solid fa-chevron-right"></i></button><span class="absolute bottom-2 left-1/2 -translate-x-1/2 px-2 py-1 rounded-full bg-black/65 text-white text-[11px]" x-text="`${galleryPreviewIndex + 1} / ${galleryPreviewImages.length}`"></span></div>
-                                        </template>
-                                        <button @click="newGallery.type === 'image' ? removeGalleryPreview(galleryPreviewIndex) : removeSelectedFile('galleryPreviewImg')" class="absolute top-2 right-2 w-7 h-7 bg-black/60 hover:bg-black/85 text-white rounded-full flex items-center justify-center text-xs"><i class="fa-solid fa-x"></i></button>
-                                    </div>
-                                    <template x-if="newGallery.type === 'image' && galleryPreviewImages.length">
-                                        <div class="flex gap-2 overflow-x-auto pb-1"><template x-for="(src,index) in galleryPreviewImages" :key="src"><button @click="setGalleryPreviewIndex(index)" class="relative shrink-0"><img :src="src" class="w-16 h-12 object-cover rounded-lg border-2" :class="index === galleryPreviewIndex ? 'border-forest-600' : 'border-white'"><span @click.stop="removeGalleryPreview(index)" class="absolute -top-1 -right-1 w-5 h-5 bg-red-600 text-white rounded-full flex items-center justify-center text-[10px]">×</span></button></template></div>
-                                    </template>
-                                </div>
-                            </template>
-                        </div>
-
-                        <div>
-                            <label x-text="lang==='az'?'Başlıq (AZ)':'Название (АЗ)'">Başlıq (AZ)</label>
-                            <input type="text" x-model="newGallery.title" @input="autocompleteGalleryTitle()" class="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg text-stone-800 tracking-normal mt-1 font-medium"><p class="text-[10px] text-wood-600 mt-1 normal-case" x-text="translationStatusText('newGalleryTitle')"></p><div class="grid grid-cols-2 gap-2 mt-2"><input type="text" x-model="newGallery.titleRu" @input="markManualTranslation('newGallery.titleRu')" class="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg text-stone-800 tracking-normal font-medium" placeholder="RU"><input type="text" x-model="newGallery.titleEn" @input="markManualTranslation('newGallery.titleEn')" class="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg text-stone-800 tracking-normal font-medium" placeholder="EN"></div>
-                        </div>
-
+                        <div><label x-text="lang==='az'?'Media Növü':'Тип медиа'">Media Növü</label><select x-model="newGallery.type" class="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg text-stone-800 tracking-normal mt-1 font-medium"><option value="image">Şəkil</option><option value="video">YouTube Video Linki</option></select></div>
+                        <div class="p-4 bg-stone-100 rounded-2xl border border-dashed border-stone-300"><template x-if="newGallery.type === 'image'"><div><label class="block mb-2 text-stone-700" x-text="lang==='az'?'Lokal Şəkil Seçin':'Выбрать файл'">Şəkil faylı</label><input type="file" :accept="IMAGE_ACCEPT" multiple @change="handleMultiFileSelect($event, 'galleryPreviewImg', 'galleryPreviewImages')" class="w-full text-stone-600 font-medium tracking-normal text-xs"></div></template><template x-if="newGallery.type === 'video'"><div><label class="block mb-2 text-stone-700">YouTube Video URL</label><input type="text" x-model="galleryPreviewImg" class="w-full px-3 py-2 bg-white border border-stone-200 rounded-lg text-stone-800 tracking-normal font-medium" placeholder="https://www.youtube.com/watch?v=..."></div></template><template x-if="galleryPreviewImg"><div class="mt-4 space-y-3"><div class="relative w-full h-44 rounded-xl overflow-hidden shadow bg-black"><template x-if="newGallery.type === 'image'"><img :src="galleryPreviewImg" class="w-full h-full object-cover"></template><template x-if="newGallery.type === 'video'"><iframe class="w-full h-full" :src="getYouTubeEmbed(galleryPreviewImg)" frameborder="0" allowfullscreen></iframe></template><template x-if="newGallery.type === 'image' && galleryPreviewImages.length > 1"><div><button @click="prevGalleryPreview()" class="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-white/85 rounded-full"><i class="fa-solid fa-chevron-left"></i></button><button @click="nextGalleryPreview()" class="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-white/85 rounded-full"><i class="fa-solid fa-chevron-right"></i></button><span class="absolute bottom-2 left-1/2 -translate-x-1/2 px-2 py-1 rounded-full bg-black/65 text-white text-[11px]" x-text="`${galleryPreviewIndex + 1} / ${galleryPreviewImages.length}`"></span></div></template><button @click="newGallery.type === 'image' ? removeGalleryPreview(galleryPreviewIndex) : removeSelectedFile('galleryPreviewImg')" class="absolute top-2 right-2 w-7 h-7 bg-black/60 hover:bg-black/85 text-white rounded-full flex items-center justify-center text-xs"><i class="fa-solid fa-x"></i></button></div><template x-if="newGallery.type === 'image' && galleryPreviewImages.length"><div class="flex gap-2 overflow-x-auto pb-1"><template x-for="(src,index) in galleryPreviewImages" :key="src"><button @click="setGalleryPreviewIndex(index)" class="relative shrink-0"><img :src="src" class="w-16 h-12 object-cover rounded-lg border-2" :class="index === galleryPreviewIndex ? 'border-forest-600' : 'border-white'"><span @click.stop="removeGalleryPreview(index)" class="absolute -top-1 -right-1 w-5 h-5 bg-red-600 text-white rounded-full flex items-center justify-center text-[10px]">×</span></button></template></div></template></div></template></div>
+                        <div><label x-text="lang==='az'?'Başlıq (AZ)':'Название (АЗ)'">Başlıq (AZ)</label><input type="text" x-model="newGallery.title" @input="autocompleteGalleryTitle()" class="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg text-stone-800 tracking-normal mt-1 font-medium"><p class="text-[10px] text-wood-600 mt-1 normal-case" x-text="translationStatusText('newGalleryTitle')"></p><div class="grid grid-cols-2 gap-2 mt-2"><input type="text" x-model="newGallery.titleRu" @input="markManualTranslation('newGallery.titleRu')" class="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg text-stone-800 tracking-normal font-medium" placeholder="RU"><input type="text" x-model="newGallery.titleEn" @input="markManualTranslation('newGallery.titleEn')" class="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg text-stone-800 tracking-normal font-medium" placeholder="EN"></div></div>
                         <button @click="saveGalleryItem()" :disabled="actionLoading.gallerySave" class="w-full py-3 bg-forest-700 text-white rounded-xl font-bold uppercase tracking-wider text-xs disabled:opacity-70"><span x-show="!actionLoading.gallerySave" x-text="lang==='az'?'Qalereyaya Yadda Saxla':'Сохранить в галерею'">Yadda Saxla</span><span x-show="actionLoading.gallerySave" class="inline-flex items-center gap-2"><i class="fa-solid fa-circle-notch fa-spin"></i>Yüklənir...</span></button>
                     </div>
-
-                    <div class="lg:col-span-7 bg-white p-6 rounded-3xl border border-stone-200/80 shadow-sm space-y-4">
-                        <h3 class="text-lg font-black text-stone-900 tracking-normal" x-text="lang==='az'?'Mövcud Qalereya':'Существующая галерея'">Mövcud Qalereya</h3>
-                        <div class="space-y-3">
-                            <template x-for="item in (Array.isArray(galleryItems) ? galleryItems : [])" :key="item.id">
-                                <div class="p-3 bg-stone-50 rounded-2xl border border-stone-200/60 flex items-center justify-between">
-                                    <div class="flex items-center gap-3">
-                                        <template x-if="item.type === 'image'">
-                                            <img :src="item.src" class="w-12 h-12 object-cover rounded-lg shadow">
-                                        </template>
-                                        <template x-if="item.type === 'video'">
-                                            <div class="w-12 h-12 bg-forest-900 text-white rounded-lg flex items-center justify-center"><i class="fa-solid fa-play"></i></div>
-                                        </template>
-                                        <div>
-                                            <h4 class="font-bold text-stone-900 tracking-normal" x-text="lang==='az'?item.title:(lang==='ru'?item.titleRu:item.titleEn)">Başlıq</h4>
-                                            <span class="text-[9px] font-bold text-stone-400" x-text="item.type">Type</span>
-                                        </div>
-                                    </div>
-                                    <div class="flex gap-1">
-                                        <button @click="setupEditGallery(item)" class="w-8 h-8 bg-blue-50 text-blue-600 rounded-lg flex items-center justify-center"><i class="fa-solid fa-pen-to-square"></i></button>
-                                        <button @click="toggleArchiveGallery(item)" class="w-8 h-8 bg-yellow-50 text-yellow-600 rounded-lg flex items-center justify-center"><i class="fa-solid" :class="item.archived ? 'fa-box-open' : 'fa-box'"></i></button>
-                                        <button @click="deleteGalleryItem(item.id)" class="w-8 h-8 bg-red-50 text-red-600 rounded-lg flex items-center justify-center"><i class="fa-regular fa-trash-can"></i></button>
-                                    </div>
-                                </div>
-                            </template>
-                        </div>
+                    <div class="admin-gallery-list-card bg-white p-6 rounded-3xl border border-stone-200/80 shadow-sm space-y-4">
+                        <div class="admin-work-list-head"><div><h3>Mövcud qalereya <span x-text="`— ${filteredAdminGallery().length} media`"></span></h3><p>Media kartları cache-dən render olunur və filterlər lokal işləyir.</p></div></div>
+                        <div class="admin-entity-toolbar admin-gallery-toolbar"><input type="search" x-model.debounce.150ms="galleryAdminSearch" placeholder="Başlığa görə axtar" class="admin-project-input"><select x-model="galleryAdminTypeFilter" class="admin-project-input"><option value="all">Bütün media</option><option value="image">Şəkillər</option><option value="youtube">YouTube</option><option value="video">Videolar</option></select><select x-model="galleryAdminStatusFilter" class="admin-project-input"><option value="all">Hamısı</option><option value="active">Aktiv</option><option value="archived">Arxiv</option></select></div>
+                        <div x-show="galleryLoaded && !filteredAdminGallery().length" class="admin-empty-state"><i class="fa-regular fa-images"></i><strong>Media tapılmadı</strong><small>Filterləri dəyişərək yenidən yoxlayın.</small></div>
+                        <div class="admin-gallery-grid"><template x-for="item in filteredAdminGallery()" :key="item.id"><article class="admin-gallery-card"><div class="admin-gallery-preview"><template x-if="galleryPreviewUrl(item)"><img :src="galleryPreviewUrl(item)" alt=""></template><template x-if="!galleryPreviewUrl(item)"><div class="admin-project-placeholder"><i class="fa-regular fa-image"></i><span>Media yoxdur</span></div></template><span class="admin-gallery-type" x-text="galleryTypeLabel(item.type, item)"></span><span class="admin-project-status" :class="item.archived ? 'is-archived' : 'is-active'" x-text="item.archived ? 'Arxivdə' : 'Aktiv'"></span><span x-show="item.type === 'video'" class="admin-play-badge"><i class="fa-solid fa-play"></i></span></div><div class="admin-gallery-body"><h4 x-show="galleryItemTitle(item)" :title="galleryItemTitle(item)" x-text="galleryItemTitle(item)"></h4><div class="admin-lang-badges"><span x-show="item.titleRu">RU</span><span x-show="item.titleEn">EN</span></div><div class="admin-project-specs"><span><i class="fa-solid fa-arrow-down-1-9"></i><b x-text="item.sortOrder || 0"></b></span><span><i class="fa-regular fa-clock"></i><b x-text="item.createdAt ? formatWorkDate(item.createdAt) : '—'"></b></span></div></div><div class="admin-card-reorder"><button @click="moveGalleryItem(item,-1)">↑ Yuxarı</button><button @click="moveGalleryItem(item,1)">↓ Aşağı</button></div><div class="admin-project-actions admin-gallery-actions"><button type="button" class="edit" @click="setupEditGallery(item)"><i class="fa-solid fa-pen-to-square"></i>Redaktə et</button><button type="button" class="archive" @click="toggleArchiveGallery(item)" x-text="item.archived ? 'Aktiv et' : 'Arxivlə'"></button><button type="button" class="delete" @click="deleteGalleryItem(item.id)"><i class="fa-regular fa-trash-can"></i>Sil</button></div></article></template></div>
                     </div>
                 </div>
 
