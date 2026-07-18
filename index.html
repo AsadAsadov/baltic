@@ -822,10 +822,18 @@
                 normalizeImageList(images = []) {
                     return (Array.isArray(images) ? images : []).map(image => this.normalizeImageUrl(image)).filter(Boolean);
                 },
+                normalizeImageVariants(variants = {}) {
+                    return variants && typeof variants === 'object' ? {
+                        thumb: this.normalizeImageUrl(variants.thumb || ''),
+                        medium: this.normalizeImageUrl(variants.medium || ''),
+                        large: this.normalizeImageUrl(variants.large || '')
+                    } : {};
+                },
                 imageVariant(url = '', variant = 'medium') {
                     const value = this.normalizeImageUrl(url);
                     if (!value || !value.startsWith('/uploads/') || !/\.(jpe?g|png|webp|avif|tiff?|bmp)(?:[?#].*)?$/i.test(value)) return value;
                     const clean = value.split(/[?#]/)[0];
+                    if (/-((thumb)|(medium)|(large))\.webp$/i.test(clean)) return clean.replace(/-(thumb|medium|large)\.webp$/i, `-${variant}.webp`);
                     return clean.replace(/\.[^.\/]+$/, `-${variant}.webp`);
                 },
                 responsiveImageSrc(item = {}, preferred = 'medium') {
@@ -875,6 +883,8 @@
                         image,
                         cover: project.cover || image,
                         coverImage: project.coverImage || image,
+                        originalImage: this.normalizeImageUrl(project.originalImage || project.cover || project.coverImage || project.image || images[0] || ''),
+                        imageVariants: this.normalizeImageVariants(project.imageVariants),
                         images: images.length ? images : (image ? [image] : []),
                         views: Number(project.views) || 0,
                         archived: Boolean(project.archived)
@@ -888,7 +898,7 @@
                     const images = this.normalizeImageList(item.images);
                     const src = this.normalizeImageUrl(item.src || item.image || item.url || item.mediaUrl || images[0] || '');
                     return { id: item.id ?? '',
-                        slug: item.slug || '', src, image: item.image || src, url: item.url || src, mediaUrl: item.mediaUrl || src, images: images.length ? images : (src && (item.type || 'image') === 'image' ? [src] : []), title: item.title || item.titleAz || '', titleAz: item.titleAz || item.title || '', titleRu: item.titleRu || item.title || '', titleEn: item.titleEn || item.title || '', type: item.type || 'image', archived: Boolean(item.archived), sortOrder: Number(item.sortOrder) || 0 };
+                        slug: item.slug || '', src, image: item.image || src, url: item.url || src, mediaUrl: item.mediaUrl || src, originalMediaUrl: this.normalizeImageUrl(item.originalMediaUrl || item.mediaUrl || item.src || item.image || item.url || images[0] || ''), imageVariants: this.normalizeImageVariants(item.imageVariants), images: images.length ? images : (src && (item.type || 'image') === 'image' ? [src] : []), title: item.title || item.titleAz || '', titleAz: item.titleAz || item.title || '', titleRu: item.titleRu || item.title || '', titleEn: item.titleEn || item.title || '', type: item.type || 'image', archived: Boolean(item.archived), sortOrder: Number(item.sortOrder) || 0 };
                 },
                 normalizeGallery(payload, fallback = []) {
                     const items = this.asArray(payload).map(item => this.normalizeGalleryItem(item));
@@ -2616,7 +2626,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                 normalizeWorkItem(item = {}) {
                     const images = this.normalizeImageList(item.images);
                     const coverImage = this.normalizeImageUrl(item.coverImage || item.image || images[0] || '');
-                    return { id:item.id || '', slug:item.slug || '', category:this.normalizeCategory(item.category || 'house'), title:item.title || item.titleAz || '', titleAz:item.titleAz || item.title || '', titleRu:item.titleRu || item.title || '', titleEn:item.titleEn || item.title || '', description:item.description || item.descriptionAz || '', descriptionAz:item.descriptionAz || item.description || '', descriptionRu:item.descriptionRu || item.description || '', descriptionEn:item.descriptionEn || item.description || '', location:item.location || item.locationAz || '', locationAz:item.locationAz || item.location || '', locationRu:item.locationRu || item.location || '', locationEn:item.locationEn || item.location || '', completionDate:item.completionDate || '', area:item.area || '', stories:item.stories ?? '', rooms:item.rooms ?? '', buildTime:item.buildTime || item.buildTimeAz || '', buildTimeAz:item.buildTimeAz || item.buildTime || '', buildTimeRu:item.buildTimeRu || item.buildTime || '', buildTimeEn:item.buildTimeEn || item.buildTime || '', coverImage, image:coverImage, images:images.length ? images : (coverImage ? [coverImage] : []), sortOrder:Number(item.sortOrder)||0, archived:Boolean(item.archived), featured:Boolean(item.featured), active:item.active !== false, createdAt:item.createdAt || '' };
+                    return { id:item.id || '', slug:item.slug || '', category:this.normalizeCategory(item.category || 'house'), title:item.title || item.titleAz || '', titleAz:item.titleAz || item.title || '', titleRu:item.titleRu || item.title || '', titleEn:item.titleEn || item.title || '', description:item.description || item.descriptionAz || '', descriptionAz:item.descriptionAz || item.description || '', descriptionRu:item.descriptionRu || item.description || '', descriptionEn:item.descriptionEn || item.description || '', location:item.location || item.locationAz || '', locationAz:item.locationAz || item.location || '', locationRu:item.locationRu || item.location || '', locationEn:item.locationEn || item.location || '', completionDate:item.completionDate || '', area:item.area || '', stories:item.stories ?? '', rooms:item.rooms ?? '', buildTime:item.buildTime || item.buildTimeAz || '', buildTimeAz:item.buildTimeAz || item.buildTime || '', buildTimeRu:item.buildTimeRu || item.buildTime || '', buildTimeEn:item.buildTimeEn || item.buildTime || '', coverImage, image:coverImage, originalImage:this.normalizeImageUrl(item.originalImage || item.coverImage || item.image || images[0] || ''), imageVariants:this.normalizeImageVariants(item.imageVariants), images:images.length ? images : (coverImage ? [coverImage] : []), sortOrder:Number(item.sortOrder)||0, archived:Boolean(item.archived), featured:Boolean(item.featured), active:item.active !== false, createdAt:item.createdAt || '' };
                 },
                 normalizeWorkItems(payload, fallback = []) { const items = this.asArray(payload).map(item => this.normalizeWorkItem(item)); return items.length ? items : fallback.map(item => this.normalizeWorkItem(item)); },
                 localizedWorkTitle(item) { return this.lang === 'en' ? (item.titleEn || item.titleAz) : (this.lang === 'ru' ? (item.titleRu || item.titleAz) : item.titleAz); },
