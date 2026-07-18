@@ -12,7 +12,7 @@
     <meta property="og:type" content="article">
     <meta property="og:url" content="__META_URL__">
     <meta property="og:image" content="__META_IMAGE__">
-    <meta property="og:site_name" content="Baltic Caspian">
+    <meta property="og:site_name" content="Baltic Caspian LTD">
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="__META_TITLE__">
     <meta name="twitter:description" content="__META_DESCRIPTION__">
@@ -205,7 +205,8 @@
                 IMAGE_VIDEO_ACCEPT,
 
                 // Admin authentication
-                adminLoggedIn: false,
+                adminLoggedIn: sessionStorage.getItem('bc_admin_session_hint') === 'true',
+                adminAuthChecking: true,
                 adminUsername: '',
                 adminPassword: '',
                 adminLoginError: '',
@@ -226,6 +227,7 @@
                 adminInitializing: true,
                 adminInitializationError: '',
                 adminLoadVersion: 0,
+                adminCache: {},
                 showAdminTabManager: false,
                 adminTitleTapCount: 0,
                 adminTitleTapTimer: null,
@@ -353,7 +355,7 @@
                     'siberianPine': { az: 'Sibir Şamı', ru: 'Сибирская Сосна', en: 'Siberian Pine' },
                     'estPrice': { az: 'Təxmini Qiymət:', ru: 'Примерная стоимость:', en: 'Estimated Cost:' },
                     'techSubtitle': { az: 'Texnoloji Mükəmməllik', ru: 'Технологическое превосходство', en: 'Technological Excellence' },
-                    'techTitle': { az: 'Niyə Məhz Baltic Caspian?', ru: 'Почему именно Baltic Caspian?', en: 'Why Baltic Caspian?' },
+                    'techTitle': { az: 'Niyə Məhz Baltic Caspian LTD?', ru: 'Почему именно Baltic Caspian LTD?', en: 'Why Baltic Caspian LTD?' },
                     'techDesc': { az: 'Bizim inşa etdiyimiz taxta evlər xüsusi emal olunmuş Sibir şamından istifadə edilərək hər bir xırdalığına qədər düşünülüb hazırlanır.', ru: 'Наши дома проектируются из сибирской сосны премиальной сушки.', en: 'Every structure is engineered using sustainably processed Siberian Pine.' },
                     'statExperience': { az: 'İl Peşəkar Təcrübə', ru: 'Лет профессионального опыта', en: 'Years of Experience' },
                     'statCompleted': { az: 'Tamamlanmış Layihə', ru: 'Завершенных объектов', en: 'Completed Projects' },
@@ -381,7 +383,7 @@
                     'rooms': { az: 'Otaq', ru: 'Комнат', en: 'Rooms' },
                     'visualShowcase': { az: 'İnşaat Qalereyası', ru: 'Галерея Объектов', en: 'Media Gallery' },
                     'galleryDesc': { az: 'Tamamladığımız layihələrdən xarici və daxili dizayn görüntüləri.', ru: 'Кадры экстерьеров и интерьеров.', en: 'Real snapshots of finished constructions.' },
-                    'aboutSubtitle': { az: 'Baltic Caspian Ltd', ru: 'Baltic Caspian Ltd', en: 'Baltic Caspian Ltd' },
+                    'aboutSubtitle': { az: 'Baltic Caspian LTD', ru: 'Baltic Caspian LTD', en: 'Baltic Caspian LTD' },
                     'aboutTitle': { az: '2008-ci İldən Ekologiyanın Zirvəsindəyik', ru: 'С 2008 года на Пике Экологичности', en: 'At the Pinnacle of Eco-Living Since 2008' },
                     'aboutTextAz': { az: 'BALTIC CASPIAN LTD 2008-ci ildə yaradılmışdır. Əsas fəaliyyətimiz ağacın kəsilməsi və rəndələnməsidir. Təsisçilərimiz 1998-ci ildən ev tikintisində ağac emalı və yapışdırılmış tirlərin istehsalı sahəsində ixtisaslaşmışdır.\n\nMüştərinin istəyinə uyğun olaraq fərdi qaydada evlər, yay evləri, hamamlar və s. istehsal olunur. BALTIC CASPIAN LTD Rusiyadan şam və küknar ağacı idxal edir.\n\nİstehsalatda yeni rəndələmə maşınlarından istifadə olunur ki, bu da həm daxili, həm də xarici bazarda satış üçün böyük həcmdə məhsul istehsal etməyə imkan verir.', ru: '', en: '' },
                     'aboutTextRu': { az: '', ru: 'BALTIC CASPIAN LTD была создана в 2008 году. Основным направлением нашей деятельности является распиловка и строгание древесины. Наши учредители с 1998 года специализируются в сфере деревообработки для домостроения и производства клееного бруса.\n\nПо желанию клиента в индивидуальном порядке производятся дома, летние дома, бани и другие строения. BALTIC CASPIAN LTD импортирует сосну и ель из России.\n\nВ производстве используются новые строгальные станки, что позволяет выпускать большие объемы продукции как для внутреннего, так и для внешнего рынка.', en: '' },
@@ -429,7 +431,7 @@
                     'findUs': { az: 'İstehsalatımıza Gəlin', ru: 'Посетите наше производство', en: 'Tour Our Facility' },
                     'mapDesc': { az: 'Bizi yerində ziyarət edərək istifadə etdiyimiz Sibir şamı log materiallarını öz gözünüzlə görüb qiymətləndirə bilərsiniz.', ru: 'Вы можете лично оценить качество древесины у нас.', en: 'Visit our facility in Baku to check our building timber grades.' },
                     'openInMap': { az: 'Xəritədə Aç', ru: 'Открыть на карте', en: 'View in Map' },
-                    'footerAbout': { az: 'Baltic Caspian – Azərbaycanda keyfiyyətli taxta evlərin, yay villalarının, koteclərin və sauna binalarının lider istehsalçısıdır.', ru: 'Baltic Caspian – ведущий производитель качественных деревянных домов в Азербайджане.', en: 'Baltic Caspian is the leading builder of solid wooden homes in Azerbaijan.' },
+                    'footerAbout': { az: 'Baltic Caspian LTD – Azərbaycanda keyfiyyətli taxta evlərin, yay villalarının, koteclərin və sauna binalarının lider istehsalçısıdır.', ru: 'Baltic Caspian LTD – ведущий производитель качественных деревянных домов в Азербайджане.', en: 'Baltic Caspian LTD is the leading builder of solid wooden homes in Azerbaijan.' },
                     'footerMenu': { az: 'Faydalı Keçidlər', ru: 'Разделы сайта', en: 'Quick Links' },
                     'footerContact': { az: 'Əlaqə', ru: 'Связь', en: 'Get in Touch' },
                     'ecoCert': { az: 'Ekoloji Zəmanət', ru: 'Эко-Гарантия', en: 'Ecological Purity' },
@@ -484,7 +486,7 @@
                     'advantagesP2': { az: 'Divar xüsusi materiallarla, İzobon və daş yunu ilə əhatə olunur. Çöl blok-hausun içəri hissəsi isə OSB adlanan materialla örtülür.', ru: 'Стены защищаются специальными материалами, Изобоном и каменной ватой. Внутренняя часть наружного блок-хауса покрывается OSB.', en: 'Walls are wrapped with special materials, Izobon and stone wool. The inner side of the exterior block house is covered with OSB.' },
                     'advantagesP3': { az: 'Taxta evlərdə ən çox rast gəlinən problemlərdən biri həşəratların olmasıdır. Keyfiyyətli işlənmiş və sobalarda qurudulmuş ağacda bu risk aradan qalxır.', ru: 'Одна из частых проблем деревянных домов — насекомые. Качественная обработка и камерная сушка устраняют этот риск.', en: 'One common wooden-house issue is insects. Quality treatment and kiln drying remove this risk.' },
                     'advantagesP4': { az: 'Şirkətimiz istifadə etdiyi bütün ağac materiallarını dərmanlayaraq sobalarda işlədikdən sonra inşaatda istifadə edir.', ru: 'Все деревянные материалы проходят защитную обработку и сушку перед строительством.', en: 'All timber materials are protectively treated and kiln processed before construction.' },
-                    'advantagesP5': { az: 'Baltic Caspian bütün standartlara cavab verən ekoloji məhsullarla xəyallarınızdakı taxta ev layihələrini inşa etməyə hazırdır.', ru: 'Baltic Caspian готов строить деревянные дома вашей мечты из экологичных материалов по всем стандартам.', en: 'Baltic Caspian is ready to build your dream wooden home with eco-friendly products meeting all standards.' },
+                    'advantagesP5': { az: 'Baltic Caspian LTD bütün standartlara cavab verən ekoloji məhsullarla xəyallarınızdakı taxta ev layihələrini inşa etməyə hazırdır.', ru: 'Baltic Caspian LTD готов строить деревянные дома вашей мечты из экологичных материалов по всем стандартам.', en: 'Baltic Caspian LTD is ready to build your dream wooden home with eco-friendly products meeting all standards.' },
                     'showLess': { az: 'Daha az göstər', ru: 'Показать меньше', en: 'Show less' },
                     'readMore': { az: 'Daha ətraflı', ru: 'Подробнее', en: 'Read more' },
                     'badgeLacquer': { az: 'Lak qoruması', ru: 'Лаковая защита', en: 'Lacquer protection' },
@@ -515,7 +517,7 @@
                     'repairW7': { az: 'Landşaft dizaynı', ru: 'Ландшафтный дизайн', en: 'Landscape design' },
                     'repairContract': { az: 'Bütün işlər müqavilə əsasında görülür.', ru: 'Все работы выполняются на основании договора.', en: 'All work is performed under contract.' },
                     'featureSectionLabel': { az: 'Premium üstünlüklər', ru: 'Премиальные преимущества', en: 'Premium advantages' },
-                    'statsSectionLabel': { az: 'Rəqəmlərlə Baltic Caspian', ru: 'Baltic Caspian в цифрах', en: 'Baltic Caspian in numbers' },
+                    'statsSectionLabel': { az: 'Rəqəmlərlə Baltic Caspian LTD', ru: 'Baltic Caspian LTD в цифрах', en: 'Baltic Caspian LTD in numbers' },
                     'statsSectionTitle': { az: 'Etibar, təcrübə və keyfiyyət göstəricilərimiz', ru: 'Наши показатели доверия, опыта и качества', en: 'Our trust, experience and quality metrics' },
                     'statCompletedNew': { az: 'Tamamlanmış layihə', ru: 'Завершенных проектов', en: 'Completed projects' },
                     'statCustomers': { az: 'Məmnun müştəri', ru: 'Довольных клиентов', en: 'Happy customers' },
@@ -682,8 +684,8 @@
                     } else if (Object.prototype.hasOwnProperty.call(this.publicRouteMap, clean)) {
                         this.page = this.publicRouteMap[clean];
                     } else if (clean === '/admin') {
-                        this.page = this.adminLoggedIn ? 'admin' : 'login';
-                        if (this.adminLoggedIn) this.initializeAdminPanel();
+                        this.page = (this.adminLoggedIn || this.hasAdminSessionHint() || this.adminAuthChecking) ? 'admin' : 'login';
+                        if (this.page === 'admin' && this.adminLoggedIn) this.initializeAdminPanel();
                     } else {
                         this.page = 'notFound';
                         this.notFoundKind = 'page';
@@ -741,7 +743,7 @@
                 similarDetailItems() { const list = this.detailType === 'work' ? this.workItems : this.projects; const item = this.detailItem || {}; return (Array.isArray(list) ? list : []).filter(x => x.id !== item.id && !x.archived && x.active !== false && ((x.category && x.category === item.category) || (x.cat && x.cat === item.cat))).slice(0,3); },
                 detailWhatsappUrl() { const message = `Salam. “${this.detailTitle()}” ilə maraqlanıram: ${location.href}`; return `https://wa.me/994553221109?text=${encodeURIComponent(message)}`; },
                 async shareDetail() { const data = { title: this.detailTitle(), text: this.detailDescription(), url: location.href }; try { if (navigator.share) await navigator.share(data); else if (navigator.clipboard) { await navigator.clipboard.writeText(location.href); this.showToast?.('Link kopyalandı', location.href); } else { const input = document.createElement('input'); input.value = location.href; document.body.appendChild(input); input.select(); document.execCommand('copy'); input.remove(); this.showToast?.('Link kopyalandı', location.href); } } catch (e) { if (e?.name !== 'AbortError') console.warn('Share failed', e); } },
-                updateMeta() { const staticMeta = { home:['Baltic Caspian | Taxta Evlərin Tikintisi','Premium taxta evlərin layihələndirilməsi və tikintisi.'], projects:['Taxta Ev Layihələri | Baltic Caspian','Baltic Caspian taxta ev layihələri və fərdi memarlıq həlləri.'], works:['İşlərimiz | Baltic Caspian','Baltic Caspian tərəfindən tamamlanmış taxta ev işləri.'], gallery:['Qalereya | Baltic Caspian','Taxta evlər, tikinti prosesi və tamamlanmış layihələrin qalereyası.'], about:['Haqqımızda | Baltic Caspian','Baltic Caspian komandası, dəyərləri və taxta ev tikintisi təcrübəsi.'], contact:['Əlaqə | Baltic Caspian','Baltic Caspian ilə əlaqə saxlayın və taxta ev layihənizi planlayın.'], notFound:['Səhifə tapılmadı | Baltic Caspian','Axtardığınız səhifə tapılmadı.'] }; const title = this.detailItem ? `${this.detailTitle()} | Baltic Caspian` : (staticMeta[this.page]?.[0] || staticMeta.notFound[0]); const desc = (this.detailItem ? (this.detailDescription() || 'Baltic Caspian layihə detalları.') : (staticMeta[this.page]?.[1] || staticMeta.notFound[1])).slice(0,155); document.title = title; document.querySelector('meta[name="description"]')?.setAttribute('content', desc); document.querySelector('meta[name="robots"]')?.setAttribute('content', 'index,follow'); document.querySelector('link[rel="canonical"]')?.setAttribute('href', location.origin + this.normalizePathname(location.pathname)); document.querySelector('meta[property="og:title"]')?.setAttribute('content', title); document.querySelector('meta[property="og:description"]')?.setAttribute('content', desc); document.querySelector('meta[property="og:url"]')?.setAttribute('content', location.href); document.querySelector('meta[property="og:image"]')?.setAttribute('content', this.detailImage() || '/uploads/hero'); },
+                updateMeta() { const staticMeta = { home:['Baltic Caspian LTD | Taxta Evlərin Tikintisi','Premium taxta evlərin layihələndirilməsi və tikintisi.'], projects:['Taxta Ev Layihələri | Baltic Caspian LTD','Baltic Caspian LTD taxta ev layihələri və fərdi memarlıq həlləri.'], works:['İşlərimiz | Baltic Caspian LTD','Baltic Caspian LTD tərəfindən tamamlanmış taxta ev işləri.'], gallery:['Qalereya | Baltic Caspian LTD','Taxta evlər, tikinti prosesi və tamamlanmış layihələrin qalereyası.'], about:['Haqqımızda | Baltic Caspian LTD','Baltic Caspian LTD komandası, dəyərləri və taxta ev tikintisi təcrübəsi.'], contact:['Əlaqə | Baltic Caspian LTD','Baltic Caspian LTD ilə əlaqə saxlayın və taxta ev layihənizi planlayın.'], notFound:['Səhifə tapılmadı | Baltic Caspian LTD','Axtardığınız səhifə tapılmadı.'] }; const title = this.detailItem ? `${this.detailTitle()} | Baltic Caspian LTD` : (staticMeta[this.page]?.[0] || staticMeta.notFound[0]); const desc = (this.detailItem ? (this.detailDescription() || 'Baltic Caspian LTD layihə detalları.') : (staticMeta[this.page]?.[1] || staticMeta.notFound[1])).slice(0,155); document.title = title; document.querySelector('meta[name="description"]')?.setAttribute('content', desc); document.querySelector('meta[name="robots"]')?.setAttribute('content', 'index,follow'); document.querySelector('link[rel="canonical"]')?.setAttribute('href', location.origin + this.normalizePathname(location.pathname)); document.querySelector('meta[property="og:title"]')?.setAttribute('content', title); document.querySelector('meta[property="og:description"]')?.setAttribute('content', desc); document.querySelector('meta[property="og:url"]')?.setAttribute('content', location.href); document.querySelector('meta[property="og:image"]')?.setAttribute('content', this.detailImage() || '/uploads/hero'); },
 
                 async api(path, options = {}) {
                     const headers = options.body instanceof FormData ? { ...(options.headers || {}) } : { 'Content-Type': 'application/json', ...(options.headers || {}) };
@@ -1073,9 +1075,9 @@
                     this.messages = [];
                     try {
                         await this.loadAdminTabVisibility({ networkOnly: true });
-                        await Promise.all([this.loadData({ adminInitial: true, version }), this.loadHomeSectionImages(true), this.loadHeroSlides(true)]);
                         if (version !== this.adminLoadVersion) return;
                         this.ensureVisibleAdminTab();
+                        await this.loadAdminSection(this.adminTab, { version });
                     } catch (error) {
                         if (version !== this.adminLoadVersion) return;
                         console.error('Admin initialization failed', error);
@@ -1085,64 +1087,68 @@
                     }
                 },
 
+                async loadAdminSection(tab = this.adminTab, options = {}) {
+                    const version = options.version || this.adminLoadVersion;
+                    const key = tab === 'ads' ? 'banners' : (tab === 'home-images' ? 'homeImages' : tab);
+                    const cached = this.adminCache[key];
+                    if (cached?.loadingPromise) return cached.loadingPromise;
+                    if (cached?.loadedAt && Date.now() - cached.loadedAt < 120000) return cached.data;
+                    const run = (async () => {
+                        if (tab === 'dashboard') await this.loadData({ adminInitial: true, version, sections: ['projects','works','stats'] });
+                        else if (tab === 'projects') await this.loadData({ adminInitial: true, version, sections: ['projects'] });
+                        else if (tab === 'works') await this.loadData({ adminInitial: true, version, sections: ['works'] });
+                        else if (tab === 'gallery') await this.loadData({ adminInitial: true, version, sections: ['gallery'] });
+                        else if (tab === 'messages') await this.loadData({ adminInitial: true, version, sections: ['messages'] });
+                        else if (tab === 'ads') await this.loadData({ adminInitial: true, version, sections: ['banners'] });
+                        else if (tab === 'hero') await this.loadHeroSlides(true);
+                        else if (tab === 'home-images') await this.loadHomeSectionImages(true);
+                        this.adminCache[key] = { data: true, loadedAt: Date.now(), loadingPromise: null };
+                    })().catch(error => { if (this.adminCache[key]) this.adminCache[key].loadingPromise = null; throw error; });
+                    this.adminCache[key] = { ...(cached || {}), loadingPromise: run };
+                    return run;
+                },
+                setAdminTab(tab) { this.adminTab = tab; if (tab === 'hero') this.resetHeroForm(); this.loadAdminSection(tab).catch(error => { console.warn('Admin tab lazy load failed', error); this.showToast('Xəta', 'Bölmə məlumatları yüklənmədi.'); }); },
+
                 retryAdminInitialization() { this.initializeAdminPanel(); },
 
                 async loadData(options = {}) {
                     const adminInitial = !!options.adminInitial;
+                    const sections = new Set(options.sections || ['projects', 'gallery', 'works', 'banners', 'stats', ...(this.adminLoggedIn ? ['messages'] : [])]);
                     const version = options.version || this.adminLoadVersion;
-                    this.projectsLoaded = false;
-                    this.galleryLoaded = false;
-                    this.workItemsLoaded = false;
                     const cached = (key, fallback) => adminInitial ? fallback : (JSON.parse(localStorage.getItem(key) || 'null') || fallback);
-                    const publicFetch = async (path) => {
-                        try {
-                            return { ok: true, data: await this.api(path, adminInitial ? { cache: 'no-store' } : {}) };
-                        } catch (error) {
+                    const fetchOnce = async (key, path, normalizer, fallback, assign) => {
+                        if (adminInitial && this.adminCache[key]?.loadingPromise) return this.adminCache[key].loadingPromise;
+                        if (adminInitial && this.adminCache[key]?.loadedAt && Date.now() - this.adminCache[key].loadedAt < 120000) return this.adminCache[key].data;
+                        const promise = this.api(path, adminInitial ? { cache: 'no-store' } : {}).then(data => {
+                            if (adminInitial && version !== this.adminLoadVersion) return null;
+                            const value = normalizer(data, fallback);
+                            assign(value);
+                            if (adminInitial) this.adminCache[key] = { data: value, loadedAt: Date.now(), loadingPromise: null };
+                            return value;
+                        }).catch(error => {
                             console.warn(`Failed ${path}; using local fallback if available.`, error);
-                            return { ok: false, error };
-                        }
+                            const value = normalizer(cached(key === 'banners' ? 'bc_banners_list' : `bc_${key}`, fallback), fallback);
+                            assign(value);
+                            return value;
+                        }).finally(() => { if (adminInitial && this.adminCache[key]) this.adminCache[key].loadingPromise = null; });
+                        if (adminInitial) this.adminCache[key] = { ...(this.adminCache[key] || {}), loadingPromise: promise };
+                        return promise;
                     };
-                    let banners = [];
-
                     try {
-                        const settled = await Promise.allSettled([
-                            publicFetch('/api/projects'),
-                            publicFetch('/api/gallery'),
-                            publicFetch(this.adminLoggedIn ? '/api/works?includeArchived=true' : '/api/works'),
-                            adminInitial ? this.api('/api/banners', { cache: 'no-store' }) : this.safeApi('/api/banners', cached('bc_banners_list', [])),
-                            adminInitial ? this.api('/api/stats', { cache: 'no-store' }) : this.safeApi('/api/stats', cached('bc_stats', this.stats))
-                        ]);
-                        const [projectsSettled, gallerySettled, worksSettled, bannersSettled, statsSettled] = settled;
-                        const projectsResult = projectsSettled.status === 'fulfilled' ? projectsSettled.value : { ok: false, error: projectsSettled.reason };
-                        const galleryResult = gallerySettled.status === 'fulfilled' ? gallerySettled.value : { ok: false, error: gallerySettled.reason };
-                        const worksResult = worksSettled.status === 'fulfilled' ? worksSettled.value : { ok: false, error: worksSettled.reason };
-                        const bannersResult = bannersSettled.status === 'fulfilled' ? bannersSettled.value : cached('bc_banners_list', []);
-                        const statsResult = statsSettled.status === 'fulfilled' ? statsSettled.value : this.stats;
-                        if (adminInitial && version !== this.adminLoadVersion) return;
-                        const projectItems = projectsResult.ok ? this.normalizeProjects(projectsResult.data, []) : this.normalizeProjects(cached('bc_projects', adminInitial ? [] : defaultProjects), adminInitial ? [] : defaultProjects);
-                        const galleryItems = galleryResult.ok ? this.normalizeGallery(galleryResult.data, []) : this.normalizeGallery(cached('bc_gallery', adminInitial ? [] : defaultGallery), adminInitial ? [] : defaultGallery);
-                        this.projects = projectItems;
-                        this.galleryItems = galleryItems;
-                        this.workItems = worksResult.ok ? this.normalizeWorkItems(worksResult.data, []) : [];
-                        this.galleryLoaded = true;
-                        banners = this.normalizeBanners(bannersResult, null);
-                        this.banners = banners;
-                        this.mainBanner = this.firstActiveBanner() || banners[0] || this.normalizeBanner({}, 'both');
-                        this.stats = { ...this.stats, ...(statsResult || {}) };
-                        console.info('GET /api/projects'); console.info(`Loaded projects: ${this.projects.length}`);
-                        console.info('GET /api/gallery'); console.info(`Loaded gallery: ${this.galleryItems.length}`);
-                        console.info('GET /api/banners'); console.info(`Loaded banners: ${banners.length}`);
-                        if (this.adminLoggedIn) {
-                            this.messages = this.asArray(adminInitial ? await this.api('/api/messages', { cache: 'no-store' }) : await this.safeApi('/api/messages', cached('bc_messages', [])));
-                        }
-                        console.table(this.projects.slice(0, 3));
-                        console.table(this.galleryItems.slice(0, 3));
+                        const tasks = [];
+                        if (sections.has('projects')) { this.projectsLoaded = false; tasks.push(fetchOnce('projects', adminInitial ? '/api/projects?includeArchived=true' : '/api/projects', (d,f)=>this.normalizeProjects(d,f), adminInitial ? [] : defaultProjects, v => { this.projects = v; this.projectsLoaded = true; })); }
+                        if (sections.has('gallery')) { this.galleryLoaded = false; tasks.push(fetchOnce('gallery', adminInitial ? '/api/gallery?includeArchived=true' : '/api/gallery', (d,f)=>this.normalizeGallery(d,f), adminInitial ? [] : defaultGallery, v => { this.galleryItems = v; this.galleryLoaded = true; })); }
+                        if (sections.has('works')) { this.workItemsLoaded = false; tasks.push(fetchOnce('works', this.adminLoggedIn ? '/api/works?includeArchived=true' : '/api/works', (d,f)=>this.normalizeWorkItems(d,f), [], v => { this.workItems = v; this.workItemsLoaded = true; })); }
+                        if (sections.has('banners')) tasks.push(fetchOnce('banners', '/api/banners', (d)=>this.normalizeBanners(d, null), [], v => { this.banners = v; this.mainBanner = this.firstActiveBanner() || v[0] || this.normalizeBanner({}, 'both'); this.restartAdRotation(); }));
+                        if (sections.has('stats')) tasks.push(fetchOnce('stats', '/api/stats', d=>({ ...this.stats, ...(d || {}) }), this.stats, v => { this.stats = v; }));
+                        if (sections.has('messages') && this.adminLoggedIn) tasks.push(fetchOnce('messages', '/api/messages', d=>this.asArray(d), [], v => { this.messages = v; }));
+                        await Promise.allSettled(tasks);
                         if (!adminInitial) this.cacheSave();
                         this.$nextTick(() => this.syncHeroVideoAudio());
-                        this.restartAdRotation();
                     } finally {
-                        this.projectsLoaded = true;
-                        this.workItemsLoaded = true;
+                        if (sections.has('projects')) this.projectsLoaded = true;
+                        if (sections.has('gallery')) this.galleryLoaded = true;
+                        if (sections.has('works')) this.workItemsLoaded = true;
                     }
                 },
 
@@ -1533,7 +1539,7 @@
                 contactFromCalculator() {
                     const calcTypeText = this.calc.type === 'house' ? this.t('woodenHouse') : 'Hamam & Sauna';
                     const calcTimberText = this.calc.timber === 'pine' ? this.t('siberianPine') : (this.lang === 'ru' ? 'Массивный дуб' : (this.lang === 'en' ? 'Solid Oak' : 'Massiv Palıd'));
-                    const message = `Salam, Baltic Caspian.
+                    const message = `Salam, Baltic Caspian LTD.
 Mən taxta ev kalkulyatorundan istifadə etdim:
 Tikili növü: ${calcTypeText}
 Sahə: ${this.calc.area} m²
@@ -1829,7 +1835,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                 getMessageWhatsAppUrl(msg) {
                     const phone = this.normalizeWhatsAppPhone(msg?.phone);
                     if (!phone) return '#';
-                    const message = `Salam ${msg?.name || ''}, Baltic Caspian-dan yazırıq.\nMüraciətinizlə bağlı sizinlə əlaqə saxlayırıq.`;
+                    const message = `Salam ${msg?.name || ''}, Baltic Caspian LTD-dan yazırıq.\nMüraciətinizlə bağlı sizinlə əlaqə saxlayırıq.`;
                     return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
                 },
 
@@ -1873,18 +1879,26 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                     this.cacheSave();
                 },
 
+                hasAdminSessionHint() { return sessionStorage.getItem('bc_admin_session_hint') === 'true'; },
+                setAdminSessionHint(value) { if (value) sessionStorage.setItem('bc_admin_session_hint', 'true'); else sessionStorage.removeItem('bc_admin_session_hint'); },
                 async checkAdminSession() {
+                    this.adminAuthChecking = true;
                     try {
                         const session = await this.api('/api/admin/session', { cache: 'no-store' });
                         this.adminLoggedIn = session?.authenticated === true;
+                        this.setAdminSessionHint(this.adminLoggedIn);
                     } catch (error) {
                         this.adminLoggedIn = false;
+                        this.setAdminSessionHint(false);
+                    } finally {
+                        this.adminAuthChecking = false;
                     }
                 },
 
                 handleAdminSessionExpired() {
                     if (!this.adminLoggedIn && this.page === 'login') return;
                     this.adminLoggedIn = false;
+                    this.setAdminSessionHint(false);
                     this.messages = [];
                     this.adminInitializationError = '';
                     this.adminInitializing = true;
@@ -1903,6 +1917,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                         });
                         if (response?.authenticated !== true) throw new Error('Giriş təsdiqlənmədi.');
                         this.adminLoggedIn = true;
+                        this.setAdminSessionHint(true);
                         this.adminUsername = '';
                         this.adminPassword = '';
                         this.adminPasswordVisible = false;
@@ -1921,6 +1936,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                     try { await this.api('/api/admin/logout', { method: 'POST' }); }
                     catch (error) { console.warn('Admin logout request failed.', error); }
                     this.adminLoggedIn = false;
+                    this.setAdminSessionHint(false);
                     this.adminUsername = '';
                     this.adminPassword = '';
                     this.messages = [];
@@ -1937,7 +1953,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                 },
 
                 setupEditProject(proj) {
-                    this.newProj = { ...proj, titleAz: proj.title, titleRu: proj.titleRu, titleEn: proj.titleEn, descAz: proj.desc, descRu: proj.descRu, descEn: proj.descEn, buildTimeAz: proj.buildTime, buildTimeRu: proj.buildTimeRu, buildTimeEn: proj.buildTimeEn };
+                    this.newProj = { ...proj, cat: this.normalizeCategory(proj.category || proj.cat || 'house'), category: this.normalizeCategory(proj.category || proj.cat || 'house'), titleAz: proj.titleAz || proj.title, titleRu: proj.titleRu, titleEn: proj.titleEn, descAz: proj.descAz || proj.descriptionAz || proj.desc, descRu: proj.descRu || proj.descriptionRu, descEn: proj.descEn || proj.descriptionEn, buildTimeAz: proj.buildTimeAz || proj.buildTime, buildTimeRu: proj.buildTimeRu, buildTimeEn: proj.buildTimeEn };
                     this.showProjectTranslations = false;
                     this.revokeProjectPreviewUrls();
                     const existingImages = (Array.isArray(proj.images) && proj.images.length ? proj.images : (proj.image ? [proj.image] : [])).filter(Boolean);
@@ -1962,7 +1978,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                         const endpoint = isEditMode ? `/api/projects/${this.newProj.id}` : '/api/projects';
                         const method = isEditMode ? 'PUT' : 'POST';
                         this.projectSaveStage = 'saving';
-                        const saved = await this.api(endpoint, { method, body: JSON.stringify({ ...this.newProj, image: finalImage, images: finalImages }) });
+                        const saved = await this.api(endpoint, { method, body: JSON.stringify({ ...this.newProj, category: this.normalizeCategory(this.newProj.cat || this.newProj.category), cat: this.normalizeCategory(this.newProj.cat || this.newProj.category), coverImage: finalImage, image: finalImage, images: finalImages }) });
                         this.projectSaveStage = 'refreshing';
                         this.upsertProjectInList(saved?.project || saved);
                         this.projectSaveStage = 'done';
@@ -2047,7 +2063,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                             this.showToast('Uğurlu', 'Qalereyaya yeni element əlavə edildi!');
                         }
                         await this.api(this.newGallery.id ? `/api/gallery/${this.newGallery.id}` : '/api/gallery', { method: this.newGallery.id ? 'PUT' : 'POST', body: JSON.stringify({ ...this.newGallery, src: finalSrc, images: finalImages }) });
-                        await this.loadData();
+                        await this.loadData({ adminInitial: true, sections: ['gallery'] });
                         this.cacheSave();
                         this.newGallery = { id: null, src: '', title: '', titleRu: '', titleEn: '', type: 'image' };
                         this.galleryPreviewImg = '';
@@ -2518,7 +2534,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                 prevWorkImage() { const n=this.currentWorkImages().length; if(n>1) this.activeWorkImageIndex=(this.activeWorkImageIndex-1+n)%n; },
                 nextWorkImage() { const n=this.currentWorkImages().length; if(n>1) this.activeWorkImageIndex=(this.activeWorkImageIndex+1)%n; },
                 workWhatsAppUrl(item) { return `https://wa.me/994553221109?text=${encodeURIComponent('Salam, '+this.localizedWorkTitle(item)+' işi ilə bağlı məlumat almaq istəyirəm.')}`; },
-                fallbackWorkImage() { return 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300"><rect width="400" height="300" fill="#f5f2ec"/><text x="200" y="150" text-anchor="middle" fill="#7c6f64" font-family="Arial" font-size="22" font-weight="700">Baltic Caspian</text></svg>`); },
+                fallbackWorkImage() { return 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300"><rect width="400" height="300" fill="#f5f2ec"/><text x="200" y="150" text-anchor="middle" fill="#7c6f64" font-family="Arial" font-size="22" font-weight="700">Baltic Caspian LTD</text></svg>`); },
                 setWorkImageFallback(event) { if (event?.target?.dataset?.fallbackApplied) return; event.target.dataset.fallbackApplied = 'true'; event.target.src = this.fallbackWorkImage(); event.target.classList.add('work-image-fallback'); },
                 setWorkCoverFile(event) { if (this.creatingWork) return; const file = event.target.files?.[0] || null; if (file && !this.isAllowedImageFile(file)) { this.showToast('Format dəstəklənmir', 'Bu şəkil formatı dəstəklənmir.'); event.target.value = ''; return; } if (file && this.isHeicImageFile(file)) this.showToast('HEIC şəkli seçildi', 'Önizləmə bu brauzerdə mövcud deyil, lakin fayl yüklənəcək.'); this.workCoverFile = file; },
                 workCoverPreview() { return this.workCoverFile ? this.previewFileUrl(this.workCoverFile) : this.workForm.coverImage; },
@@ -2546,8 +2562,11 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                         this.workUploadProgress = 'Məlumatlar saxlanılır...';
                         const wasEditingWorkItem = Boolean(this.editingWorkItemId);
                         const body = { ...this.workForm, titleRu: this.workForm.titleRu || this.workForm.titleAz, titleEn: this.workForm.titleEn || this.workForm.titleAz, descriptionRu: this.workForm.descriptionRu || this.workForm.descriptionAz, descriptionEn: this.workForm.descriptionEn || this.workForm.descriptionAz, locationRu: this.workForm.locationRu || this.workForm.locationAz, locationEn: this.workForm.locationEn || this.workForm.locationAz, coverImage: cover, images: [...(this.workForm.images || []), ...more].filter(Boolean), sortOrder: Number(this.workForm.sortOrder) || 0, active: Boolean(this.workForm.active), featured: Boolean(this.workForm.featured), completionDate: this.workForm.completionDate || null };
-                        await this.api(this.editingWorkItemId ? `/api/works/${this.editingWorkItemId}` : '/api/works', { method: this.editingWorkItemId ? 'PUT' : 'POST', body: JSON.stringify(body) });
-                        await this.loadData();
+                        const savedWork = await this.api(this.editingWorkItemId ? `/api/works/${this.editingWorkItemId}` : '/api/works', { method: this.editingWorkItemId ? 'PUT' : 'POST', body: JSON.stringify(body) });
+                        const normalizedWork = this.normalizeWorkItem(savedWork?.work || savedWork);
+                        this.workItems = wasEditingWorkItem ? this.workItems.map(item => item.id === normalizedWork.id ? normalizedWork : item) : [normalizedWork, ...this.workItems];
+                        this.adminCache.works = { data: this.workItems, loadedAt: Date.now(), loadingPromise: null };
+                        this.cacheSave();
                         this.resetWorkForm(true);
                         this.showToast('Uğurlu!', wasEditingWorkItem ? 'İş yeniləndi.' : 'İş uğurla əlavə edildi.');
                     } catch (error) {
@@ -2560,10 +2579,10 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                 },
                 removeWorkImage(index) { if (this.creatingWork) return; this.workForm.images = (this.workForm.images || []).filter((_, i) => i !== index); },
                 moveWorkImage(index, dir) { if (this.creatingWork) return; const arr=[...(this.workForm.images || [])]; const j=index+dir; if(j<0||j>=arr.length)return; [arr[index],arr[j]]=[arr[j],arr[index]]; this.workForm.images=arr; },
-                async toggleWorkStatus(item) { await this.api(`/api/works/${item.id}/archive`, { method:'PATCH', body:JSON.stringify({ archived: !item.archived }) }); await this.loadData(); },
-                async toggleWorkFeatured(item) { await this.api(`/api/works/${item.id}/featured`, { method:'PATCH', body:JSON.stringify({ featured: !item.featured }) }); await this.loadData(); },
-                async deleteWorkItem(item) { if(!confirm('Silinsin?')) return; await this.api(`/api/works/${item.id}`, { method:'DELETE' }); await this.loadData(); },
-                async moveWorkItem(item, dir) { const arr=[...this.workItems]; const i=arr.findIndex(x=>x.id===item.id), j=i+dir; if(i<0||j<0||j>=arr.length)return; [arr[i],arr[j]]=[arr[j],arr[i]]; await this.api('/api/works/reorder', { method:'PUT', body:JSON.stringify({ items: arr.map((x,k)=>({id:x.id, sortOrder:k})) }) }); await this.loadData(); },
+                async toggleWorkStatus(item) { const updated = this.normalizeWorkItem(await this.api(`/api/works/${item.id}/archive`, { method:'PATCH', body:JSON.stringify({ archived: !item.archived }) })); this.workItems = this.workItems.map(x => x.id === updated.id ? updated : x); this.adminCache.works = { data: this.workItems, loadedAt: Date.now(), loadingPromise: null }; this.cacheSave(); },
+                async toggleWorkFeatured(item) { const updated = this.normalizeWorkItem(await this.api(`/api/works/${item.id}/featured`, { method:'PATCH', body:JSON.stringify({ featured: !item.featured }) })); this.workItems = this.workItems.map(x => x.id === updated.id ? updated : x); this.adminCache.works = { data: this.workItems, loadedAt: Date.now(), loadingPromise: null }; this.cacheSave(); },
+                async deleteWorkItem(item) { if(!confirm('Silinsin?')) return; await this.api(`/api/works/${item.id}`, { method:'DELETE' }); this.workItems = this.workItems.filter(x => x.id !== item.id); this.adminCache.works = { data: this.workItems, loadedAt: Date.now(), loadingPromise: null }; this.cacheSave(); },
+                async moveWorkItem(item, dir) { const arr=[...this.workItems]; const i=arr.findIndex(x=>x.id===item.id), j=i+dir; if(i<0||j<0||j>=arr.length)return; [arr[i],arr[j]]=[arr[j],arr[i]]; await this.api('/api/works/reorder', { method:'PUT', body:JSON.stringify({ items: arr.map((x,k)=>({id:x.id, sortOrder:k})) }) }); this.workItems = arr.map((x,k)=>({ ...x, sortOrder:k })); this.adminCache.works = { data: this.workItems, loadedAt: Date.now(), loadingPromise: null }; this.cacheSave(); },
 
                 get filteredProjects() {
                     if (this.filterCategory === 'all') {
@@ -3140,25 +3159,27 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
             #mobileMenuPanel .mobile-menu-link:hover,
             #mobileMenuPanel .mobile-menu-link:focus-visible { background: rgba(255, 255, 255, 0.1); color: #f5dcd0; }
         }
-        .login-page-wrap { width: 100%; min-height: calc(100svh - var(--header-height)); display: flex; align-items: center; justify-content: center; padding: 2rem 1rem; }
-        .login-card-premium { width: calc(100vw - 32px); max-width: 440px; border-radius: 28px; border: 1px solid rgba(255,255,255,.12); background: linear-gradient(145deg, #0b1712, #1a251f); box-shadow: 0 28px 80px rgba(0,0,0,.22); padding: 1.5rem; color: #fff; overflow: hidden; }
-        .login-icon-badge { width: 58px; height: 58px; border-radius: 20px; display: inline-flex; align-items: center; justify-content: center; background: linear-gradient(135deg, rgba(51,115,79,.95), rgba(184,138,96,.9)); color: #fff; box-shadow: 0 18px 45px rgba(0,0,0,.24); font-weight: 950; letter-spacing: -.04em; }
+        .login-page-wrap { width: 100%; min-height: calc(100svh - var(--header-height)); display: flex; align-items: center; justify-content: center; padding: 2rem 1rem; background: radial-gradient(circle at top, rgba(51,115,79,.08), transparent 42%), #f8f7f3; }
+        .login-card-premium { width: calc(100vw - 32px); max-width: 430px; border-radius: 24px; border: 1px solid rgba(51,115,79,.16); background: #fff; box-shadow: 0 24px 70px rgba(23,55,47,.12); padding: 1.5rem; color: #17372f; overflow: hidden; }
+        .login-icon-badge { width: 76px; height: 76px; border-radius: 22px; display: inline-flex; align-items: center; justify-content: center; background: #f7f5ef; color: #17372f; border: 1px solid rgba(51,115,79,.14); box-shadow: 0 14px 36px rgba(23,55,47,.10); font-weight: 950; letter-spacing: -.04em; }
+        .login-logo-img { width: 54px; height: 54px; object-fit: contain; }
         .login-field { display: grid; gap: 8px; }
-        .login-field label { color: rgba(255,255,255,.76); font-size: 12px; font-weight: 850; letter-spacing: .02em; }
-        .login-input { width: 100%; height: 56px; border-radius: 18px; border: 1px solid rgba(255,255,255,.14); background: rgba(255,255,255,.07); color: #fff; padding: 0 1rem; font-size: .95rem; outline: none; transition: border-color .2s ease, box-shadow .2s ease, background .2s ease; }
+        .login-field label { color: #33584b; font-size: 12px; font-weight: 850; letter-spacing: .02em; }
+        .login-input { width: 100%; height: 52px; border-radius: 16px; border: 1px solid #d8e2dc; background: #fbfaf7; color: #17372f; padding: 0 1rem; font-size: .95rem; outline: none; transition: border-color .2s ease, box-shadow .2s ease, background .2s ease; }
+        .login-input:-webkit-autofill { -webkit-text-fill-color: #17372f; box-shadow: 0 0 0 1000px #fbfaf7 inset; }
         .login-password-wrap { position: relative; }
         .login-password-wrap .login-input { padding-right: 3.25rem; }
-        .login-password-toggle { position: absolute; top: 50%; right: 10px; transform: translateY(-50%); width: 38px; height: 38px; border-radius: 14px; color: rgba(255,255,255,.72); background: rgba(255,255,255,.08); transition: background .2s ease, color .2s ease; }
-        .login-password-toggle:hover, .login-password-toggle:focus-visible { background: rgba(184,138,96,.22); color: #fff; outline: 2px solid rgba(184,138,96,.46); outline-offset: 2px; }
-        .login-input::placeholder { color: rgba(255,255,255,.55); }
-        .login-input:focus { border-color: rgba(184,138,96,.86); box-shadow: 0 0 0 4px rgba(51, 115, 79, .22); background: rgba(255,255,255,.1); }
-        .login-error { padding: .8rem .9rem; border-radius: 16px; border: 1px solid rgba(248,113,113,.28); background: rgba(248,113,113,.13); color: #fecaca; font-size: 12px; font-weight: 800; }
-        .login-submit-button { height: 58px; border-radius: 18px; background: linear-gradient(135deg, #33734f, #1f5f3d 55%, #b88a60); box-shadow: 0 18px 42px rgba(0,0,0,.25); }
+        .login-password-toggle { position: absolute; top: 50%; right: 10px; transform: translateY(-50%); width: 38px; height: 38px; border-radius: 14px; color: #426657; background: #eef5f1; transition: background .2s ease, color .2s ease; }
+        .login-password-toggle:hover, .login-password-toggle:focus-visible { background: #e2efe8; color: #17372f; outline: 2px solid rgba(51,115,79,.22); outline-offset: 2px; }
+        .login-input::placeholder { color: #9baca4; }
+        .login-input:focus { border-color: #33734f; box-shadow: 0 0 0 4px rgba(51, 115, 79, .13); background: #fff; }
+        .login-error { padding: .8rem .9rem; border-radius: 16px; border: 1px solid rgba(220,38,38,.18); background: #fef2f2; color: #b91c1c; font-size: 12px; font-weight: 800; }
+        .login-submit-button { height: 54px; border-radius: 16px; background: #1f5f3d; box-shadow: 0 14px 34px rgba(31,95,61,.20); }
         .login-submit-button:disabled { cursor: wait; opacity: .72; filter: saturate(.86); }
         .login-spinner { width: 18px; height: 18px; border: 2px solid rgba(255,255,255,.35); border-top-color: #fff; border-radius: 999px; animation: bc-spin .8s linear infinite; }
         @keyframes bc-spin { to { transform: rotate(360deg); } }
-        .login-home-link { color: rgba(255,255,255,.72); }
-        .login-home-link:hover { color: #f5d0b5; }
+        .login-home-link { color: #557064; }
+        .login-home-link:hover { color: #1f5f3d; }
         @media (min-width: 640px) { .login-card-premium { padding: 2rem; } }
 
         @media (max-width: 767px) {
@@ -3269,8 +3290,8 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
             .project-card__fallback { display: none; }
         }
         @media (prefers-color-scheme: dark) {
-            .login-card-premium h2 { color: #f5f5f4; }
-            .login-card-premium p { color: rgba(245,245,244,.72); }
+            .login-card-premium h2 { color: #17372f; }
+            .login-card-premium p { color: #6b7f75; }
         }
         /* Mobile-only polish: compact header, BestHome-style hero card, and bottom-nav-safe footer. */
         @media (max-width: 767px) {
@@ -3987,7 +4008,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                         <i class="fa-solid fa-tree-city text-xl lg:text-2xl"></i>
                     </div>
                     <div>
-                        <span class="logo-title block text-base lg:text-xl font-extrabold tracking-tight group-hover:text-wood-600 transition leading-none" :class="page === 'home' && !isHeaderScrolled ? 'text-white drop-shadow' : 'text-forest-900'">BALTIC CASPIAN</span>
+                        <span class="logo-title block text-base lg:text-xl font-extrabold tracking-tight group-hover:text-wood-600 transition leading-none" :class="page === 'home' && !isHeaderScrolled ? 'text-white drop-shadow' : 'text-forest-900'">BALTIC CASPIAN LTD</span>
                         <span class="logo-subtitle block text-[9px] lg:text-xxs tracking-widest uppercase font-bold mt-1" :class="page === 'home' && !isHeaderScrolled ? 'text-wood-200 drop-shadow' : 'text-wood-600'" x-text="t('logoSub')">Taxta evlərin tikintisi</span>
                     </div>
                 </a>
@@ -4160,7 +4181,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                     <div class="relative overflow-hidden rounded-[2rem] bg-white border border-stone-200/80 shadow-sm p-6 sm:p-10">
                         <div class="absolute -top-24 left-1/2 w-80 h-80 -translate-x-1/2 rounded-full bg-wood-100/50 blur-3xl"></div>
                         <div class="relative text-center max-w-3xl mx-auto mb-8">
-                            <span class="text-wood-600 font-bold uppercase tracking-widest text-xs" x-text="t('statsSectionLabel')">Rəqəmlərlə Baltic Caspian</span>
+                            <span class="text-wood-600 font-bold uppercase tracking-widest text-xs" x-text="t('statsSectionLabel')">Rəqəmlərlə Baltic Caspian LTD</span>
                             <h2 class="mt-3 text-3xl sm:text-4xl font-black text-forest-950" x-text="t('statsSectionTitle')">Etibar, təcrübə və keyfiyyət göstəricilərimiz</h2>
                         </div>
                         <div class="relative grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
@@ -4236,7 +4257,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                                 <div x-show="isAdvantagesExpanded" class="space-y-4">
                                     <p x-text="t('advantagesP3')">Taxta evlərdə ən çox rast gəlinən problemlərdən biri həşəratların olmasıdır. Taxtaya zərər verən həşəratlar meşədə əksər ağacların içində olurlar. Ağac kəsilərkən içinə yerləşən bu ziyanvericilər içəridə gizlənir və ömürlərinin sonunadək çoxalaraq yaşaya bilirlər. Lakin keyfiyyətli formada işlənmiş, xüsusi kimyəvi maddələrin müşayiəti ilə sobalarda qurudulduqdan sonra bu həşəratlardan əsər-əlamət qalmır.</p>
                                     <p x-text="t('advantagesP4')">Şirkətimiz istifadə etdiyi bütün ağac materiallarını dərmanlayaraq sobalarda işlədikdən sonra inşaatda istifadə edir. Bu səbəbdən inşaatı həyata keçirilmiş layihələrimizdə ziyanverici həşəratların yaşamasına heç bir şərait qalmır.</p>
-                                    <p class="font-bold text-forest-800" x-text="t('advantagesP5')">Baltic Caspian bütün standartlara cavab verən ekoloji məhsullarla xəyallarınızdakı taxta ev layihələrini inşa etməyə hazırdır.</p>
+                                    <p class="font-bold text-forest-800" x-text="t('advantagesP5')">Baltic Caspian LTD bütün standartlara cavab verən ekoloji məhsullarla xəyallarınızdakı taxta ev layihələrini inşa etməyə hazırdır.</p>
                                 </div>
                             </div>
                             <button @click="isAdvantagesExpanded = !isAdvantagesExpanded" class="mt-6 inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-forest-50 hover:bg-forest-600 text-forest-700 hover:text-white font-bold transition"><span x-text="isAdvantagesExpanded ? t('showLess') : t('readMore')"></span><i class="fa-solid fa-chevron-down transition" :class="isAdvantagesExpanded && 'rotate-180'"></i></button>
@@ -4504,12 +4525,12 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                         <div class="space-y-4">
                             <span class="about-eyebrow" x-text="t('navAbout')">Haqqımızda</span>
                             <h1 class="about-intro-title text-4xl lg:text-5xl font-black text-forest-950 tracking-tight" x-text="lang === 'az' ? 'Taxta ev tikintisində təcrübə və etibar' : (lang === 'ru' ? 'Опыт и доверие в строительстве деревянных домов' : 'Experience and trust in wooden home construction')">Taxta ev tikintisində təcrübə və etibar</h1>
-                            <p class="about-intro-desc text-base lg:text-lg leading-8 text-stone-600" x-text="lang === 'az' ? 'Baltic Caspian fərdi layihələndirmə, keyfiyyətli material seçimi və peşəkar tikinti prosesi ilə uzunömürlü taxta evlər hazırlayır.' : (lang === 'ru' ? 'Baltic Caspian создает долговечные деревянные дома благодаря индивидуальному проектированию, качественному подбору материалов и профессиональному строительному процессу.' : 'Baltic Caspian builds long-lasting wooden homes through custom design, quality material selection and a professional construction process.')">Baltic Caspian fərdi layihələndirmə, keyfiyyətli material seçimi və peşəkar tikinti prosesi ilə uzunömürlü taxta evlər hazırlayır.</p>
+                            <p class="about-intro-desc text-base lg:text-lg leading-8 text-stone-600" x-text="lang === 'az' ? 'Baltic Caspian LTD fərdi layihələndirmə, keyfiyyətli material seçimi və peşəkar tikinti prosesi ilə uzunömürlü taxta evlər hazırlayır.' : (lang === 'ru' ? 'Baltic Caspian LTD создает долговечные деревянные дома благодаря индивидуальному проектированию, качественному подбору материалов и профессиональному строительному процессу.' : 'Baltic Caspian LTD builds long-lasting wooden homes through custom design, quality material selection and a professional construction process.')">Baltic Caspian LTD fərdi layihələndirmə, keyfiyyətli material seçimi və peşəkar tikinti prosesi ilə uzunömürlü taxta evlər hazırlayır.</p>
                             <div class="hidden lg:block pt-2 text-stone-600 leading-relaxed">
                                 <p class="whitespace-pre-line" x-text="lang === 'ru' ? (t('aboutTextRu') || t('aboutTextAz')) : (lang === 'en' ? (t('aboutTextEn') || t('aboutTextAz')) : t('aboutTextAz'))">BALTIC CASPIAN LTD 2008-ci ildə yaradılmışdır.</p>
                             </div>
                         </div>
-                        <img src="https://images.unsplash.com/photo-1549692520-acc6669e2f0c?auto=format&fit=crop&q=80&w=1000" class="about-intro-image" alt="Baltic Caspian wooden construction workspace">
+                        <img src="https://images.unsplash.com/photo-1549692520-acc6669e2f0c?auto=format&fit=crop&q=80&w=1000" class="about-intro-image" alt="Baltic Caspian LTD wooden construction workspace">
                     </div>
                 </section>
 
@@ -4537,7 +4558,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                         <p class="max-w-xl text-[15px] leading-6 text-stone-500" x-text="t('mapRouteDesc')">Ofisimizə rahat marşrut qurmaq üçün xəritə tətbiqinizi seçin.</p>
                     </div>
                     <div class="location-card">
-                        <iframe class="location-map" loading="lazy" :src="`https://www.google.com/maps?q=${encodedAddress}&output=embed`" title="Baltic Caspian location map"></iframe>
+                        <iframe class="location-map" loading="lazy" :src="`https://www.google.com/maps?q=${encodedAddress}&output=embed`" title="Baltic Caspian LTD location map"></iframe>
                         <div class="location-content flex flex-col justify-center gap-4"><span class="about-eyebrow location-panel-eyebrow">MƏKAN</span><h2 class="location-title text-3xl lg:text-4xl font-black text-forest-950" x-text="(t('findUsOnMap') || '').replace('📍 ', '')">Bizi xəritədə tapın</h2><p class="location-panel-desc text-stone-500" x-text="t('mapRouteDesc')">Ofisimizə rahat marşrut qurmaq üçün xəritə tətbiqinizi seçin.</p>
                             <div class="location-address">
                                 <span class="location-address-icon"><i class="fa-solid fa-location-dot"></i></span>
@@ -4624,15 +4645,15 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                 </div>
             </section>
 
-            <div x-show="page === 'login'" x-cloak class="login-page-wrap">
+            <div x-show="page === 'login' && !adminAuthChecking" x-cloak class="login-page-wrap">
                 <div class="login-card-premium space-y-6">
                     <div class="text-center space-y-3">
                         <div class="login-icon-badge mx-auto" aria-hidden="true">
-                            <span>BC</span>
+                            <img src="/BC loqo.png" alt="Baltic Caspian LTD" class="login-logo-img">
                         </div>
                         <div class="space-y-1">
-                            <h2 class="text-2xl font-black text-white">İdarəetmə Sistemi</h2>
-                            <p class="text-sm text-white/70">Səlahiyyətli istifadəçilər üçün təhlükəsiz giriş</p>
+                            <h2 class="text-2xl font-black text-forest-950">İdarəetmə Sistemi</h2>
+                            <p class="text-sm text-stone-500">Baltic Caspian LTD idarəetmə panelinə giriş</p>
                         </div>
                     </div>
 
@@ -4678,7 +4699,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                 <!-- Admin Tab Navigation (All Translated Instantly) -->
                 <div class="admin-tab-grid">
                     <template x-for="tab in visibleAdminTabs()" :key="tab.key">
-                        <button @click="adminTab = tab.key; if (tab.key === 'hero') resetHeroForm()" class="admin-tab-button" :class="adminTab === tab.key ? 'is-active' : ''" x-text="t(tab.labelKey)"></button>
+                        <button @click="setAdminTab(tab.key)" class="admin-tab-button" :class="adminTab === tab.key ? 'is-active' : ''" x-text="t(tab.labelKey)"></button>
                     </template>
                 </div>
 
@@ -5067,9 +5088,9 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                         <div class="space-y-4">
                             <a href="/" class="flex items-center gap-3">
                                 <div class="w-10 h-10 bg-forest-700 rounded-lg flex items-center justify-center text-white"><i class="fa-solid fa-tree-city text-xl"></i></div>
-                                <span class="text-lg font-black tracking-tight text-stone-100">BALTIC CASPIAN</span>
+                                <span class="text-lg font-black tracking-tight text-stone-100">BALTIC CASPIAN LTD</span>
                             </a>
-                            <p class="text-stone-400 text-sm leading-relaxed" x-text="t('footerAbout')">Baltic Caspian – Azərbaycanda keyfiyyətli taxta evlərin lider istehsalçısıdır.</p>
+                            <p class="text-stone-400 text-sm leading-relaxed" x-text="t('footerAbout')">Baltic Caspian LTD – Azərbaycanda keyfiyyətli taxta evlərin lider istehsalçısıdır.</p>
                             <div class="flex items-center gap-2 pt-1">
                                 <a href="https://www.instagram.com/taxta_evlerin_tikintisi_mmc/?hl=en" target="_blank" rel="noopener" aria-label="Instagram" class="w-9 h-9 rounded-full border border-white/10 bg-white/[.07] text-stone-200 flex items-center justify-center transition hover:-translate-y-0.5 hover:border-pink-300/50 hover:bg-gradient-to-tr hover:from-pink-500/30 hover:to-orange-400/30 hover:text-white"><i class="fa-brands fa-instagram"></i></a>
                                 <a href="https://www.facebook.com/TAXTAEVLERINTIKINTISI/" target="_blank" rel="noopener" aria-label="Facebook" class="w-9 h-9 rounded-full border border-white/10 bg-white/[.07] text-stone-200 flex items-center justify-center transition hover:-translate-y-0.5 hover:border-blue-300/50 hover:bg-blue-500/25 hover:text-white"><i class="fa-brands fa-facebook-f"></i></a>
@@ -5104,7 +5125,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                     </div>
 
                     <div class="border-t border-white/10 pt-5 flex flex-col md:flex-row justify-between items-center gap-4 text-xs sm:text-sm text-stone-400">
-                        <p class="opacity-70">© 2026 Baltic Caspian. <span x-text="t('rightsReserved')">Bütün hüquqlar qorunur.</span></p>
+                        <p class="opacity-70">© 2026 Baltic Caspian LTD. <span x-text="t('rightsReserved')">Bütün hüquqlar qorunur.</span></p>
                         <a href="https://wa.me/994708468585?text=Salam%20%C6%8Fs%C9%99d%2C%20sayt%20haz%C4%B1rlanmas%C4%B1%20il%C9%99%20ba%C4%9Fl%C4%B1%20%C9%99laq%C9%99%20saxlamaq%20ist%C9%99yir%C9%99m." target="_blank" rel="noopener" class="inline-flex items-center justify-center gap-2.5 whitespace-nowrap rounded-full border border-[#25D366]/20 bg-white/[.07] px-4 py-2 font-bold text-white no-underline shadow-[0_0_22px_rgba(37,211,102,.08)] transition-all duration-[250ms] ease-in-out hover:-translate-y-0.5 hover:border-[#25D366]/50 hover:bg-[#25D366]/[.16] hover:shadow-[0_0_28px_rgba(37,211,102,.18)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#25D366]" aria-label="WhatsApp ilə Əsəd Əsədovla əlaqə saxla"><i class="fa-brands fa-whatsapp text-lg text-[#25D366]" aria-hidden="true"></i><span>Hazırladı: Əsəd Əsədov</span></a>
                     </div>
                 </div>
