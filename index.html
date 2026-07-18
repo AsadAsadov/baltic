@@ -3303,57 +3303,45 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
             #mobileMenuPanel .mobile-menu-link:hover,
             #mobileMenuPanel .mobile-menu-link:focus-visible { background: rgba(255, 255, 255, 0.1); color: #f5dcd0; }
         }
-        .login-page-wrap { width: 100%; min-height: calc(100svh - var(--header-height)); display: flex; align-items: center; justify-content: center; padding: 2rem 1rem; background: radial-gradient(circle at top, rgba(51,115,79,.08), transparent 42%), #f8f7f3; }
-        .login-card-premium { width: calc(100vw - 32px); max-width: 430px; border-radius: 24px; border: 1px solid rgba(51,115,79,.16); background: #fff; box-shadow: 0 24px 70px rgba(23,55,47,.12); padding: 1.5rem; color: #17372f; overflow: hidden; }
-        .login-icon-badge { width: 76px; height: 76px; border-radius: 22px; display: inline-flex; align-items: center; justify-content: center; background: #f7f5ef; color: #17372f; border: 1px solid rgba(51,115,79,.14); box-shadow: 0 14px 36px rgba(23,55,47,.10); font-weight: 950; letter-spacing: -.04em; }
-        .login-logo-img { width: 54px; height: 54px; object-fit: contain; }
+        .login-page-wrap { position: relative; isolation: isolate; width: 100%; min-height: calc(100svh - var(--header-height)); display: flex; align-items: center; justify-content: center; padding: 3rem 1rem; overflow: hidden; background: #f8f9f7; }
+        .login-page-wrap::before { content: ""; position: absolute; inset: -18px; z-index: -2; background-image: url('/loginbackground.jpg'); background-position: center center; background-repeat: no-repeat; background-size: cover; filter: blur(12px) brightness(.95) saturate(.9); transform: scale(1.08); transform-origin: center; }
+        .login-page-wrap::after { content: ""; position: absolute; inset: 0; z-index: -1; background: rgba(248,249,247,.82); }
+        .login-card-premium { width: 92%; max-width: 456px; border-radius: 28px; border: 1px solid #E8ECE8; background: #fff; box-shadow: 0 28px 80px rgba(20, 43, 32, .10), 0 8px 24px rgba(20, 43, 32, .06); padding: 40px; color: #14261d; overflow: hidden; animation: login-card-enter 250ms ease both; }
+        @keyframes login-card-enter { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
         .login-field { display: grid; gap: 8px; }
-        .login-field label { color: #33584b; font-size: 12px; font-weight: 850; letter-spacing: .02em; }
-        .login-input { width: 100%; height: 52px; border-radius: 16px; border: 1px solid #d8e2dc; background: #fbfaf7; color: #17372f; padding: 0 1rem; font-size: .95rem; outline: none; transition: border-color .2s ease, box-shadow .2s ease, background .2s ease; }
-        .login-input:-webkit-autofill { -webkit-text-fill-color: #17372f; box-shadow: 0 0 0 1000px #fbfaf7 inset; }
+        .login-field label { color: #31483d; font-size: 12px; font-weight: 800; letter-spacing: .01em; }
+        .login-input { width: 100%; height: 56px; border-radius: 16px; border: 1px solid #DDE5DE; background: #fff; color: #15261e; padding: 0 1rem; font-size: .95rem; outline: none; transition: border-color .2s ease, box-shadow .2s ease, background .2s ease; }
+        .login-input:-webkit-autofill { -webkit-text-fill-color: #15261e; box-shadow: 0 0 0 1000px #fff inset; }
         .login-password-wrap { position: relative; }
-        .login-password-wrap .login-input { padding-right: 3.25rem; }
-        .login-password-toggle { position: absolute; top: 50%; right: 10px; transform: translateY(-50%); width: 38px; height: 38px; border-radius: 14px; color: #426657; background: #eef5f1; transition: background .2s ease, color .2s ease; }
-        .login-password-toggle:hover, .login-password-toggle:focus-visible { background: #e2efe8; color: #17372f; outline: 2px solid rgba(51,115,79,.22); outline-offset: 2px; }
-        .login-input::placeholder { color: #9baca4; }
-        .login-input:focus { border-color: #33734f; box-shadow: 0 0 0 4px rgba(51, 115, 79, .13); background: #fff; }
-        .login-error { padding: .8rem .9rem; border-radius: 16px; border: 1px solid rgba(220,38,38,.18); background: #fef2f2; color: #b91c1c; font-size: 12px; font-weight: 800; }
-        .login-submit-button { height: 54px; border-radius: 16px; background: #1f5f3d; box-shadow: 0 14px 34px rgba(31,95,61,.20); }
+        .login-password-wrap .login-input { padding-right: 4.75rem; }
+        .login-password-toggle { position: absolute; top: 50%; right: 10px; transform: translateY(-50%); height: 38px; padding: 0 .8rem; border-radius: 12px; color: #486356; background: #f4f7f4; font-size: 12px; font-weight: 800; transition: background .2s ease, color .2s ease; }
+        .login-password-toggle:hover, .login-password-toggle:focus-visible { background: #e9f1eb; color: #1F5F43; outline: 2px solid rgba(31,95,67,.18); outline-offset: 2px; }
+        .login-input::placeholder { color: #98A69E; }
+        .login-input:focus { border-color: #1F5F43; box-shadow: 0 0 0 4px rgba(31, 95, 67, .12); background: #fff; }
+        .login-error { padding: .9rem 1rem; border-radius: 14px; border: 1px solid rgba(220,38,38,.22); background: #fff1f1; color: #b42318; font-size: 13px; font-weight: 750; }
+        .login-submit-button { height: 56px; border-radius: 16px; background: #1F5F43; box-shadow: 0 14px 30px rgba(31,95,67,.18); }
+        .login-submit-button:hover:not(:disabled) { background: #184d36; }
         .login-submit-button:disabled { cursor: wait; opacity: .72; filter: saturate(.86); }
         .login-spinner { width: 18px; height: 18px; border: 2px solid rgba(255,255,255,.35); border-top-color: #fff; border-radius: 999px; animation: bc-spin .8s linear infinite; }
         @keyframes bc-spin { to { transform: rotate(360deg); } }
-        .login-home-link { color: #557064; }
-        .login-home-link:hover { color: #1f5f3d; }
-        @media (min-width: 640px) { .login-card-premium { padding: 2rem; } }
-
+        .login-home-link { color: #60736a; }
+        .login-home-link:hover { color: #1F5F43; }
         @media (max-width: 767px) {
-            .login-page-wrap,
-            .login-page,
-            .login-shell {
-                min-height: auto;
-                padding: 24px 16px 40px;
-                display: flex;
-                align-items: flex-start;
-                justify-content: center;
+            .login-page-wrap {
+                min-height: calc(100svh - var(--header-height));
+                padding: 24px 0 40px;
+                align-items: center;
             }
             .login-card-premium {
-                width: calc(100vw - 40px);
+                width: 92%;
                 max-width: 390px;
-                border-radius: 28px;
                 padding: 28px 22px;
-                margin-top: 24px;
-                margin-bottom: 24px;
             }
             .login-card-premium.space-y-6 > :not([hidden]) ~ :not([hidden]) { --tw-space-y-reverse: 0; margin-top: calc(1rem * calc(1 - var(--tw-space-y-reverse))); margin-bottom: calc(1rem * var(--tw-space-y-reverse)); }
-            .login-card-premium .text-center.space-y-3 > :not([hidden]) ~ :not([hidden]) { --tw-space-y-reverse: 0; margin-top: calc(.75rem * calc(1 - var(--tw-space-y-reverse))); margin-bottom: calc(.75rem * var(--tw-space-y-reverse)); }
-            .login-icon-badge { width: 58px; height: 58px; }
-            .login-card-premium h2 { font-size: 28px; line-height: 1.1; }
+            .login-card-premium h2 { font-size: 23px; line-height: 1.15; }
             .login-card-premium p { font-size: 14px; }
             .login-card-premium form { gap: 14px; }
             .login-card-premium form.space-y-4 > :not([hidden]) ~ :not([hidden]) { --tw-space-y-reverse: 0; margin-top: 14px; margin-bottom: calc(14px * var(--tw-space-y-reverse)); }
-            .login-input { height: 52px; }
-            .login-submit-button { height: 54px; }
-            .login-home-link { margin-top: 18px !important; }
             .bottom-mobile-nav:has(.bottom-mobile-nav__item.is-active) { display: grid; }
             body:has(.login-page-wrap:not([style*="display: none"])) main,
             body:has(.login-page-wrap:not([style*="display: none"])) .page-shell { padding-bottom: 0 !important; }
@@ -4789,16 +4777,12 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                 </div>
             </section>
 
-            <div x-show="page === 'login' && !adminAuthChecking" x-cloak class="login-page-wrap">
+            <template x-if="page === 'login' && !adminAuthChecking">
+            <div x-cloak class="login-page-wrap">
                 <div class="login-card-premium space-y-6">
-                    <div class="text-center space-y-3">
-                        <div class="login-icon-badge mx-auto" aria-hidden="true">
-                            <img src="/BC loqo.png" alt="Baltic Caspian LTD" class="login-logo-img">
-                        </div>
-                        <div class="space-y-1">
-                            <h2 class="text-2xl font-black text-forest-950">İdarəetmə Sistemi</h2>
-                            <p class="text-sm text-stone-500">Baltic Caspian LTD idarəetmə panelinə giriş</p>
-                        </div>
+                    <div class="text-center space-y-2">
+                        <h2 class="text-[23px] font-bold leading-tight text-[#14261d]">İdarəetmə Paneli</h2>
+                        <p class="text-sm leading-6 text-[#6d7b72]">Yalnız səlahiyyətli istifadəçilər üçün təhlükəsiz giriş.</p>
                     </div>
 
                     <form @submit.prevent="handleAdminLogin()" class="space-y-4">
@@ -4810,25 +4794,22 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                             <label for="admin-password">Şifrə</label>
                             <div class="login-password-wrap">
                                 <input id="admin-password" :type="adminPasswordVisible ? 'text' : 'password'" x-model="adminPassword" required class="login-input" placeholder="Şifrə" autocomplete="current-password" :disabled="adminLoginLoading">
-                                <button type="button" class="login-password-toggle" @click="adminPasswordVisible = !adminPasswordVisible" :aria-label="adminPasswordVisible ? 'Şifrəni gizlət' : 'Şifrəni göstər'">
-                                    <i class="fa-solid" :class="adminPasswordVisible ? 'fa-eye-slash' : 'fa-eye'"></i>
-                                </button>
+                                <button type="button" class="login-password-toggle" @click="adminPasswordVisible = !adminPasswordVisible" x-text="adminPasswordVisible ? 'Gizlət' : 'Göstər'" :aria-label="adminPasswordVisible ? 'Şifrəni gizlət' : 'Şifrəni göstər'"></button>
                             </div>
                         </div>
                         <div class="login-error" x-show="adminLoginError" x-cloak x-text="adminLoginError" aria-live="polite"></div>
 
-                        <button type="submit" :disabled="adminLoginLoading" :aria-busy="adminLoginLoading" class="login-submit-button w-full text-white font-bold transition flex items-center justify-center gap-2 hover:brightness-110">
+                        <button type="submit" :disabled="adminLoginLoading" :aria-busy="adminLoginLoading" class="login-submit-button w-full text-white font-bold transition flex items-center justify-center gap-2">
                             <span x-show="adminLoginLoading" x-cloak class="login-spinner" aria-hidden="true"></span>
-                            <i x-show="!adminLoginLoading" x-cloak class="fa-solid fa-lock"></i>
                             <span x-text="adminLoginLoading ? 'Yoxlanılır...' : 'Daxil ol'">Daxil ol</span>
                         </button>
                     </form>
                     <a href="/" class="login-home-link mx-auto flex items-center justify-center gap-2 text-sm font-bold transition">
-                        <i class="fa-solid fa-arrow-left"></i>
                         <span>Sayta qayıt</span>
                     </a>
                 </div>
             </div>
+            </template>
 
             <!-- 7. REAL-TIME LOCALIZED ADMIN DASHBOARD -->
             <div x-show="page === 'admin'" x-cloak class="admin-page-shell max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-8 ad-safe-content">
