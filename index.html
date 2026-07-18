@@ -3,7 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-    <title>Baltic Caspian | Premium Taxta Evlər</title>
+    <title>__META_TITLE__</title>
+    <meta name="description" content="__META_DESCRIPTION__">
+    <meta property="og:title" content="__META_TITLE__">
+    <meta property="og:description" content="__META_DESCRIPTION__">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="__META_URL__">
+    <meta property="og:image" content="__META_IMAGE__">
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     
@@ -277,6 +283,11 @@
                 openFaqIndex: 0,
                 selectedProject: null,
                 selectedProjectIndex: -1,
+                detailType: '',
+                detailSlug: '',
+                detailItem: null,
+                detailImageIndex: 0,
+                detailLightboxOpen: false,
                 projectModalScrollY: 0,
                 contactForm: { name: '', phone: '', email: '', message: '' },
                 contactErrors: {},
@@ -524,6 +535,11 @@
                 },
 
                 setPage(newPage) {
+                    this.detailType = '';
+                    this.detailSlug = '';
+                    this.detailItem = null;
+                    this.detailImageIndex = 0;
+                    this.detailLightboxOpen = false;
                     this.page = newPage;
                     this.adminLoginError = '';
                     this.closeMobileMenu();
@@ -532,6 +548,7 @@
                 },
 
                 navigateTo(pageName) {
+                    history.pushState({}, '', pageName === 'home' ? '/' : `/${pageName}`);
                     this.setPage(pageName);
                     this.mobileMenuOpen = false;
                     this.$nextTick(() => {
@@ -578,6 +595,53 @@
                     this.$nextTick(() => this.syncHeroVideoAudio());
                 },
 
+
+
+                slugify(value = '') {
+                    const map = { ə:'e', Ə:'e', ö:'o', Ö:'o', ü:'u', Ü:'u', ğ:'g', Ğ:'g', ş:'s', Ş:'s', ç:'c', Ç:'c', ı:'i', I:'i', İ:'i' };
+                    return String(value || '').split('').map(ch => map[ch] || ch).join('').toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'detal';
+                },
+                itemSlug(item = {}) { return `${this.slugify(item.titleAz || item.title || item.titleEn || item.titleRu)}-${item.id}`; },
+                projectUrl(item = {}) { return `/layiheler/${this.itemSlug(item)}`; },
+                workUrl(item = {}) { return `/islerimiz/${this.itemSlug(item)}`; },
+                initRouter() {
+                    window.addEventListener('popstate', () => this.applyRoute(location.pathname));
+                    this.applyRoute(location.pathname, false);
+                },
+                applyRoute(pathname = location.pathname, push = false) {
+                    const clean = String(pathname || '/').replace(/\/+$/, '') || '/';
+                    const match = clean.match(/^\/(layiheler|islerimiz)\/([^/?#]+)$/);
+                    if (match) {
+                        this.page = 'detail'; this.detailType = match[1] === 'layiheler' ? 'project' : 'work'; this.detailSlug = decodeURIComponent(match[2]); this.detailImageIndex = 0; this.resolveDetailFromRoute();
+                    } else {
+                        const page = clean === '/' ? 'home' : clean.slice(1);
+                        if (['home','projects','works','gallery','about','contact','admin'].includes(page)) this.page = page;
+                    }
+                    if (push) history.pushState({}, '', clean);
+                    this.updateMeta();
+                },
+                async resolveDetailFromRoute() {
+                    if (this.page !== 'detail' || !this.detailType || !this.detailSlug) return;
+                    const list = this.detailType === 'project' ? this.projects : this.workItems;
+                    const id = this.detailSlug.split('-').pop();
+                    let item = (Array.isArray(list) ? list : []).find(x => String(x.id) === String(id) || this.itemSlug(x) === this.detailSlug);
+                    if (!item) {
+                        try { item = this.detailType === 'project' ? this.normalizeProject(await this.api(`/api/projects/slug/${encodeURIComponent(this.detailSlug)}`)) : this.normalizeWorkItem(await this.api(`/api/work-items/slug/${encodeURIComponent(this.detailSlug)}`)); } catch (e) { console.warn('Detail route not found', e); }
+                    }
+                    this.detailItem = item || null;
+                    this.updateMeta();
+                },
+                openDetail(item, type = 'project') { if (!item?.id) return; this.page = 'detail'; this.detailType = type; this.detailItem = item; this.detailSlug = this.itemSlug(item); this.detailImageIndex = 0; history.pushState({}, '', type === 'project' ? this.projectUrl(item) : this.workUrl(item)); this.updateMeta(); window.scrollTo({top:0, behavior:'smooth'}); },
+                detailTitle(item = this.detailItem) { if (!item) return ''; return this.detailType === 'work' ? this.localizedWorkTitle(item) : (this.lang === 'en' ? (item.titleEn || item.title) : (this.lang === 'ru' ? (item.titleRu || item.title) : item.title)); },
+                detailDescription(item = this.detailItem) { if (!item) return ''; return this.detailType === 'work' ? this.localizedWorkDescription(item) : (this.lang === 'en' ? (item.descriptionEn || item.descEn || item.desc) : (this.lang === 'ru' ? (item.descriptionRu || item.descRu || item.desc) : (item.descriptionAz || item.descAz || item.desc))); },
+                detailImages(item = this.detailItem) { const images = Array.isArray(item?.images) && item.images.length ? item.images : [item?.coverImage || item?.image].filter(Boolean); return images.filter(Boolean); },
+                detailImage() { const images = this.detailImages(); return images[this.detailImageIndex] || images[0] || ''; },
+                selectDetailImage(index) { const n = this.detailImages().length; if (n) this.detailImageIndex = Math.max(0, Math.min(Number(index)||0, n-1)); },
+                nextDetailImage() { const n = this.detailImages().length; if (n > 1) this.detailImageIndex = (this.detailImageIndex + 1) % n; },
+                prevDetailImage() { const n = this.detailImages().length; if (n > 1) this.detailImageIndex = (this.detailImageIndex - 1 + n) % n; },
+                similarDetailItems() { const list = this.detailType === 'work' ? this.workItems : this.projects; const item = this.detailItem || {}; return (Array.isArray(list) ? list : []).filter(x => x.id !== item.id && !x.archived && ((x.category && x.category === item.category) || (x.cat && x.cat === item.cat))).slice(0,3); },
+                detailWhatsappUrl() { const message = `Salam, Baltic Caspian. ${this.detailTitle()} səhifəsi ilə bağlı məlumat almaq istəyirəm: ${location.href}`; return `https://wa.me/994553221109?text=${encodeURIComponent(message)}`; },
+                updateMeta() { const title = this.detailItem ? `${this.detailTitle()} | Baltic Caspian` : 'Baltic Caspian | Premium Taxta Evlər'; const desc = (this.detailDescription() || 'Premium taxta evlər, tamamlanmış işlər və layihələr.').slice(0,155); document.title = title; document.querySelector('meta[name="description"]')?.setAttribute('content', desc); document.querySelector('meta[property="og:title"]')?.setAttribute('content', title); document.querySelector('meta[property="og:description"]')?.setAttribute('content', desc); document.querySelector('meta[property="og:url"]')?.setAttribute('content', location.href); document.querySelector('meta[property="og:image"]')?.setAttribute('content', this.detailImage() || '/uploads/hero'); },
 
                 async api(path, options = {}) {
                     const headers = options.body instanceof FormData ? { ...(options.headers || {}) } : { 'Content-Type': 'application/json', ...(options.headers || {}) };
@@ -871,6 +935,7 @@
                 },
 
                 initApp() {
+                    this.initRouter();
                     this.loadCachedHeroSlides();
                     this.loadHeroSlides();
                     this.homeGalleryImages = this.visibleHomeGalleryImages();
@@ -881,7 +946,7 @@
                     this.initRevealAnimations();
                     this.initStatsCounter();
                     this.loadAdminTabVisibility().catch(error => console.warn('Admin tab visibility loaded from local fallback.', error));
-                    this.loadData().catch(error => console.warn('Initial API data loaded from fallback/cache.', error));
+                    this.loadData().then(() => this.resolveDetailFromRoute()).catch(error => console.warn('Initial API data loaded from fallback/cache.', error));
                     this.loadHomeSectionImages().catch(error => console.warn('Home section images loaded from fallback.', error));
                 },
 
@@ -4196,13 +4261,13 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                         <div x-show="!(Array.isArray(filteredProjects) && filteredProjects.filter(p => !p.archived).length)" class="empty-state projects-empty rounded-3xl border border-stone-200 bg-white p-10 text-center text-stone-500 font-bold" x-text="lang === 'az' ? 'Bu kateqoriyada layihə yoxdur' : (lang === 'ru' ? 'В этой категории проектов нет.' : 'There are no projects in this category.')"></div>
                         <div x-show="Array.isArray(filteredProjects) && filteredProjects.filter(p => !p.archived).length > 0" class="project-grid grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                     <template x-for="(proj, index) in (Array.isArray(filteredProjects) ? filteredProjects : []).filter(p => !p.archived)" :key="proj.id">
-                        <div @click="openProjectModal(proj, index)" class="project-card group cursor-pointer bg-white rounded-3xl overflow-hidden shadow-sm transition-all duration-[450ms] border border-stone-200/60 flex flex-col justify-between hover:shadow-2xl hover:shadow-forest-950/12 hover:border-wood-200">
+                        <div @click="openDetail(proj, 'project')" class="project-card group cursor-pointer bg-white rounded-3xl overflow-hidden shadow-sm transition-all duration-[450ms] border border-stone-200/60 flex flex-col justify-between hover:shadow-2xl hover:shadow-forest-950/12 hover:border-wood-200">
                             <div>
                                 <div class="project-card__media relative h-64 overflow-hidden">
                                     <img :src="(proj.images && proj.images[0]) || proj.image" class="project-card__image w-full h-full object-cover transition-transform duration-[500ms] ease-out" :alt="proj.title">
                                     <div class="project-card__overlay absolute inset-0 bg-gradient-to-t from-forest-950/65 via-forest-950/10 to-transparent opacity-0 transition-opacity duration-[450ms]"></div>
                                     <span class="project-card__badge absolute top-4 left-4 bg-forest-950/85 text-white backdrop-blur text-xs font-bold px-3 py-1 rounded-full uppercase" x-text="lang === 'en' ? proj.catNameEn : (lang === 'ru' ? proj.catNameRu : proj.catName)">Taxta Ev</span>
-                                    <button @click.stop="openProjectModal(proj, index)" class="project-card__cta absolute left-5 right-5 bottom-5 translate-y-4 opacity-0 rounded-xl border border-white/40 py-3 text-sm font-black text-white shadow-lg backdrop-blur transition-all duration-[450ms]">
+                                    <button @click.stop="openDetail(proj, 'project')" class="project-card__cta absolute left-5 right-5 bottom-5 translate-y-4 opacity-0 rounded-xl border border-white/40 py-3 text-sm font-black text-white shadow-lg backdrop-blur transition-all duration-[450ms]">
                                         <span x-text="t('viewDetails')">Layihəyə Bax</span>
                                     </button>
                                 </div>
@@ -4212,7 +4277,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                                 </div>
                             </div>
                             <div class="project-card__fallback p-6 pt-0">
-                                <button @click.stop="openProjectModal(proj, index)" class="w-full py-3 bg-forest-50 hover:bg-forest-600 text-forest-700 hover:text-white font-bold rounded-xl text-sm transition-all duration-300">
+                                <button @click.stop="openDetail(proj, 'project')" class="w-full py-3 bg-forest-50 hover:bg-forest-600 text-forest-700 hover:text-white font-bold rounded-xl text-sm transition-all duration-300">
                                     <span x-text="t('viewDetails')">Layihəyə Bax</span>
                                 </button>
                             </div>
@@ -4242,7 +4307,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                         <div x-show="!filteredWorkItems.length" class="works-empty-state"><i class="fa-solid fa-briefcase"></i><strong x-text="lang === 'az' ? 'Hələ iş əlavə edilməyib' : (lang === 'ru' ? 'Работы пока не добавлены' : 'No work items yet')"></strong><small x-text="lang === 'az' ? 'Tamamlanmış işlər burada göstəriləcək.' : (lang === 'ru' ? 'Завершенные работы появятся здесь.' : 'Completed works will appear here.')"></small></div>
                         <div x-show="filteredWorkItems.length" class="work-grid">
                             <template x-for="(item, index) in filteredWorkItems" :key="item.id">
-                                <button type="button" @click="openWorkModal(item, index)" class="work-card group flex h-full flex-col overflow-hidden rounded-[20px] border border-stone-200/80 bg-white text-left shadow-sm transition hover:-translate-y-1 hover:shadow-xl hover:shadow-forest-950/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-forest-700" :aria-label="localizedWorkTitle(item)">
+                                <button type="button" @click="openDetail(item, 'work')" class="work-card group flex h-full flex-col overflow-hidden rounded-[20px] border border-stone-200/80 bg-white text-left shadow-sm transition hover:-translate-y-1 hover:shadow-xl hover:shadow-forest-950/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-forest-700" :aria-label="localizedWorkTitle(item)">
                                     <div class="relative aspect-[4/3] overflow-hidden bg-stone-100"><img :src="item.coverImage" :alt="localizedWorkTitle(item)" class="h-full w-full object-cover transition duration-500 group-hover:scale-105"><span class="absolute left-2 top-2 rounded-full bg-forest-950/85 px-2.5 py-1 text-[10px] font-black uppercase text-white" x-text="workCategoryLabel(item.category)"></span></div>
                                     <div class="flex flex-1 flex-col gap-2 p-3 sm:p-4"><h2 class="line-clamp-2 text-sm sm:text-lg font-black leading-tight text-forest-950" x-text="localizedWorkTitle(item)"></h2><p x-show="localizedWorkLocation(item)" class="truncate text-[11px] sm:text-sm font-semibold text-stone-500"><i class="fa-solid fa-location-dot text-wood-500"></i> <span x-text="localizedWorkLocation(item)"></span></p><p x-show="formatWorkDate(item.completionDate)" class="text-[11px] font-bold text-stone-400" x-text="formatWorkDate(item.completionDate)"></p><span class="mt-auto inline-flex items-center gap-1 text-xs font-black text-forest-700"><span x-text="t('workViewDetails')"></span><i class="fa-solid fa-arrow-right"></i></span></div>
                                 </button>
@@ -4284,6 +4349,18 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                         </div>
                     </template>
                 </div>
+            </div>
+
+            <!-- SEO DETAIL PAGE -->
+            <div x-show="page === 'detail'" x-cloak class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 ad-safe-content" @keydown.arrow-right.window="nextDetailImage()" @keydown.arrow-left.window="prevDetailImage()" @keydown.escape.window="detailLightboxOpen=false">
+                <template x-if="!detailItem"><div class="space-y-6"><div class="h-72 rounded-[2rem] skeleton-shimmer"></div><div class="h-8 w-2/3 rounded skeleton-shimmer"></div><div class="h-24 rounded skeleton-shimmer"></div></div></template>
+                <template x-if="detailItem"><article class="space-y-10">
+                    <nav class="text-sm font-bold text-stone-500"><a href="/" @click.prevent="navigateTo('home')">Ana səhifə</a><span class="mx-2">/</span><a :href="detailType==='project'?'/projects':'/works'" @click.prevent="navigateTo(detailType==='project'?'projects':'works')" x-text="detailType==='project'?t('navProjects'):t('navWorks')"></a><span class="mx-2">/</span><span class="text-forest-800" x-text="detailTitle()"></span></nav>
+                    <section class="relative overflow-hidden rounded-[2rem] min-h-[42vh] flex items-end bg-stone-900"><img :src="detailImage()" :alt="detailTitle()" class="absolute inset-0 h-full w-full object-cover opacity-70" loading="eager"><div class="relative z-10 max-w-3xl p-6 sm:p-10 text-white"><span class="inline-flex rounded-full bg-white/15 px-4 py-2 text-xs font-black uppercase backdrop-blur" x-text="detailType==='work'?workCategoryLabel(detailItem.category):(detailItem.catName||detailItem.category)"></span><h1 class="mt-4 text-4xl sm:text-6xl font-black" x-text="detailTitle()"></h1><p class="mt-4 text-white/85 leading-8" x-text="detailDescription()"></p></div></section>
+                    <section class="grid gap-6 lg:grid-cols-[minmax(0,1fr)_300px]"><div class="min-h-[70vh] rounded-[2rem] bg-stone-950 p-3 sm:p-4"><button class="block h-[70vh] w-full" @click="detailLightboxOpen=true"><img :src="detailImage()" :alt="detailTitle()" class="h-full w-full object-contain" loading="eager"></button></div><aside class="space-y-4"><div class="rounded-[2rem] border bg-white p-4 shadow-sm"><div class="mb-3 flex items-center justify-between font-black"><span>Qalereya</span><span x-text="`${detailImageIndex+1} / ${detailImages().length}`"></span></div><div class="max-h-[70vh] grid grid-cols-3 gap-2 overflow-y-auto pr-1"><template x-for="(src,index) in detailImages()" :key="src+index"><button @click="selectDetailImage(index)" class="aspect-square overflow-hidden rounded-xl border-2 transition" :class="detailImageIndex===index?'border-forest-700':'border-transparent'"><img :src="src" class="h-full w-full object-cover" loading="lazy" alt="Thumbnail"></button></template></div></div><a :href="detailWhatsappUrl()" target="_blank" rel="noopener" class="flex h-14 items-center justify-center gap-2 rounded-2xl bg-[#25D366] font-black text-white shadow-lg"><i class="fa-brands fa-whatsapp"></i> WhatsApp CTA</a></aside></section>
+                    <section x-show="similarDetailItems().length" class="space-y-4"><h2 class="text-2xl font-black text-forest-950">Oxşar layihələr</h2><div class="grid sm:grid-cols-3 gap-4"><template x-for="item in similarDetailItems()" :key="item.id"><button @click="openDetail(item, detailType)" class="text-left rounded-2xl overflow-hidden bg-white border shadow-sm hover:shadow-xl transition"><img :src="item.coverImage||item.image" class="h-40 w-full object-cover" loading="lazy"><div class="p-4 font-black" x-text="detailType==='work'?localizedWorkTitle(item):(item.title||item.titleAz)"></div></button></template></div></section>
+                    <div x-show="detailLightboxOpen" x-cloak class="fixed inset-0 z-[9999] bg-black/95 p-4 flex items-center justify-center" @click="detailLightboxOpen=false"><button class="absolute top-4 right-4 h-12 w-12 rounded-full bg-white/15 text-white" @click.stop="detailLightboxOpen=false"><i class="fa-solid fa-xmark"></i></button><button class="absolute left-4 h-12 w-12 rounded-full bg-white/15 text-white" @click.stop="prevDetailImage()"><i class="fa-solid fa-chevron-left"></i></button><img :src="detailImage()" class="max-h-full max-w-full object-contain" :alt="detailTitle()"><button class="absolute right-4 h-12 w-12 rounded-full bg-white/15 text-white" @click.stop="nextDetailImage()"><i class="fa-solid fa-chevron-right"></i></button></div>
+                </article></template>
             </div>
 
             <!-- 4. ABOUT COMPANY PAGE -->

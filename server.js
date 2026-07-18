@@ -199,6 +199,28 @@ function bannerIn(b = {}) {
   if (Object.prototype.hasOwnProperty.call(b, 'displayOrder') || Object.prototype.hasOwnProperty.call(b, 'display_order')) data.displayOrder = Number(b.displayOrder ?? b.display_order) || 0;
   return data;
 }
+
+const slugify = (value = '') => String(value || '')
+  .replace(/[Əə]/g, 'e').replace(/[Öö]/g, 'o').replace(/[Üü]/g, 'u').replace(/[Ğğ]/g, 'g').replace(/[Şş]/g, 's').replace(/[Çç]/g, 'c').replace(/[İIı]/g, 'i')
+  .normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'detal';
+const slugId = (slug = '') => String(slug || '').split('-').pop();
+const absoluteUrl = (req, url = '') => /^https?:\/\//i.test(url) ? url : `${req.protocol}://${req.get('host')}${url || ''}`;
+const escapeHtml = (value = '') => String(value || '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+async function findProjectBySlug(slug) {
+  const id = slugId(slug);
+  const direct = await prisma.project.findFirst({ where: idWhere(id) });
+  if (direct && (`${slugify(direct.titleAz)}-${direct.id}` === slug || `${slugify(direct.titleAz)}-${direct.legacyId}` === slug || String(direct.id) === id || String(direct.legacyId) === id)) return direct;
+  const all = await prisma.project.findMany({ where:{ archived:false } });
+  return all.find(p => `${slugify(p.titleAz)}-${p.id}` === slug || `${slugify(p.titleAz)}-${p.legacyId}` === slug) || null;
+}
+async function findWorkBySlug(slug) {
+  const id = slugId(slug);
+  const direct = isUuid(id) ? await prisma.workItem.findUnique({ where:{ id } }) : null;
+  if (direct && direct.active !== false) return direct;
+  const all = await prisma.workItem.findMany({ where:{ active:true } });
+  return all.find(w => `${slugify(w.titleAz)}-${w.id}` === slug || String(w.id) === id) || null;
+}
+
 const msgOut = (m) => ({ id: m.id, legacyId: m.legacyId, name: m.name || m.fullname || '', fullname: m.fullname || m.name || '', phone: m.phone, email: m.email || 'N/A', message: m.message, isRead: m.isRead ?? m.read ?? false, read: m.isRead ?? m.read ?? false, createdAt: m.createdAt, updatedAt: m.updatedAt, date: m.createdAt ? m.createdAt.toLocaleDateString('az-AZ') : '' });
 
 app.get('/api/health', (req, res) => res.json({ ok: true, service: 'baltic-caspian-api' }));
@@ -213,6 +235,7 @@ app.get('/api/health/db', async (req, res) => {
 });
 
 app.get('/api/projects', wrap(async (req,res)=>res.json((await prisma.project.findMany({ where: req.query.includeArchived === 'true' ? {} : { archived:false }, orderBy:{ id:'desc' }})).map(projectOut))));
+app.get('/api/projects/slug/:slug', wrap(async (req,res)=>{ const p=await findProjectBySlug(req.params.slug); if(!p) return res.status(404).json({ok:false,error:'PROJECT_NOT_FOUND'}); res.json(projectOut(p)); }));
 app.get('/api/projects/:id', wrap(async (req,res)=>{ const p=await prisma.project.findFirst({ where:idWhere(req.params.id) }); if(!p) return res.status(404).json({ok:false,error:'PROJECT_NOT_FOUND'}); res.json(projectOut(p)); }));
 app.post('/api/projects', wrap(async (req,res)=>{ const data = projectIn(req.body); if (data.errors) return res.status(400).json({ok:false,errors:data.errors}); res.status(201).json(projectOut(await prisma.project.create({ data }))); }));
 app.put('/api/projects/:id', wrap(async (req,res)=>{ const p=await prisma.project.findFirst({ where:idWhere(req.params.id) }); if(!p) return res.status(404).json({ok:false,error:'PROJECT_NOT_FOUND'}); { const data = projectIn(req.body); if (data.errors) return res.status(400).json({ok:false,errors:data.errors}); res.json(projectOut(await prisma.project.update({ where:{ id:p.id }, data }))); }; }));
@@ -235,6 +258,7 @@ app.get('/api/work-items', wrap(async (req, res) => {
   const where = { ...(includeInactive ? {} : { active:true }), ...(req.query.category ? { category:String(req.query.category) } : {}), ...(req.query.featured === 'true' ? { featured:true } : {}) };
   res.json((await prisma.workItem.findMany({ where, orderBy:[{sortOrder:'asc'},{featured:'desc'},{createdAt:'desc'}] })).map(workOut));
 }));
+app.get('/api/work-items/slug/:slug', wrap(async (req,res)=>{ const item=await findWorkBySlug(req.params.slug); if(!item) return res.status(404).json({ok:false,error:'WORK_ITEM_NOT_FOUND'}); res.json(workOut(item)); }));
 app.get('/api/work-items/:id', wrap(async (req, res) => { const item = await prisma.workItem.findUnique({ where:{ id:String(req.params.id) } }); if(!item) return res.status(404).json({ok:false,error:'WORK_ITEM_NOT_FOUND'}); if(!item.active && req.headers['x-admin-auth'] !== 'true' && req.query.admin !== 'true') return res.status(401).json({ok:false,error:'ADMIN_AUTH_REQUIRED'}); res.json(workOut(item)); }));
 app.post('/api/work-items', requireAdmin, wrap(async (req,res)=>{ const v=validateWorkBody(req.body); if(v.errors) return res.status(400).json({ok:false,errors:v.errors}); res.status(201).json(workOut(await prisma.workItem.create({data:v.data}))); }));
 app.put('/api/work-items/reorder', requireAdmin, wrap(async (req,res)=>{ await Promise.all((req.body.items||[]).map((it,i)=>prisma.workItem.update({where:{id:String(it.id)},data:{sortOrder:Number.isInteger(Number(it.sortOrder)) ? Number(it.sortOrder) : i}}))); res.json({ok:true}); }));
@@ -370,8 +394,21 @@ app.use((err, req, res, next) => {
   res.status(err.code === 'P2025' ? 404 : 500).json({ ok: false, error: err.message || 'Server error' });
 });
 
-app.use(express.static(__dirname));
-app.get('*', (req,res)=>res.sendFile(path.join(__dirname,'index.html')));
+app.use(express.static(__dirname, { index: false }));
+app.get(['/layiheler/:slug', '/islerimiz/:slug'], wrap(async (req, res) => {
+  const isProject = req.path.startsWith('/layiheler/');
+  let item = null;
+  try { item = isProject ? await findProjectBySlug(req.params.slug) : await findWorkBySlug(req.params.slug); } catch (err) { console.warn('[detail:ssr:fallback]', err?.message); }
+  const view = item ? (isProject ? projectOut(item) : workOut(item)) : null;
+  const title = view ? `${view.titleAz || view.title || 'Detal'} | Baltic Caspian` : 'Baltic Caspian | Premium Taxta Evlər';
+  const description = view ? String(view.descriptionAz || view.desc || view.description || 'Baltic Caspian layihə detalları.').slice(0, 155) : 'Premium taxta evlər, tamamlanmış işlər və layihələr.';
+  const image = view ? absoluteUrl(req, view.coverImage || view.image || (Array.isArray(view.images) ? view.images[0] : '')) : absoluteUrl(req, '/uploads/hero');
+  const html = await fs.promises.readFile(path.join(__dirname, 'index.html'), 'utf8');
+  res.send(html.replaceAll('__META_TITLE__', escapeHtml(title)).replaceAll('__META_DESCRIPTION__', escapeHtml(description)).replaceAll('__META_URL__', escapeHtml(absoluteUrl(req, req.originalUrl))).replaceAll('__META_IMAGE__', escapeHtml(image)));
+}));
+app.get('*', (req,res)=>{
+  fs.promises.readFile(path.join(__dirname,'index.html'), 'utf8').then(html => res.send(html.replaceAll('__META_TITLE__', 'Baltic Caspian | Premium Taxta Evlər').replaceAll('__META_DESCRIPTION__', 'Premium taxta evlər, tamamlanmış işlər və layihələr.').replaceAll('__META_URL__', escapeHtml(absoluteUrl(req, req.originalUrl))).replaceAll('__META_IMAGE__', escapeHtml(absoluteUrl(req, '/uploads/hero'))))).catch(() => res.sendFile(path.join(__dirname,'index.html')));
+});
 
 const PORT = process.env.PORT || 3000;
 console.log(`DATABASE_URL exists: ${process.env.DATABASE_URL ? 'yes' : 'no'}`);
