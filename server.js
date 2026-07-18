@@ -97,6 +97,30 @@ const jsonArray = (v) => Array.isArray(v) ? v : [];
 const heroSlideSelect = { id:true, legacyId:true, titleAz:true, titleRu:true, titleEn:true, subtitleAz:true, subtitleRu:true, subtitleEn:true, mediaType:true, mediaUrl:true, image:true, buttonTextAz:true, buttonTextRu:true, buttonTextEn:true, buttonLink:true, tagAz:true, tagRu:true, tagEn:true, title1Az:true, title1Ru:true, title1En:true, title2Az:true, title2Ru:true, title2En:true, descAz:true, descRu:true, descEn:true, sortOrder:true, active:true, createdAt:true, updatedAt:true };
 const adminTabDefaultVisibility = { dashboard:true, messages:true, projects:true, works:true, gallery:true, hero:true, homeImages:true, ads:true };
 
+const ADMIN_NO_STORE_HEADERS = {
+  'Cache-Control': 'no-store, no-cache, must-revalidate, private',
+  'Pragma': 'no-cache',
+  'Expires': '0'
+};
+const setAdminNoStore = (res) => res.set(ADMIN_NO_STORE_HEADERS);
+const isAdminPrivateGet = (req) => req.method === 'GET' && (
+  req.path === '/admin' ||
+  req.path.startsWith('/api/admin-panel-settings') ||
+  req.path.startsWith('/api/messages') ||
+  req.path.startsWith('/api/stats') ||
+  (req.path.startsWith('/api/projects') && req.query.includeArchived === 'true') ||
+  ((req.path.startsWith('/api/works') || req.path.startsWith('/api/work-items')) && req.query.includeArchived === 'true') ||
+  (req.path.startsWith('/api/hero-slides') && req.query.admin === 'true') ||
+  (req.path.startsWith('/api/gallery') && req.query.includeArchived === 'true') ||
+  (req.path.startsWith('/api/banners') && req.headers['x-admin-auth'] === 'true') ||
+  (req.path.startsWith('/api/home-section-images') && req.headers['x-admin-auth'] === 'true')
+);
+app.use((req, res, next) => {
+  if (isAdminPrivateGet(req)) setAdminNoStore(res);
+  next();
+});
+
+
 const requireAdmin = (req, res, next) => {
   if (req.headers['x-admin-auth'] === 'true' || req.query.admin === 'true') return next();
   return res.status(401).json({ ok: false, error: 'ADMIN_AUTH_REQUIRED' });
@@ -499,9 +523,11 @@ const normalizePublicPath = value => {
   clean = clean.replace(/\/+$/, '') || '/';
   return clean;
 };
+const ADMIN_ASSET_VERSION = '20260718-1';
 const sendShellWithMeta = (req, res, meta, status = 200) => {
+  if (normalizePublicPath(req.path) === '/admin') setAdminNoStore(res);
   fs.promises.readFile(path.join(__dirname,'index.html'), 'utf8')
-    .then(html => res.status(status).send(injectMeta(html, { title: meta.title, description: meta.description, url: `${publicOrigin()}${normalizePublicPath(req.path)}`, image:absoluteUrl(req, '/uploads/hero'), jsonLd:'{}' })))
+    .then(html => res.status(status).send(injectMeta(html.replace('</head>', `<!-- admin-asset-version:${ADMIN_ASSET_VERSION} --></head>`), { title: meta.title, description: meta.description, url: `${publicOrigin()}${normalizePublicPath(req.path)}`, image:absoluteUrl(req, '/uploads/hero'), jsonLd:'{}' })))
     .catch(() => res.status(status).sendFile(path.join(__dirname,'index.html')));
 };
 app.get(Object.keys(STATIC_PUBLIC_META), (req,res)=>{

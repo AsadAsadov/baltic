@@ -220,7 +220,10 @@
                     { key: 'home-images', settingKey: 'homeImages', labelKey: 'adminTabHomeImages' },
                     { key: 'ads', labelKey: 'adminTabAds' }
                 ],
-                adminTabVisibility: JSON.parse(localStorage.getItem('bc_admin_tab_visibility') || 'null') || { dashboard: true, messages: true, projects: true, works: true, gallery: true, hero: true, homeImages: true, ads: true },
+                adminTabVisibility: { dashboard: true, messages: true, projects: true, works: true, gallery: true, hero: true, homeImages: true, ads: true },
+                adminInitializing: true,
+                adminInitializationError: '',
+                adminLoadVersion: 0,
                 showAdminTabManager: false,
                 adminTitleTapCount: 0,
                 adminTitleTapTimer: null,
@@ -243,13 +246,13 @@
                 galleryLoaded: false,
                 slides: [],
                 slidesLoaded: false,
-                messages: defaultMessages,
+                messages: [],
 
                 // Dynamic Live Statistics
-                stats: JSON.parse(localStorage.getItem('bc_stats')) || {
-                    projectViews: 520,
-                    adViews: 1300,
-                    messagesCount: 1
+                stats: {
+                    projectViews: 0,
+                    adViews: 0,
+                    messagesCount: 0
                 },
 
                 // Advertising banners with left/right/both placement
@@ -673,6 +676,7 @@
                         this.page = this.publicRouteMap[clean];
                     } else if (clean === '/admin') {
                         this.page = this.adminLoggedIn ? 'admin' : 'login';
+                        if (this.adminLoggedIn) this.initializeAdminPanel();
                     } else {
                         this.page = 'notFound';
                         this.notFoundKind = 'page';
@@ -735,7 +739,11 @@
                 async api(path, options = {}) {
                     const headers = options.body instanceof FormData ? { ...(options.headers || {}) } : { 'Content-Type': 'application/json', ...(options.headers || {}) };
                     if (this.adminLoggedIn) headers['x-admin-auth'] = 'true';
-                    const res = await fetch(`${this.apiBase}${path}`, { ...options, headers });
+                    const fetchOptions = { ...options, headers };
+                    const isAdminRequest = path.startsWith('/api/messages') || path.startsWith('/api/stats') || path.includes('admin=true') || path.includes('includeArchived=true') || path.startsWith('/api/admin-panel-settings') || (this.adminLoggedIn && (path.startsWith('/api/projects') || path.startsWith('/api/works') || path.startsWith('/api/gallery') || path.startsWith('/api/banners') || path.startsWith('/api/hero-slides') || path.startsWith('/api/home-section-images')));
+                    if (isAdminRequest && !fetchOptions.cache) fetchOptions.cache = 'no-store';
+                    if (!fetchOptions.credentials) fetchOptions.credentials = 'include';
+                    const res = await fetch(`${this.apiBase}${path}`, fetchOptions);
                     const contentType = res.headers.get('content-type') || '';
                     const data = contentType.includes('application/json') ? await res.json().catch(() => null) : await res.text().catch(() => '');
                     if (!res.ok) {
@@ -1008,9 +1016,9 @@
                     image.src = url;
                 },
 
-                async loadHeroSlides() {
+                async loadHeroSlides(adminInitial = false) {
                     try {
-                        const data = await this.api(this.adminLoggedIn ? '/api/hero-slides?admin=true' : '/api/hero-slides');
+                        const data = await this.api(this.adminLoggedIn ? '/api/hero-slides?admin=true' : '/api/hero-slides', adminInitial ? { cache: 'no-store' } : {});
                         const freshSlides = this.getValidHeroSlides(data, []);
                         this.slides = freshSlides;
                         this.slidesLoaded = true;
@@ -1022,6 +1030,7 @@
                     } catch (error) {
                         console.warn('Failed /api/hero-slides; keeping cached hero slides if available.', error);
                         this.slidesLoaded = true;
+                        if (adminInitial) throw error;
                         return this.slides;
                     }
                 },
@@ -1037,19 +1046,47 @@
                     this.$nextTick(() => this.syncHeroVideoAudio());
                     this.initRevealAnimations();
                     this.initStatsCounter();
-                    this.loadAdminTabVisibility().catch(error => console.warn('Admin tab visibility loaded from local fallback.', error));
-                    this.loadData().then(() => this.resolveDetailFromRoute()).catch(error => console.warn('Initial API data loaded from fallback/cache.', error));
+                    window.addEventListener('pageshow', event => { if (event.persisted && this.page === 'admin' && this.adminLoggedIn) this.initializeAdminPanel(); });
+                    this.loadAdminTabVisibility().catch(error => console.warn('Admin tab visibility loaded from fallback.', error));
+                    if (this.page === 'admin' && this.adminLoggedIn) this.initializeAdminPanel();
+                    else this.loadData().then(() => this.resolveDetailFromRoute()).catch(error => console.warn('Initial API data loaded from fallback/cache.', error));
                     this.loadHomeSectionImages().catch(error => console.warn('Home section images loaded from fallback.', error));
                 },
 
-                async loadData() {
+                async initializeAdminPanel() {
+                    const version = ++this.adminLoadVersion;
+                    this.adminInitializing = true;
+                    this.adminInitializationError = '';
                     this.projectsLoaded = false;
                     this.galleryLoaded = false;
                     this.workItemsLoaded = false;
-                    const cached = (key, fallback) => JSON.parse(localStorage.getItem(key) || 'null') || fallback;
+                    this.messages = [];
+                    try {
+                        await this.loadAdminTabVisibility({ networkOnly: true });
+                        await Promise.all([this.loadData({ adminInitial: true, version }), this.loadHomeSectionImages(true), this.loadHeroSlides(true)]);
+                        if (version !== this.adminLoadVersion) return;
+                        this.ensureVisibleAdminTab();
+                    } catch (error) {
+                        if (version !== this.adminLoadVersion) return;
+                        console.error('Admin initialization failed', error);
+                        this.adminInitializationError = 'Admin məlumatları yüklənmədi.';
+                    } finally {
+                        if (version === this.adminLoadVersion) this.adminInitializing = false;
+                    }
+                },
+
+                retryAdminInitialization() { this.initializeAdminPanel(); },
+
+                async loadData(options = {}) {
+                    const adminInitial = !!options.adminInitial;
+                    const version = options.version || this.adminLoadVersion;
+                    this.projectsLoaded = false;
+                    this.galleryLoaded = false;
+                    this.workItemsLoaded = false;
+                    const cached = (key, fallback) => adminInitial ? fallback : (JSON.parse(localStorage.getItem(key) || 'null') || fallback);
                     const publicFetch = async (path) => {
                         try {
-                            return { ok: true, data: await this.api(path) };
+                            return { ok: true, data: await this.api(path, adminInitial ? { cache: 'no-store' } : {}) };
                         } catch (error) {
                             console.warn(`Failed ${path}; using local fallback if available.`, error);
                             return { ok: false, error };
@@ -1062,8 +1099,8 @@
                             publicFetch('/api/projects'),
                             publicFetch('/api/gallery'),
                             publicFetch(this.adminLoggedIn ? '/api/works?includeArchived=true' : '/api/works'),
-                            this.safeApi('/api/banners', cached('bc_banners_list', [])),
-                            this.safeApi('/api/stats', cached('bc_stats', this.stats))
+                            adminInitial ? this.api('/api/banners', { cache: 'no-store' }) : this.safeApi('/api/banners', cached('bc_banners_list', [])),
+                            adminInitial ? this.api('/api/stats', { cache: 'no-store' }) : this.safeApi('/api/stats', cached('bc_stats', this.stats))
                         ]);
                         const [projectsSettled, gallerySettled, worksSettled, bannersSettled, statsSettled] = settled;
                         const projectsResult = projectsSettled.status === 'fulfilled' ? projectsSettled.value : { ok: false, error: projectsSettled.reason };
@@ -1071,8 +1108,9 @@
                         const worksResult = worksSettled.status === 'fulfilled' ? worksSettled.value : { ok: false, error: worksSettled.reason };
                         const bannersResult = bannersSettled.status === 'fulfilled' ? bannersSettled.value : cached('bc_banners_list', []);
                         const statsResult = statsSettled.status === 'fulfilled' ? statsSettled.value : this.stats;
-                        const projectItems = projectsResult.ok ? this.normalizeProjects(projectsResult.data, []) : this.normalizeProjects(cached('bc_projects', defaultProjects), defaultProjects);
-                        const galleryItems = galleryResult.ok ? this.normalizeGallery(galleryResult.data, []) : this.normalizeGallery(cached('bc_gallery', defaultGallery), defaultGallery);
+                        if (adminInitial && version !== this.adminLoadVersion) return;
+                        const projectItems = projectsResult.ok ? this.normalizeProjects(projectsResult.data, []) : this.normalizeProjects(cached('bc_projects', adminInitial ? [] : defaultProjects), adminInitial ? [] : defaultProjects);
+                        const galleryItems = galleryResult.ok ? this.normalizeGallery(galleryResult.data, []) : this.normalizeGallery(cached('bc_gallery', adminInitial ? [] : defaultGallery), adminInitial ? [] : defaultGallery);
                         this.projects = projectItems;
                         this.galleryItems = galleryItems;
                         this.workItems = worksResult.ok ? this.normalizeWorkItems(worksResult.data, []) : [];
@@ -1085,11 +1123,11 @@
                         console.info('GET /api/gallery'); console.info(`Loaded gallery: ${this.galleryItems.length}`);
                         console.info('GET /api/banners'); console.info(`Loaded banners: ${banners.length}`);
                         if (this.adminLoggedIn) {
-                            this.messages = this.asArray(await this.safeApi('/api/messages', cached('bc_messages', defaultMessages)));
+                            this.messages = this.asArray(adminInitial ? await this.api('/api/messages', { cache: 'no-store' }) : await this.safeApi('/api/messages', cached('bc_messages', [])));
                         }
                         console.table(this.projects.slice(0, 3));
                         console.table(this.galleryItems.slice(0, 3));
-                        this.cacheSave();
+                        if (!adminInitial) this.cacheSave();
                         this.$nextTick(() => this.syncHeroVideoAudio());
                         this.restartAdRotation();
                     } finally {
@@ -1102,15 +1140,17 @@
                     return this.asArray(payload).map(item => ({ id: item.id, sectionKey: item.sectionKey || item.section_key, title: item.title || '', src: item.src || item.imageUrl || item.image_url || '', imageUrl: item.imageUrl || item.image_url || item.src || '', sortOrder: Number(item.sortOrder ?? item.sort_order) || 0, active: item.active ?? true })).filter(item => item.src);
                 },
 
-                async loadHomeSectionImages() {
+                async loadHomeSectionImages(adminInitial = false) {
                     try {
-                        const [why, adv] = await Promise.all([this.api('/api/home-section-images/why_wood'), this.api('/api/home-section-images/advantages')]);
+                        const fetchOptions = adminInitial ? { cache: 'no-store' } : {};
+                        const [why, adv] = await Promise.all([this.api('/api/home-section-images/why_wood', fetchOptions), this.api('/api/home-section-images/advantages', fetchOptions)]);
                         const whyItems = this.normalizeHomeSectionImages(why);
                         const advItems = this.normalizeHomeSectionImages(adv);
                         this.homeGalleryImages = whyItems.length ? whyItems : defaultHomeGalleryImages;
                         this.homeAdvantagesImages = advItems.length ? advItems : defaultHomeAdvantagesImages;
                     } catch (error) {
                         console.warn('Home section images could not be loaded.', error);
+                        if (adminInitial) throw error;
                         this.homeGalleryImages = defaultHomeGalleryImages;
                         this.homeAdvantagesImages = defaultHomeAdvantagesImages;
                     }
@@ -1172,11 +1212,11 @@
 
                 ensureVisibleAdminTab() { if (!this.adminTabVisible(this.adminTab)) this.adminTab = this.visibleAdminTabs()[0]?.key || 'dashboard'; },
 
-                async loadAdminTabVisibility() {
-                    const cached = JSON.parse(localStorage.getItem('bc_admin_tab_visibility') || 'null');
+                async loadAdminTabVisibility(options = {}) {
+                    const cached = options.networkOnly ? null : JSON.parse(localStorage.getItem('bc_admin_tab_visibility') || 'null');
                     if (cached) this.adminTabVisibility = { ...this.adminTabVisibility, ...cached };
                     try {
-                        const setting = await this.api('/api/admin-panel-settings/admin_tab_visibility');
+                        const setting = await this.api('/api/admin-panel-settings/admin_tab_visibility', options.networkOnly ? { cache: 'no-store' } : {});
                         this.adminTabVisibility = { ...this.adminTabVisibility, ...(setting?.value || {}) };
                         localStorage.setItem('bc_admin_tab_visibility', JSON.stringify(this.adminTabVisibility));
                     } catch (error) { console.warn('Admin tab visibility loaded from localStorage fallback.', error); }
@@ -1662,8 +1702,9 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                     localStorage.setItem('bc_gallery', JSON.stringify(this.galleryItems));
                     localStorage.setItem('bc_slides', JSON.stringify(this.slides));
                     this.cacheHeroSlides(this.slides);
-                    localStorage.setItem('bc_messages', JSON.stringify(this.messages));
-                    localStorage.setItem('bc_stats', JSON.stringify(this.stats));
+                    // Private admin data is intentionally not persisted.
+                    localStorage.removeItem('bc_messages');
+                    localStorage.removeItem('bc_stats');
                     localStorage.setItem('bc_banner', JSON.stringify(this.mainBanner));
                     localStorage.setItem('bc_banners_list', JSON.stringify(this.banners));
                     localStorage.setItem('mainBanner', JSON.stringify(this.mainBanner));
@@ -1825,8 +1866,8 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                 handleAdminLogin() {
                     if (this.adminUsername === 'admin' && this.adminPassword === 'admin') {
                         this.adminLoggedIn = true;
-                        this.loadData();
                         this.adminLoginError = '';
+                        this.initializeAdminPanel();
                         localStorage.setItem('bc_admin_logged', 'true');
                         this.setPage('admin');
                         this.showToast('Giriş Uğurludur', 'Admin İdarəetmə Paneli aktivdir!');
@@ -1838,6 +1879,9 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                 handleAdminLogout() {
                     this.adminLoggedIn = false;
                     localStorage.removeItem('bc_admin_logged');
+                    this.messages = [];
+                    this.adminInitializationError = '';
+                    this.adminInitializing = true;
                     this.setPage('home');
                 },
 
@@ -4463,6 +4507,12 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                     </template>
                 </div>
 
+                <div x-show="adminInitializing" x-transition.opacity class="admin-loading-skeleton grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6" aria-live="polite" aria-busy="true">
+                    <template x-for="i in 4" :key="i"><div class="bg-white p-6 rounded-3xl border border-stone-200/80 shadow-sm"><div class="h-12 w-12 rounded-2xl skeleton-shimmer mb-4"></div><div class="h-3 w-28 rounded skeleton-shimmer mb-3"></div><div class="h-7 w-20 rounded skeleton-shimmer"></div></div></template>
+                    <div class="sm:col-span-2 lg:col-span-4 bg-white p-6 rounded-3xl border border-stone-200/80 shadow-sm"><div class="h-4 w-44 rounded skeleton-shimmer mb-4"></div><div class="h-24 rounded-2xl skeleton-shimmer"></div></div>
+                </div>
+                <div x-show="!adminInitializing && adminInitializationError" class="bg-white p-6 rounded-3xl border border-red-200 shadow-sm text-sm"><p class="font-black text-red-700" x-text="adminInitializationError"></p><button type="button" @click="retryAdminInitialization()" class="mt-4 admin-primary-action">Yenidən yoxla</button></div>
+                <div x-show="!adminInitializing && !adminInitializationError" class="space-y-8">
                 <!-- SUB-TAB 1: LIVE DYNAMIC STATISTICS -->
                 <div x-show="adminTab === 'dashboard'" x-transition class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                     <div class="bg-white p-6 rounded-3xl border border-stone-200/80 shadow-sm flex items-center gap-4">
