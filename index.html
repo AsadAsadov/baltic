@@ -725,9 +725,12 @@
                     const list = this.detailType === 'project' ? this.projects : this.workItems;
                     const id = this.detailSlug.split('-').pop();
                     let item = (Array.isArray(list) ? list : []).find(x => String(x.id) === String(id) || this.itemSlug(x) === this.detailSlug);
-                    if (!item) {
-                        try { item = await this.refreshDetailFromApi(this.detailSlug, this.detailType); } catch (e) { console.warn('Detail route not found', e); }
-                    }
+                    this.detailItem = item || null;
+                    if (item) this.syncDetailGalleryState();
+                    try {
+                        const fullItem = await this.refreshDetailFromApi(this.detailSlug, this.detailType);
+                        if (fullItem) item = fullItem;
+                    } catch (e) { console.warn('Detail route not found', e); }
                     this.detailItem = item || null;
                     if (!item) {
                         this.page = 'notFound';
@@ -752,9 +755,9 @@
                 openDetail(item, type = 'project') { if (!item?.id) return; this.page = 'detail'; this.notFoundKind = ''; this.detailType = type; this.detailItem = item; this.detailSlug = this.itemSlug(item); this.syncDetailGalleryState(); const url = type === 'project' ? this.projectUrl(item) : this.workUrl(item); if (this.normalizePathname(location.pathname) !== url) history.pushState({}, '', url); this.updateMeta(); window.scrollTo({top:0, behavior:'auto'}); this.refreshDetailFromApi(this.detailSlug, type).catch(() => {}); },
                 async refreshDetailFromApi(slug = this.detailSlug, type = this.detailType) {
                     if (!slug || !type) return null;
-                    const cacheKey = `detail:${type}:${slug}`;
+                    const cacheKey = `${type === 'work' ? 'work' : 'project'}:detail:${slug}`;
                     const entry = this.cacheEntry(cacheKey);
-                    if (entry.data) return entry.data;
+                    if (entry.data?.__detailLoaded) return entry.data;
                     if (entry.promise) return entry.promise;
                     const path = type === 'work' ? `/api/works/slug/${encodeURIComponent(slug)}` : `/api/projects/slug/${encodeURIComponent(slug)}`;
                     const run = this.api(path).then(data => {
@@ -768,7 +771,7 @@
                 },
                 detailTitle(item = this.detailItem) { if (!item) return ''; return this.detailType === 'work' ? this.localizedWorkTitle(item) : (this.lang === 'en' ? (item.titleEn || item.title) : (this.lang === 'ru' ? (item.titleRu || item.title) : item.title)); },
                 detailDescription(item = this.detailItem) { if (!item) return ''; return this.detailType === 'work' ? this.localizedWorkDescription(item) : this.localizedProjectDescription(item); },
-                detailImages(item = this.detailItem) { const images = Array.isArray(item?.images) && item.images.length ? item.images : [item?.coverImage || item?.image].filter(Boolean); return images.filter(Boolean); },
+                detailImages(item = this.detailItem) { const result = []; const add = (url) => { const value = this.normalizeImageUrl(url || ''); if (value && !result.includes(value)) result.push(value); }; add(item?.originalImage || item?.coverImage || item?.image); (Array.isArray(item?.images) ? item.images : []).forEach(add); return result; },
                 syncDetailGalleryState() { this.detailGalleryState = { images: this.detailImages(this.detailItem), activeIndex: 0 }; },
                 detailImage() { const images = this.detailGalleryState.images?.length ? this.detailGalleryState.images : this.detailImages(); return images[this.detailGalleryState.activeIndex] || images[0] || this.fallbackWorkImage(); },
                 setActiveDetailImage(index) { const n = (this.detailGalleryState.images || []).length; if (n) this.detailGalleryState.activeIndex = Math.max(0, Math.min(Number(index)||0, n-1)); },
@@ -919,7 +922,8 @@
                         imageVariants: this.normalizeImageVariants(project.imageVariants),
                         images: images.length ? images : (image ? [image] : []),
                         views: Number(project.views) || 0,
-                        archived: Boolean(project.archived)
+                        archived: Boolean(project.archived),
+                        __detailLoaded: project.__detailLoaded === true
                     };
                 },
                 normalizeProjects(payload, fallback = []) {
@@ -2658,7 +2662,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                 normalizeWorkItem(item = {}) {
                     const images = this.normalizeImageList(item.images);
                     const coverImage = this.normalizeImageUrl(item.coverImage || item.image || images[0] || '');
-                    return { id:item.id || '', slug:item.slug || '', category:this.normalizeCategory(item.category || 'house'), title:item.title || item.titleAz || '', titleAz:item.titleAz || item.title || '', titleRu:item.titleRu || item.title || '', titleEn:item.titleEn || item.title || '', description:item.description || item.descriptionAz || '', descriptionAz:item.descriptionAz || item.description || '', descriptionRu:item.descriptionRu || item.description || '', descriptionEn:item.descriptionEn || item.description || '', location:item.location || item.locationAz || '', locationAz:item.locationAz || item.location || '', locationRu:item.locationRu || item.location || '', locationEn:item.locationEn || item.location || '', completionDate:item.completionDate || '', area:item.area || '', stories:item.stories ?? '', rooms:item.rooms ?? '', buildTime:item.buildTime || item.buildTimeAz || '', buildTimeAz:item.buildTimeAz || item.buildTime || '', buildTimeRu:item.buildTimeRu || item.buildTime || '', buildTimeEn:item.buildTimeEn || item.buildTime || '', coverImage, image:coverImage, originalImage:this.normalizeImageUrl(item.originalImage || item.coverImage || item.image || images[0] || ''), imageVariants:this.normalizeImageVariants(item.imageVariants), images:images.length ? images : (coverImage ? [coverImage] : []), sortOrder:Number(item.sortOrder)||0, archived:Boolean(item.archived), featured:Boolean(item.featured), active:item.active !== false, createdAt:item.createdAt || '' };
+                    return { id:item.id || '', slug:item.slug || '', category:this.normalizeCategory(item.category || 'house'), title:item.title || item.titleAz || '', titleAz:item.titleAz || item.title || '', titleRu:item.titleRu || item.title || '', titleEn:item.titleEn || item.title || '', description:item.description || item.descriptionAz || '', descriptionAz:item.descriptionAz || item.description || '', descriptionRu:item.descriptionRu || item.description || '', descriptionEn:item.descriptionEn || item.description || '', location:item.location || item.locationAz || '', locationAz:item.locationAz || item.location || '', locationRu:item.locationRu || item.location || '', locationEn:item.locationEn || item.location || '', completionDate:item.completionDate || '', area:item.area || '', stories:item.stories ?? '', rooms:item.rooms ?? '', buildTime:item.buildTime || item.buildTimeAz || '', buildTimeAz:item.buildTimeAz || item.buildTime || '', buildTimeRu:item.buildTimeRu || item.buildTime || '', buildTimeEn:item.buildTimeEn || item.buildTime || '', coverImage, image:coverImage, originalImage:this.normalizeImageUrl(item.originalImage || item.coverImage || item.image || images[0] || ''), imageVariants:this.normalizeImageVariants(item.imageVariants), images:images.length ? images : (coverImage ? [coverImage] : []), sortOrder:Number(item.sortOrder)||0, archived:Boolean(item.archived), featured:Boolean(item.featured), active:item.active !== false, createdAt:item.createdAt || '', __detailLoaded: item.__detailLoaded === true };
                 },
                 normalizeWorkItems(payload, fallback = []) { const items = this.asArray(payload).map(item => this.normalizeWorkItem(item)); return items.length ? items : fallback.map(item => this.normalizeWorkItem(item)); },
                 localizedWorkTitle(item) { return this.lang === 'en' ? (item.titleEn || item.titleAz) : (this.lang === 'ru' ? (item.titleRu || item.titleAz) : item.titleAz); },
