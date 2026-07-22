@@ -388,17 +388,28 @@ const IMAGE_VARIANT_WIDTHS = { thumb: 480, medium: 960, large: 1600 };
 const IMAGE_VARIANT_QUALITY = { thumb: 74, medium: 78, large: 82 };
 const imageVariantUrl = (url = '', variant = 'medium') => {
   const value = String(url || '');
-  if (!value.startsWith('/uploads/') || !/\.(jpe?g|png|webp|avif|tiff?|bmp)(?:[?#].*)?$/i.test(value)) return value;
+  if (!value.startsWith('/uploads/') || !/\.(jpe?g|png|webp|avif|tiff?|bmp)(?:[?#].*)?$/i.test(value)) return '';
   const clean = value.split(/[?#]/)[0];
   const ext = path.extname(clean);
   return `${clean.slice(0, -ext.length)}-${variant}.webp`;
 };
+const uploadUrlToPath = (url = '') => {
+  const clean = String(url || '').split(/[?#]/)[0];
+  if (!clean.startsWith('/uploads/')) return null;
+  const resolved = path.resolve(__dirname, `.${clean}`);
+  return resolved.startsWith(path.resolve(uploadRoot) + path.sep) ? resolved : null;
+};
+const existingUploadUrl = (url = '') => {
+  const filePath = uploadUrlToPath(url);
+  return filePath && fs.existsSync(filePath) ? url : '';
+};
 const imageVariantsFor = (url = '') => {
   const original = String(url || '');
-  return original ? { original, thumb: imageVariantUrl(original, 'thumb'), medium: imageVariantUrl(original, 'medium'), large: imageVariantUrl(original, 'large') } : null;
+  if (!original) return null;
+  return { original, thumb: existingUploadUrl(imageVariantUrl(original, 'thumb')) || null, medium: existingUploadUrl(imageVariantUrl(original, 'medium')) || null, large: existingUploadUrl(imageVariantUrl(original, 'large')) || null };
 };
 const withImageVariants = (url = '') => imageVariantsFor(url) || null;
-const listImage = (url = '', variant = 'medium') => imageVariantUrl(url, variant) || url;
+const listImage = (url = '', variant = 'medium') => existingUploadUrl(imageVariantUrl(url, variant)) || url;
 async function createImageVariants(sourcePath, publicUrl) {
   const variants = imageVariantsFor(publicUrl);
   if (!variants || !isBrowserImage(publicUrl)) return null;
