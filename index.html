@@ -27,119 +27,15 @@
     <script>
         window.siteState = function siteState() {
             // Retrieve dynamic data from API; never show demo media for public gallery.
-            const defaultProjects = [
-                {
-                    id: 1,
-                    cat: 'house',
-                    catName: 'Taxta Ev',
-                    catNameRu: 'Деревянный Дом',
-                    catNameEn: 'Wooden House',
-                    title: 'Göygöl Komfort Villa',
-                    titleRu: 'Вилла Гёйгёль Комфорт',
-                    titleEn: 'Goygol Comfort Villa',
-                    desc: 'Təbiətin qoynunda, mənzərəli və geniş şüşəli, 2 mərtəbəli premium villa layihəsi.',
-                    descRu: 'Двухэтажный премиальный проект с панорамным остеклением в окружении природы.',
-                    descEn: 'A luxury two-story premium villa project with panoramic windows surrounded by scenic nature.',
-                    area: '180',
-                    stories: 2,
-                    rooms: 5,
-                    buildTime: '2.5 ay',
-                    buildTimeRu: '2.5 месяца',
-                    buildTimeEn: '2.5 months',
-                    image: 'https://images.unsplash.com/photo-1510798831971-661eb04b3739?auto=format&fit=crop&q=80&w=800',
-                    images: ['https://images.unsplash.com/photo-1510798831971-661eb04b3739?auto=format&fit=crop&q=80&w=800'],
-                    views: 520,
-                    archived: false
-                },
-                {
-                    id: 2,
-                    cat: 'house',
-                    catName: 'Taxta Ev',
-                    catNameRu: 'Деревянный Дом',
-                    catNameEn: 'Wooden House',
-                    title: 'Şamaxı Meşə Evi',
-                    titleRu: 'Лесной Дом Шамахы',
-                    titleEn: 'Shamakhi Forest House',
-                    desc: 'Şam ağaclarının arasında rustik dizaynlı, seysmik və soyuğa dözümlü qış koteci.',
-                    descRu: 'Уютный деревянный коттедж для отдыха в горном районе Шамахы.',
-                    descEn: 'A rustic, seismic-safe and cold-resistant winter cottage nestled among pine trees.',
-                    area: '120',
-                    stories: 1,
-                    rooms: 3,
-                    buildTime: '2 ay',
-                    buildTimeRu: '2 месяца',
-                    buildTimeEn: '2 months',
-                    image: 'https://images.unsplash.com/photo-1542718610-a1d656d1884c?auto=format&fit=crop&q=80&w=800',
-                    images: ['https://images.unsplash.com/photo-1542718610-a1d656d1884c?auto=format&fit=crop&q=80&w=800'],
-                    views: 312,
-                    archived: false
-                }
-            ];
-
+            const defaultProjects = [];
             const defaultGallery = [];
-
-            const defaultSlides = [
-                {
-                    id: 'legacy-hero-1',
-                    image: 'https://images.unsplash.com/photo-1510798831971-661eb04b3739?auto=format&fit=crop&q=80&w=1800',
-                    tag: '100% Sibir Şamı & Küknar',
-                    tagRu: '100% Сибирская Сосна & Ель',
-                    tagEn: '100% Siberian Pine & Spruce',
-                    title1: 'XƏYALINIZDAKI',
-                    title1Ru: 'ДОМ ВАШЕЙ',
-                    title1En: 'YOUR DREAM',
-                    title2: 'TAXTA EVLƏR',
-                    title2Ru: 'МЕЧТЫ ИЗ ДЕРЕВА',
-                    title2En: 'WOODEN HOMES',
-                    desc: 'Təbiətlə harmoniyada yaşamaq və ekoloji təmiz məkana sahib olmaq üçün ən peşəkar seçim.',
-                    descRu: 'Лучший выбор для жизни в гармонии с природой в экологически чистом доме.',
-                    descEn: 'The most professional choice to live in harmony with nature in an eco-friendly space.'
-                },
-                {
-                    id: 'legacy-hero-2',
-                    image: 'https://images.unsplash.com/photo-1542718610-a1d656d1884c?auto=format&fit=crop&q=80&w=1800',
-                    tag: '9+ Bal Seysmik Zəmanət',
-                    tagRu: '9+ Сейсмическая Гарантия',
-                    tagEn: '9+ Seismic Grade Warranty',
-                    title1: 'GÜVƏNLİ VƏ',
-                    title1Ru: 'БЕЗОПАСНЫЙ И',
-                    title1En: 'SECURE AND',
-                    title2: 'SAĞLAM HƏYAT',
-                    title2Ru: 'ЗДОРОВЫЙ ОБРАЗ',
-                    title2En: 'HEALTHY LIVING',
-                    desc: 'Zəlzələyə tam davamlı, qışda isti, yayda isə sərin qalan xüsusi mühəndislik sistemi.',
-                    descRu: 'Полностью сейсмостойкая конструкция, сохраняющая тепло зимой и прохладу летом.',
-                    descEn: 'Earthquake resilient structural log engineering keeping thermal comfort year-round.'
-                },
-                {
-                    id: 'legacy-hero-3',
-                    image: 'https://images.unsplash.com/photo-1613977257363-707ba9348227?auto=format&fit=crop&q=80&w=1800',
-                    tag: 'Premium Memarlıq',
-                    tagRu: 'Премиум Архитектура',
-                    tagEn: 'Premium Wood Architecture',
-                    title1: 'MÜASİR VƏ',
-                    title1Ru: 'СОВРЕМЕННЫЙ И',
-                    title1En: 'MODERN AND',
-                    title2: 'LÜKS VİLLALAR',
-                    title2Ru: 'ЛЮКСОВЫЕ ВИЛЛЫ',
-                    title2En: 'LUXURY VILLAS',
-                    desc: 'Hər bir detalı incəliklə düşünülmüş, zövqünüzə oxşayacaq layihələr.',
-                    descRu: 'Каждая деталь тщательно продумана опытными архитекторами.',
-                    descEn: 'Every detailing precisely crafted to elevate standard of comfortable luxury.'
-                }
-            ];
-
-            const defaultHomeGalleryImages = [
-                { src: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&q=80&w=1400', title: 'Meşə içində taxta ev atmosferi' },
-                { src: 'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&q=80&w=1400', title: 'İsti və rahat taxta interyer' },
-                { src: 'https://images.unsplash.com/photo-1518780664697-55e3ad937233?auto=format&fit=crop&q=80&w=1400', title: 'Təbiətlə harmoniyada yaşayış' }
-            ];
-
-            const defaultHomeAdvantagesImages = [
-                { src: 'https://images.unsplash.com/photo-1542718610-a1d656d1884c?auto=format&fit=crop&q=80&w=1400', title: 'Qorunmuş taxta fasad' },
-                { src: 'https://images.unsplash.com/photo-1510798831971-661eb04b3739?auto=format&fit=crop&q=80&w=1400', title: 'İzolyasiyalı konstruksiya' },
-                { src: 'https://images.unsplash.com/photo-1613977257363-707ba9348227?auto=format&fit=crop&q=80&w=1400', title: 'Premium tamamlanma' }
-            ];
+            const defaultSlides = [];
+            const defaultHomeGalleryImages = [];
+            const defaultHomeAdvantagesImages = [];
+            const defaultBanner = null;
+            const legacyBanners = null;
+            const storedBanner = null;
+            const migratedBanner = null;
 
             const HERO_SLIDES_CACHE_KEY = 'bc_cached_hero_slides_v3';
             const LEGACY_HERO_SLIDES_CACHE_KEYS = ['bc_cached_hero_slides'];
@@ -154,15 +50,6 @@
             const REJECTED_UNSANITIZED_IMAGE_EXTENSIONS = new Set(['.svg']);
             const REJECTED_UNSANITIZED_IMAGE_MIME_TYPES = new Set(['image/svg+xml']);
             const NO_IMAGE_PREVIEW_MIME_TYPES = new Set(['image/heic', 'image/heif', 'image/heic-sequence', 'image/heif-sequence', 'image/tiff']);
-
-            const defaultMessages = [
-                { id: 1, name: 'Həsən Əliyev', phone: '+994 50 211 44 55', email: 'hasan@mail.ru', message: 'Şamaxıda 2 mərtəbəli evin inşası ile bağlı əlaqə saxlayın.', date: '21.06.2026', read: false }
-            ];
-
-            const defaultBanner = { id: null, active: true, placement: 'both', type: 'image', mediaType: 'image', src: 'https://images.unsplash.com/photo-1542718610-a1d656d1884c?auto=format&fit=crop&q=80&w=300', mediaUrl: 'https://images.unsplash.com/photo-1542718610-a1d656d1884c?auto=format&fit=crop&q=80&w=300', link: 'https://balticcaspian.com', linkUrl: 'https://balticcaspian.com', title: 'Lüks Taxta Evlər - İndi Sifariş Et', width: 260, height: 600, duration: 15, views: 1300, clicks: 46 };
-            const legacyBanners = JSON.parse(localStorage.getItem('bc_banners') || 'null');
-            const storedBanner = JSON.parse(localStorage.getItem('bc_banner') || localStorage.getItem('mainBanner') || 'null');
-            const migratedBanner = storedBanner || (legacyBanners ? (legacyBanners.left?.src ? legacyBanners.left : legacyBanners.right) : null) || null;
 
             return {
                 lang: 'az',
@@ -222,7 +109,7 @@
                     { key: 'home-images', settingKey: 'homeImages', labelKey: 'adminTabHomeImages' },
                     { key: 'ads', labelKey: 'adminTabAds' }
                 ],
-                adminTabVisibility: { dashboard: true, messages: true, projects: true, works: true, gallery: true, hero: true, homeImages: true, ads: true },
+                adminTabVisibility: { dashboard: false, messages: false, projects: false, works: false, gallery: false, hero: false, homeImages: false, ads: false },
                 adminInitializing: true,
                 adminInitializationError: '',
                 adminLoadVersion: 0,
@@ -312,6 +199,7 @@
                 detailType: '',
                 detailSlug: '',
                 detailItem: null,
+                detailLoading: false,
                 detailGalleryState: { images: [], activeIndex: 0 },
                 detailLightboxOpen: false,
                 contactForm: { name: '', phone: '', email: '', message: '' },
@@ -661,7 +549,7 @@
 
                 slugify(value = '') {
                     const map = { ə:'e', Ə:'e', ö:'o', Ö:'o', ü:'u', Ü:'u', ğ:'g', Ğ:'g', ş:'s', Ş:'s', ç:'c', Ç:'c', ı:'i', I:'i', İ:'i' };
-                    return String(value || '').split('').map(ch => map[ch] || ch).join('').toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'detal';
+                    return String(value || '').split('').map(ch => map[ch] || ch).join('').toLowerCase().normalize('NFKD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'detal';
                 },
                 itemSlug(item = {}) { return item.slug || `${this.slugify(item.titleAz || item.title || item.titleEn || item.titleRu)}-${item.id}`; },
                 projectUrl(item = {}) { return `/layiheler/${this.itemSlug(item)}`; },
@@ -748,14 +636,15 @@
                 },
                 localizedProjectDescription(item = {}) { return this.lang === 'en' ? (item.descriptionEn || item.descEn || item.descriptionAz || item.descAz || item.desc || item.description) : (this.lang === 'ru' ? (item.descriptionRu || item.descRu || item.descriptionAz || item.descAz || item.desc || item.description) : (item.descriptionAz || item.descAz || item.desc || item.description)); },
                 projectCardDescription(item = {}) { const short = this.lang === 'en' ? item.shortDescriptionEn : (this.lang === 'ru' ? item.shortDescriptionRu : item.shortDescriptionAz); return this.createExcerpt((short && short !== this.localizedProjectDescription(item)) ? short : this.localizedProjectDescription(item), 140); },
-                openDetail(item, type = 'project') { if (!item?.id) return; this.page = 'detail'; this.notFoundKind = ''; this.detailType = type; this.detailItem = item; this.detailSlug = this.itemSlug(item); this.syncDetailGalleryState(); const url = type === 'project' ? this.projectUrl(item) : this.workUrl(item); if (this.normalizePathname(location.pathname) !== url) history.pushState({}, '', url); this.updateMeta(); window.scrollTo({top:0, behavior:'auto'}); this.refreshDetailFromApi(this.detailSlug, type).catch(() => {}); },
-                async refreshDetailFromApi(slug = this.detailSlug, type = this.detailType) {
+                openDetail(item, type = 'project') { if (!item?.id) return; this.page = 'detail'; this.notFoundKind = ''; this.detailType = type; this.detailItem = { ...item, __detailLoaded: false }; this.detailSlug = this.itemSlug(item); this.detailLoading = true; this.syncDetailGalleryState(); const url = type === 'project' ? this.projectUrl(item) : this.workUrl(item); if (this.normalizePathname(location.pathname) !== url) history.pushState({}, '', url); this.updateMeta(); window.scrollTo({top:0, behavior:'auto'}); this.refreshDetailFromApi(this.detailSlug, type, item.id).catch(() => {}).finally(() => { this.detailLoading = false; }); },
+                async refreshDetailFromApi(slug = this.detailSlug, type = this.detailType, stableId = '') {
                     if (!slug || !type) return null;
                     const cacheKey = `${type === 'work' ? 'work' : 'project'}:detail:${slug}`;
                     const entry = this.cacheEntry(cacheKey);
                     if (entry.data?.__detailLoaded) return entry.data;
                     if (entry.promise) return entry.promise;
-                    const path = type === 'work' ? `/api/works/slug/${encodeURIComponent(slug)}` : `/api/projects/slug/${encodeURIComponent(slug)}`;
+                    const identifier = stableId || slug;
+                    const path = type === 'work' ? `/api/works/${encodeURIComponent(identifier)}` : `/api/projects/${encodeURIComponent(identifier)}`;
                     const run = this.api(path).then(data => {
                         const item = type === 'work' ? this.normalizeWorkItem(data) : this.normalizeProject(data);
                         this.rememberCacheData(cacheKey, item);
@@ -767,7 +656,7 @@
                 },
                 detailTitle(item = this.detailItem) { if (!item) return ''; return this.detailType === 'work' ? this.localizedWorkTitle(item) : (this.lang === 'en' ? (item.titleEn || item.title) : (this.lang === 'ru' ? (item.titleRu || item.title) : item.title)); },
                 detailDescription(item = this.detailItem) { if (!item) return ''; return this.detailType === 'work' ? this.localizedWorkDescription(item) : this.localizedProjectDescription(item); },
-                detailImages(item = this.detailItem) { const imageItems = Array.isArray(item?.imageItems) ? item.imageItems : []; if (imageItems.length) return imageItems; const result = []; const add = (url) => { const value = this.normalizeImageUrl(url || ''); if (value && !result.includes(value)) result.push(value); }; add(item?.originalImage || item?.coverImage || item?.image); (Array.isArray(item?.images) ? item.images : []).forEach(add); return result.map(original => ({ original, thumb: original, medium: original, large: original })); },
+                detailImages(item = this.detailItem) { const imageItems = Array.isArray(item?.imageItems) ? item.imageItems : []; if (imageItems.length && item?.__detailLoaded) return imageItems; const variants = this.normalizeImageVariants(item?.imageVariants || {}); const cover = variants.large || variants.medium || variants.thumb || this.normalizeImageUrl(item?.coverImage || item?.image || item?.originalImage || ''); return cover ? [{ original: item?.originalImage || cover, thumb: variants.thumb || cover, medium: variants.medium || cover, large: variants.large || cover }] : []; },
                 syncDetailGalleryState() { const current = this.detailGalleryState || {}; this.detailGalleryState = { images: this.detailImages(this.detailItem), activeIndex: Math.min(current.activeIndex || 0, Math.max(0, this.detailImages(this.detailItem).length - 1)) }; },
                 detailImage(role = 'large') { const images = this.detailGalleryState.images?.length ? this.detailGalleryState.images : this.detailImages(); return this.detailImageSrc(images[this.detailGalleryState.activeIndex] || images[0], role) || this.fallbackWorkImage(); },
                 setActiveDetailImage(index) { const n = (this.detailGalleryState.images || []).length; if (n) this.detailGalleryState.activeIndex = Math.max(0, Math.min(Number(index)||0, n-1)); },
@@ -1144,7 +1033,7 @@
                     const entry = this.cacheEntry(cacheKey);
                     if (!adminInitial && entry.data) { this.slides = entry.data; this.slidesLoaded = true; return entry.data; }
                     if (entry.promise) return entry.promise;
-                    const run = this.api(this.adminLoggedIn ? '/api/hero-slides?admin=true' : '/api/hero-slides', adminInitial ? { cache: 'no-store' } : {}).then(data => {
+                    const run = this.api(adminInitial ? '/api/hero-slides?admin=true' : '/api/hero-slides', adminInitial ? { cache: 'no-store' } : {}).then(data => {
                         const freshSlides = this.getValidHeroSlides(data, []);
                         this.slides = freshSlides;
                         this.slidesLoaded = true;
@@ -1168,8 +1057,6 @@
                     this.initRouter();
                     this.loadCachedHeroSlides();
                     this.loadHeroSlides();
-                    this.homeGalleryImages = this.visibleHomeGalleryImages();
-                    this.homeAdvantagesImages = this.visibleAdvantagesImages();
                     this.startHomeGalleryRotation();
                     this.$watch('activeSlide', () => this.$nextTick(() => this.syncHeroVideoAudio()));
                     this.$nextTick(() => this.syncHeroVideoAudio());
@@ -1250,7 +1137,7 @@
                         return value;
                     }).catch(error => {
                         console.warn(`Failed ${path}; using cached/local fallback if available.`, error);
-                        const value = entry.data || normalizer(localFallback(), fallback);
+                        const value = entry.data || normalizer(localFallback(), []);
                         assign(value);
                         return value;
                     }).finally(() => { this.cacheEntry(cacheKey).promise = null; });
@@ -1278,10 +1165,10 @@
                     };
                     try {
                         const tasks = [];
-                        if (sections.has('projects')) { if (!this.projects.length) this.projectsLoaded = false; tasks.push(fetchOnce('projects', adminInitial ? '/api/projects?includeArchived=true' : '/api/projects', (d,f)=>this.normalizeProjects(d,f), adminInitial ? [] : defaultProjects, v => { this.projects = v; this.projectsLoaded = true; })); }
+                        if (sections.has('projects')) { if (!this.projects.length) this.projectsLoaded = false; tasks.push(fetchOnce('projects', adminInitial ? '/api/projects?includeArchived=true' : '/api/projects', (d,f)=>this.normalizeProjects(d,f), [], v => { this.projects = v; this.projectsLoaded = true; })); }
                         if (sections.has('gallery')) { if (!this.galleryItems.length) this.galleryLoaded = false; tasks.push(fetchOnce('gallery', adminInitial ? '/api/gallery?includeArchived=true' : '/api/gallery', (d,f)=>this.normalizeGallery(d,f), [], v => { this.galleryItems = v; this.galleryLoaded = true; })); }
                         if (sections.has('works')) { if (!this.workItems.length) this.workItemsLoaded = false; tasks.push(fetchOnce('works', adminInitial ? '/api/works?includeArchived=true' : '/api/works', (d,f)=>this.normalizeWorkItems(d,f), [], v => { this.workItems = v; this.workItemsLoaded = true; })); }
-                        if (sections.has('banners')) tasks.push(fetchOnce('banners', '/api/banners', (d)=>this.normalizeBanners(d, null), [], v => { this.banners = v; this.mainBanner = this.firstActiveBanner() || v[0] || this.normalizeBanner({}, 'both'); this.restartAdRotation(); }));
+                        if (sections.has('banners')) tasks.push(fetchOnce('banners', '/api/banners', (d)=>this.normalizeBanners(d, null), [], v => { this.banners = v; this.mainBanner = this.firstActiveBanner() || v[0] || null; this.restartAdRotation(); }));
                         if (sections.has('stats')) tasks.push(fetchOnce('stats', '/api/stats', d=>({ ...this.stats, ...(d || {}) }), this.stats, v => { this.stats = v; }, { adminInitial, force: adminInitial }));
                         if (sections.has('messages') && this.adminLoggedIn) tasks.push(fetchOnce('messages', '/api/messages', d=>this.asArray(d), [], v => { this.messages = v; }));
                         await Promise.allSettled(tasks);
@@ -1309,7 +1196,7 @@
                             const [why, adv] = await Promise.all([this.api('/api/home-section-images/why_wood', fetchOptions), this.api('/api/home-section-images/advantages', fetchOptions)]);
                             const whyItems = this.normalizeHomeSectionImages(why);
                             const advItems = this.normalizeHomeSectionImages(adv);
-                            const data = { why: whyItems.length ? whyItems : defaultHomeGalleryImages, adv: advItems.length ? advItems : defaultHomeAdvantagesImages };
+                            const data = { why: whyItems, adv: advItems };
                             this.homeGalleryImages = data.why;
                             this.homeAdvantagesImages = data.adv;
                             this.rememberCacheData(cacheKey, data);
@@ -1317,9 +1204,9 @@
                         } catch (error) {
                             console.warn('Home section images could not be loaded.', error);
                             if (adminInitial) throw error;
-                            this.homeGalleryImages = defaultHomeGalleryImages;
-                            this.homeAdvantagesImages = defaultHomeAdvantagesImages;
-                            return { why: this.homeGalleryImages, adv: this.homeAdvantagesImages };
+                            this.homeGalleryImages = [];
+                            this.homeAdvantagesImages = [];
+                            return { why: [], adv: [] };
                         }
                     })().finally(() => { this.cacheEntry(cacheKey).promise = null; });
                     entry.promise = run;
@@ -1327,11 +1214,11 @@
                 },
 
                 visibleHomeGalleryImages() {
-                    return (Array.isArray(this.homeGalleryImages) && this.homeGalleryImages.length) ? this.homeGalleryImages : defaultHomeGalleryImages;
+                    return Array.isArray(this.homeGalleryImages) ? this.homeGalleryImages : [];
                 },
 
                 visibleAdvantagesImages() {
-                    return (Array.isArray(this.homeAdvantagesImages) && this.homeAdvantagesImages.length) ? this.homeAdvantagesImages : defaultHomeAdvantagesImages;
+                    return Array.isArray(this.homeAdvantagesImages) ? this.homeAdvantagesImages : [];
                 },
 
                 nextHomeGalleryImage() {
@@ -1383,8 +1270,7 @@
                 ensureVisibleAdminTab() { if (!this.adminTabVisible(this.adminTab)) this.adminTab = this.visibleAdminTabs()[0]?.key || 'dashboard'; },
 
                 async loadAdminTabVisibility(options = {}) {
-                    const cached = options.networkOnly ? null : JSON.parse(localStorage.getItem('bc_admin_tab_visibility') || 'null');
-                    if (cached) this.adminTabVisibility = { ...this.adminTabVisibility, ...cached };
+                    const cached = null;
                     try {
                         const setting = await this.api('/api/admin-panel-settings/admin_tab_visibility', options.networkOnly ? { cache: 'no-store' } : {});
                         this.adminTabVisibility = { ...this.adminTabVisibility, ...(setting?.value || {}) };
@@ -3564,8 +3450,6 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
 
         .project-card__cta { color: #fff !important; background: rgba(25, 95, 61, .88) !important; border: 1px solid rgba(255,255,255,.35); backdrop-filter: blur(12px); text-shadow: 0 1px 2px rgba(0,0,0,.25); }
         .project-card:hover .project-card__cta { background: rgba(31, 119, 75, .95) !important; color: #fff !important; }
-        .skeleton-shimmer { position: relative; overflow: hidden; background: linear-gradient(90deg, #f5f5f4 25%, #e7e5e4 37%, #f5f5f4 63%); background-size: 400% 100%; animation: skeletonShimmer 1.35s ease infinite; }
-        @keyframes skeletonShimmer { 0% { background-position: 100% 0; } 100% { background-position: 0 0; } }
 
 
         .admin-page-shell { padding-bottom: calc(110px + env(safe-area-inset-bottom)); }
@@ -4105,12 +3989,6 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                 color: #fff !important;
             }
             .project-card__cta { display: none !important; }
-            .project-skeleton-grid > div,
-            .project-skeleton-grid .rounded-3xl { border-radius: 18px !important; }
-            .project-skeleton-grid .h-64 {
-                height: auto !important;
-                aspect-ratio: 4 / 3;
-            }
         }
         @media (min-width: 1280px) {
             .ad-safe-content { padding-left: 0; padding-right: 0; }
@@ -4775,12 +4653,8 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                 <!-- HERO SLIDER SECTION -->
                 <section data-home-hero class="hero-viewport relative left-1/2 w-screen max-w-[100vw] -translate-x-1/2 bg-stone-900 overflow-hidden flex items-center">
                     <div class="absolute inset-0 z-0">
-                        <div x-show="!slidesLoaded" class="absolute inset-0 hero-loading-placeholder">
-                            <div class="absolute inset-0 opacity-20 skeleton-shimmer"></div>
-                            <div class="hero-overlay absolute inset-0"></div>
-                        </div>
                         <template x-for="(slide, index) in activeHeroSlides()" :key="index">
-                            <div x-show="activeSlide === index" x-transition:enter="transition ease-out duration-1000" class="absolute inset-0">
+                            <template x-if="activeSlide === index"><div x-transition:enter="transition ease-out duration-1000" class="absolute inset-0">
                                 <template x-if="getHeroMediaKind(slide) === 'video' && !isYouTubeUrl(getHeroMediaUrl(slide))">
                                     <div class="absolute inset-0 bg-[#06110e] overflow-hidden">
                                         <video :src="getHeroMediaUrl(slide)" :data-hero-index="index" autoplay muted loop playsinline preload="metadata" aria-hidden="true" class="hero-slide-video-bg"></video>
@@ -4789,21 +4663,15 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                                 </template>
                                 <template x-if="getHeroMediaKind(slide) !== 'video' || isYouTubeUrl(getHeroMediaUrl(slide))">
                                     <div class="absolute inset-0 bg-[#06110e] overflow-hidden">
-                                        <img :src="getHeroVisualUrl(slide)" class="hero-slide-media-bg" decoding="async" fetchpriority="high" aria-hidden="true" alt="">
-                                        <img :src="getHeroVisualUrl(slide)" class="hero-slide-media hero-slide-media-main" decoding="async" fetchpriority="high" :class="getHeroMediaFit(slide) === 'contain' ? 'object-contain bg-[#06110e]' : 'object-cover'" alt="Hero background">
+                                        <img :src="getHeroVisualUrl(slide)" class="hero-slide-media hero-slide-media-main" :loading="index === 0 ? 'eager' : 'lazy'" decoding="async" :fetchpriority="index === 0 ? 'high' : 'low'" :class="getHeroMediaFit(slide) === 'contain' ? 'object-contain bg-[#06110e]' : 'object-cover'" width="1600" height="900" alt="Hero background">
                                     </div>
                                 </template>
                                 <div class="hero-overlay absolute inset-0"></div>
-                            </div>
+                            </div></template>
                         </template>
                     </div>
 
                     <div class="hero-content">
-                        <div x-show="!slidesLoaded" class="hero-copy-panel space-y-4 sm:space-y-5">
-                            <div class="h-8 w-48 rounded-full bg-white/10 skeleton-shimmer"></div>
-                            <div class="h-14 sm:h-20 w-full max-w-xl rounded-2xl bg-white/10 skeleton-shimmer"></div>
-                            <div class="h-6 w-full max-w-lg rounded-xl bg-white/10 skeleton-shimmer"></div>
-                        </div>
                         <div x-show="slidesLoaded && activeHeroSlides().length" class="hero-copy-panel space-y-4 sm:space-y-5">
                             <span x-show="(activeHeroSlides()[activeSlide] || {}).tag || (lang === 'en' && (activeHeroSlides()[activeSlide] || {}).tagEn) || (lang === 'ru' && (activeHeroSlides()[activeSlide] || {}).tagRu)" class="hero-kicker inline-flex items-center gap-2 bg-wood-600/90 text-stone-50 rounded-full font-bold uppercase tracking-wider shadow-md">
                                 <i class="fa-solid fa-tree"></i>
@@ -5091,16 +4959,6 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                     <button @click="filterCategory = 'sauna'" class="project-filter-button px-5 py-2.5 rounded-xl font-bold text-sm transition" :class="filterCategory === 'sauna' ? 'bg-forest-700 text-white shadow-md' : 'bg-white text-stone-600 hover:bg-stone-100 border border-stone-200'" x-text="lang === 'az' ? 'Hamam & Sauna' : (lang === 'ru' ? 'Бани & Сауны' : 'Bath & Sauna')">Hamam & Sauna</button>
                 </div>
 
-                <template x-if="!projectsLoaded">
-                    <div class="project-grid project-skeleton-grid grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                        <template x-for="idx in 4" :key="`project-skeleton-${idx}`">
-                            <div class="bg-white rounded-3xl overflow-hidden shadow-sm border border-stone-200/60">
-                                <div class="h-64 skeleton-shimmer"></div>
-                                <div class="p-6 space-y-4"><div class="h-6 w-2/3 rounded skeleton-shimmer"></div><div class="h-4 w-full rounded skeleton-shimmer"></div><div class="h-4 w-5/6 rounded skeleton-shimmer"></div></div>
-                            </div>
-                        </template>
-                    </div>
-                </template>
                 <template x-if="projectsLoaded">
                     <div>
                         <div x-show="!(Array.isArray(filteredProjects) && filteredProjects.filter(p => !p.archived).length)" class="empty-state projects-empty rounded-3xl border border-stone-200 bg-white p-10 text-center text-stone-500 font-bold" x-text="lang === 'az' ? 'Bu kateqoriyada layihə yoxdur' : (lang === 'ru' ? 'В этой категории проектов нет.' : 'There are no projects in this category.')"></div>
@@ -5146,7 +5004,6 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                         <button type="button" @click="activeWorkCategory = cat" class="works-filter-button" :class="activeWorkCategory === cat ? 'is-active' : ''" x-text="workCategoryLabel(cat)"></button>
                     </template>
                 </div>
-                <template x-if="!workItemsLoaded"><div class="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-6"><template x-for="n in 6"><div class="h-60 rounded-[22px] skeleton-shimmer"></div></template></div></template>
                 <template x-if="workItemsLoaded">
                     <div>
                         <div x-show="!filteredWorkItems.length" class="works-empty-state"><i class="fa-solid fa-briefcase"></i><strong x-text="lang === 'az' ? 'Hələ iş əlavə edilməyib' : (lang === 'ru' ? 'Работы пока не добавлены' : 'No work items yet')"></strong><small x-text="lang === 'az' ? 'Tamamlanmış işlər burada göstəriləcək.' : (lang === 'ru' ? 'Завершенные работы появятся здесь.' : 'Completed works will appear here.')"></small></div>
@@ -5170,9 +5027,6 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                     <p class="text-stone-500 text-sm sm:text-base" x-text="t('galleryDesc')">Taxta evlərdən besedkalara, restoranlardan fərdi konstruksiyalara qədər müxtəlif layihə, dizayn və tətbiq nümunələri.</p>
                 </div>
 
-                <div x-show="!galleryLoaded" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                    <template x-for="idx in 4" :key="`gallery-skeleton-${idx}`"><div class="aspect-square rounded-2xl skeleton-shimmer"></div></template>
-                </div>
                 <div x-show="galleryLoaded && !(Array.isArray(galleryItems) && galleryItems.filter(g => !g.archived).length)" class="empty-state gallery-empty rounded-3xl border border-stone-200 bg-white p-10 text-center text-stone-500 font-bold" x-text="lang === 'az' ? 'Qalereyada hələ media əlavə edilməyib.' : (lang === 'ru' ? 'Галерея пуста.' : 'Gallery is empty.')"></div>
                 <div x-show="galleryLoaded" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                     <template x-for="(img, idx) in (Array.isArray(galleryItems) ? galleryItems : []).filter(g => !g.archived)" :key="img.id">
@@ -5198,7 +5052,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
 
             <!-- SEO DETAIL PAGE -->
             <div x-show="page === 'detail'" x-cloak class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 ad-safe-content" @keydown.arrow-right.window="nextDetailImage()" @keydown.arrow-left.window="prevDetailImage()" @keydown.escape.window="detailLightboxOpen=false">
-                <template x-if="!detailItem"><div class="space-y-6"><div class="h-8 w-52 rounded skeleton-shimmer"></div><div class="h-12 w-2/3 rounded skeleton-shimmer"></div><div class="h-32 rounded-3xl skeleton-shimmer"></div><div class="h-96 rounded-[2rem] skeleton-shimmer"></div></div></template>
+                
                 <template x-if="detailItem"><article class="space-y-10">
                     <nav class="text-sm font-bold text-stone-500"><a href="/">Ana səhifə</a><span class="mx-2">/</span><a :href="detailType==='project'?'/layiheler':'/islerimiz'" x-text="detailType==='project'?t('navProjects'):t('navWorks')"></a><span class="mx-2">/</span><span class="text-forest-800" x-text="detailTitle()"></span></nav>
                     <section class="detail-intro space-y-4">
@@ -5209,11 +5063,11 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                         <div class="min-w-0 space-y-4">
                             <div class="relative rounded-[22px] border border-stone-200 bg-[#f5f5f2] overflow-hidden min-h-[320px] sm:min-h-[480px] max-h-[760px] flex items-center justify-center">
                                 <button type="button" class="block h-full min-h-[320px] sm:min-h-[480px] w-full cursor-zoom-in" @click="detailLightboxOpen=true" aria-label="Şəkli böyüt"><img :src="detailImage('large')" :alt="detailTitle()" class="aspect-[4/3] h-full w-full max-h-[760px] object-contain" width="1600" height="1200" loading="eager" decoding="async" fetchpriority="high"></button>
-                                <template x-if="detailGalleryState.images.length > 1"><button type="button" class="absolute left-3 top-1/2 -translate-y-1/2 h-11 w-11 rounded-full bg-white/85 text-forest-900 shadow" @click.stop="prevDetailImage()" aria-label="Əvvəlki şəkil"><i class="fa-solid fa-chevron-left"></i></button></template>
-                                <template x-if="detailGalleryState.images.length > 1"><button type="button" class="absolute right-3 top-1/2 -translate-y-1/2 h-11 w-11 rounded-full bg-white/85 text-forest-900 shadow" @click.stop="nextDetailImage()" aria-label="Növbəti şəkil"><i class="fa-solid fa-chevron-right"></i></button></template>
-                                <span x-show="detailGalleryState.images.length > 1" class="absolute bottom-3 right-3 rounded-full bg-white/90 px-3 py-1 text-xs font-black text-forest-900" x-text="`${detailGalleryState.activeIndex+1} / ${detailGalleryState.images.length}`"></span>
+                                <template x-if="detailItem?.__detailLoaded && detailGalleryState.images.length > 1"><button type="button" class="absolute left-3 top-1/2 -translate-y-1/2 h-11 w-11 rounded-full bg-white/85 text-forest-900 shadow" @click.stop="prevDetailImage()" aria-label="Əvvəlki şəkil"><i class="fa-solid fa-chevron-left"></i></button></template>
+                                <template x-if="detailItem?.__detailLoaded && detailGalleryState.images.length > 1"><button type="button" class="absolute right-3 top-1/2 -translate-y-1/2 h-11 w-11 rounded-full bg-white/85 text-forest-900 shadow" @click.stop="nextDetailImage()" aria-label="Növbəti şəkil"><i class="fa-solid fa-chevron-right"></i></button></template>
+                                <span x-show="detailItem?.__detailLoaded && detailGalleryState.images.length > 1" class="absolute bottom-3 right-3 rounded-full bg-white/90 px-3 py-1 text-xs font-black text-forest-900" x-text="detailItem?.__detailLoaded ? `${detailGalleryState.activeIndex+1} / ${detailGalleryState.images.length}` : ''"></span>
                             </div>
-                            <div x-show="detailGalleryState.images.length > 1" class="flex gap-2 sm:gap-3 overflow-x-auto pb-2">
+                            <div x-show="detailItem?.__detailLoaded && detailGalleryState.images.length > 1" class="flex gap-2 sm:gap-3 overflow-x-auto pb-2">
                                 <template x-for="(imageItem,index) in detailGalleryState.images" :key="(imageItem.original || imageItem.medium || imageItem.large || imageItem.thumb || '')+index"><button type="button" @click.prevent="setActiveDetailImage(index)" class="aspect-[4/3] h-20 w-28 shrink-0 overflow-hidden rounded-xl border-2 bg-stone-100 transition" :class="detailGalleryState.activeIndex===index?'border-forest-700 ring-2 ring-forest-700/20':'border-transparent hover:border-stone-300'" :aria-label="`${index+1}. şəkli göstər`"><img :src="detailImageSrc(imageItem, 'thumb')" class="h-full w-full object-cover" width="480" height="360" loading="lazy" decoding="async" alt="Thumbnail"></button></template>
                             </div>
                             </div>
@@ -5221,7 +5075,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                     </section>
                     <section x-show="hasDetailDescription()" class="rounded-3xl border border-stone-200 bg-white p-6 sm:p-8 shadow-sm"><h2 class="text-2xl font-black text-forest-950" x-text="detailType==='work'?'İş haqqında':'Layihə haqqında'">Layihə haqqında</h2><p class="mt-4 max-w-5xl whitespace-pre-line text-[17px] leading-8 text-stone-600" x-text="detailDescription()"></p></section>
                     <section x-show="similarDetailItems().length" class="pt-6 sm:pt-10 space-y-5"><h2 class="text-2xl sm:text-3xl font-black text-forest-950" x-text="detailType==='work'?'Oxşar işlər':'Oxşar layihələr'">Oxşar layihələr</h2><div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-5"><template x-for="item in similarDetailItems()" :key="item.id"><a :href="detailType==='work'?workUrl(item):projectUrl(item)" class="group text-left rounded-3xl overflow-hidden bg-white border border-stone-200 shadow-sm hover:shadow-xl transition"><img :src="item.coverImage||item.image||fallbackWorkImage()" @error="setWorkImageFallback($event)" class="aspect-[4/3] w-full object-cover" loading="lazy" decoding="async"><div class="p-5"><span class="text-xs font-black uppercase tracking-[0.14em] text-forest-700" x-text="detailType==='work'?workCategoryLabel(item.category):(item.catName||item.category)"></span><h3 class="mt-2 font-black text-forest-950 group-hover:text-forest-700" x-text="detailType==='work'?localizedWorkTitle(item):(item.title||item.titleAz)"></h3><p x-show="item.area" class="mt-2 text-sm font-bold text-stone-500" x-text="formatAreaValue(item.area)"></p></div></a></template></div></section>
-                    <div x-show="detailLightboxOpen" x-cloak class="fixed inset-0 z-[9999] bg-black/95 p-4 flex items-center justify-center" @click="detailLightboxOpen=false"><button class="absolute top-4 right-4 h-12 w-12 rounded-full bg-white/15 text-white" @click.stop="detailLightboxOpen=false" aria-label="Bağla"><i class="fa-solid fa-xmark"></i></button><button x-show="detailGalleryState.images.length > 1" class="absolute left-4 h-12 w-12 rounded-full bg-white/15 text-white" @click.stop="prevDetailImage()" aria-label="Əvvəlki şəkil"><i class="fa-solid fa-chevron-left"></i></button><img :src="detailImage('large')" class="max-h-full max-w-full object-contain" width="1600" height="1200" loading="lazy" decoding="async" :alt="detailTitle()"><span class="absolute bottom-4 rounded-full bg-white/15 px-4 py-2 text-sm font-black text-white" x-text="`${detailGalleryState.activeIndex+1} / ${detailGalleryState.images.length}`"></span><button x-show="detailGalleryState.images.length > 1" class="absolute right-4 h-12 w-12 rounded-full bg-white/15 text-white" @click.stop="nextDetailImage()" aria-label="Növbəti şəkil"><i class="fa-solid fa-chevron-right"></i></button></div>
+                    <div x-show="detailLightboxOpen" x-cloak class="fixed inset-0 z-[9999] bg-black/95 p-4 flex items-center justify-center" @click="detailLightboxOpen=false"><button class="absolute top-4 right-4 h-12 w-12 rounded-full bg-white/15 text-white" @click.stop="detailLightboxOpen=false" aria-label="Bağla"><i class="fa-solid fa-xmark"></i></button><button x-show="detailItem?.__detailLoaded && detailGalleryState.images.length > 1" class="absolute left-4 h-12 w-12 rounded-full bg-white/15 text-white" @click.stop="prevDetailImage()" aria-label="Əvvəlki şəkil"><i class="fa-solid fa-chevron-left"></i></button><img :src="detailImage('large')" class="max-h-full max-w-full object-contain" width="1600" height="1200" loading="lazy" decoding="async" :alt="detailTitle()"><span class="absolute bottom-4 rounded-full bg-white/15 px-4 py-2 text-sm font-black text-white" x-text="detailItem?.__detailLoaded ? `${detailGalleryState.activeIndex+1} / ${detailGalleryState.images.length}` : ''"></span><button x-show="detailItem?.__detailLoaded && detailGalleryState.images.length > 1" class="absolute right-4 h-12 w-12 rounded-full bg-white/15 text-white" @click.stop="nextDetailImage()" aria-label="Növbəti şəkil"><i class="fa-solid fa-chevron-right"></i></button></div>
                 </article></template>
             </div>
 
@@ -5237,7 +5091,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                                 <p class="whitespace-pre-line" x-text="lang === 'ru' ? (t('aboutTextRu') || t('aboutTextAz')) : (lang === 'en' ? (t('aboutTextEn') || t('aboutTextAz')) : t('aboutTextAz'))">BALTIC CASPIAN LTD 2008-ci ildə yaradılmışdır.</p>
                             </div>
                         </div>
-                        <img src="https://images.unsplash.com/photo-1549692520-acc6669e2f0c?auto=format&fit=crop&q=80&w=1000" class="about-intro-image" loading="lazy" decoding="async" alt="Baltic Caspian LTD wooden construction workspace">
+                        <img src="/balticlogo.png?v=2" class="about-intro-image" loading="lazy" decoding="async" alt="Baltic Caspian LTD wooden construction workspace">
                     </div>
                 </section>
 
@@ -5403,10 +5257,6 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                     </template>
                 </div>
 
-                <div x-show="adminInitializing" x-transition.opacity class="admin-loading-skeleton grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6" aria-live="polite" aria-busy="true">
-                    <template x-for="i in 4" :key="i"><div class="bg-white p-6 rounded-3xl border border-stone-200/80 shadow-sm"><div class="h-12 w-12 rounded-2xl skeleton-shimmer mb-4"></div><div class="h-3 w-28 rounded skeleton-shimmer mb-3"></div><div class="h-7 w-20 rounded skeleton-shimmer"></div></div></template>
-                    <div class="sm:col-span-2 lg:col-span-4 bg-white p-6 rounded-3xl border border-stone-200/80 shadow-sm"><div class="h-4 w-44 rounded skeleton-shimmer mb-4"></div><div class="h-24 rounded-2xl skeleton-shimmer"></div></div>
-                </div>
                 <div x-show="!adminInitializing && adminInitializationError" class="bg-white p-6 rounded-3xl border border-red-200 shadow-sm text-sm"><p class="font-black text-red-700" x-text="adminInitializationError"></p><button type="button" @click="retryAdminInitialization()" class="mt-4 admin-primary-action">Yenidən yoxla</button></div>
                 <div x-show="!adminInitializing && !adminInitializationError" class="space-y-8">
                 <!-- SUB-TAB 1: LIVE DYNAMIC STATISTICS -->
@@ -5512,7 +5362,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                     <div class="admin-work-list-card">
                         <div class="admin-work-list-head"><div><h3>Mövcud işlər <span x-text="`— ${filteredAdminWorks().length} iş`"></span></h3><p>Axtarış və filterlər lokal cache üzərində işləyir.</p></div></div>
                         <div class="admin-entity-toolbar admin-work-toolbar"><input type="search" x-model.debounce.150ms="workAdminSearch" placeholder="İş adına görə axtar" class="admin-project-input"><select x-model="workAdminCategoryFilter" class="admin-project-input"><option value="all">Bütün kateqoriyalar</option><template x-for="cat in workCategories().filter(c => c !== 'all')" :key="cat"><option :value="cat" x-text="workCategoryLabel(cat)"></option></template></select><select x-model="workAdminStatusFilter" class="admin-project-input"><option value="all">Hamısı</option><option value="active">Aktiv</option><option value="archived">Arxiv</option></select><select x-model="workAdminFeaturedFilter" class="admin-project-input"><option value="all">Seçilmiş: hamısı</option><option value="featured">Seçilmiş</option><option value="plain">Seçilməmiş</option></select></div>
-                        <div x-show="!workItemsLoaded" class="p-6 rounded-2xl skeleton-shimmer">Yüklənir...</div><div x-show="workItemsLoaded && !filteredAdminWorks().length" class="admin-empty-state"><i class="fa-solid fa-briefcase"></i><strong>İş tapılmadı</strong><small>Filterləri dəyişin və ya yuxarıdakı formdan yeni iş yaradın.</small></div>
+                        <div x-show="workItemsLoaded && !filteredAdminWorks().length" class="admin-empty-state"><i class="fa-solid fa-briefcase"></i><strong>İş tapılmadı</strong><small>Filterləri dəyişin və ya yuxarıdakı formdan yeni iş yaradın.</small></div>
                         <div class="admin-work-grid"><template x-for="item in filteredAdminWorks()" :key="item.id"><article class="admin-work-premium-card"><div class="admin-project-cover"><img :src="item.coverImage || fallbackWorkImage()" @error="setWorkImageFallback($event)" alt=""><span class="admin-project-status" :class="item.archived ? 'is-archived' : 'is-active'" x-text="item.archived ? 'Arxivdə' : 'Aktiv'"></span><span x-show="item.featured" class="admin-card-featured">Seçilmiş</span></div><div class="admin-project-body"><span class="admin-project-category" x-text="workCategoryLabel(item.category)"></span><h4 :title="adminWorkTitle(item)" x-text="adminWorkTitle(item)"></h4><p class="admin-card-excerpt" x-text="adminWorkExcerpt(item)"></p><div class="admin-project-specs"><span><i class="fa-solid fa-location-dot"></i><b x-text="adminWorkLocation(item) || '—'"></b></span><span><i class="fa-solid fa-calendar-check"></i><b x-text="formatWorkDate(item.completionDate) || '—'"></b></span><span><i class="fa-solid fa-arrow-down-1-9"></i><b x-text="item.sortOrder"></b></span><span><i class="fa-solid fa-images"></i><b x-text="`${(item.images || []).length} şəkil`"></b></span></div></div><div class="admin-card-reorder"><button @click="moveWorkItem(item,-1)">↑ Yuxarı</button><button @click="moveWorkItem(item,1)">↓ Aşağı</button></div><div class="admin-project-actions admin-work-actions"><button type="button" class="edit" @click="editWorkItem(item)" :disabled="creatingWork"><i class="fa-solid fa-pen-to-square"></i>Redaktə et</button><button type="button" class="archive" @click="toggleWorkStatus(item)" x-text="item.archived ? 'Aktiv et' : 'Arxivlə'"></button><button type="button" class="select" @click="toggleWorkFeatured(item)" x-text="item.featured ? 'Çıxar' : 'Seçilmiş et'"></button><button type="button" class="delete" @click="deleteWorkItem(item)"><i class="fa-regular fa-trash-can"></i>Sil</button></div></article></template></div>
                     </div>
                 </div>
