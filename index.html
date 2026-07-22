@@ -26,7 +26,7 @@
     <!-- Alpine.js State Controller & Dictionary -->
     <script>
         window.siteState = function siteState() {
-            // Retrieve dynamic data from localStorage or fallback to defaults
+            // Retrieve dynamic data from API; never show demo media for public gallery.
             const defaultProjects = [
                 {
                     id: 1,
@@ -76,11 +76,7 @@
                 }
             ];
 
-            const defaultGallery = [
-                { id: 1, src: 'https://images.unsplash.com/photo-1510798831971-661eb04b3739?auto=format&fit=crop&q=80&w=800', images: ['https://images.unsplash.com/photo-1510798831971-661eb04b3739?auto=format&fit=crop&q=80&w=800'], title: 'Eksteryer Dizayn', titleRu: 'Дизайн экстерьера', titleEn: 'Exterior Design', type: 'image', archived: false },
-                { id: 2, src: 'https://images.unsplash.com/photo-1542718610-a1d656d1884c?auto=format&fit=crop&q=80&w=800', images: ['https://images.unsplash.com/photo-1542718610-a1d656d1884c?auto=format&fit=crop&q=80&w=800'], title: 'Yay Villası', titleRu: 'Летняя вилла', titleEn: 'Summer Villa', type: 'image', archived: false },
-                { id: 3, src: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', title: 'Tanıtım Videosu', titleRu: 'Промо Видео', titleEn: 'Promo Video', type: 'video', archived: false }
-            ];
+            const defaultGallery = [];
 
             const defaultSlides = [
                 {
@@ -873,14 +869,14 @@
                 },
                 responsiveImageSrc(item = {}, preferred = 'medium') {
                     const variants = item.imageVariants || {};
-                    return variants[preferred] || item.coverImage || item.image || item.src || item.mediaUrl || this.imageVariant(item.originalImage || item.originalMediaUrl || item.coverImage || item.image || item.src || item.mediaUrl, preferred);
+                    return variants[preferred] || item.coverImage || item.image || item.src || item.mediaUrl || item.originalImage || item.originalMediaUrl || '';
                 },
                 responsiveImageSrcset(item = {}) {
                     const variants = item.imageVariants || {};
                     const original = item.originalImage || item.originalMediaUrl || item.coverImage || item.image || item.src || item.mediaUrl || '';
-                    const thumb = variants.thumb || this.imageVariant(original, 'thumb');
-                    const medium = variants.medium || this.imageVariant(original, 'medium');
-                    const large = variants.large || this.imageVariant(original, 'large');
+                    const thumb = variants.thumb || '';
+                    const medium = variants.medium || '';
+                    const large = variants.large || ''; // never invent variant URLs on the frontend
                     return [thumb && `${thumb} 480w`, medium && `${medium} 960w`, large && `${large} 1600w`].filter(Boolean).join(', ');
                 },
                 imageLoading(index = 0, eagerCount = 2) { return Number(index) < eagerCount ? 'eager' : 'lazy'; },
@@ -1231,8 +1227,8 @@
                     const force = !!options.force;
                     const cacheKey = adminInitial ? `admin:${key}` : key;
                     const entry = this.cacheEntry(cacheKey);
-                    const persistedKey = key === 'banners' ? 'bc_banners_list' : `bc_${key}`;
-                    const localFallback = () => { if (adminInitial) return fallback; try { const cached = JSON.parse(localStorage.getItem(persistedKey) || 'null'); if (cached?.expiresAt && cached.expiresAt > Date.now()) return cached.data || fallback; if (Array.isArray(cached)) return cached; } catch (error) { localStorage.removeItem(persistedKey); } return fallback; };
+                    const persistedKey = key === 'gallery' ? 'bc_gallery_v3' : (key === 'banners' ? 'bc_banners_list' : `bc_${key}`);
+                    const localFallback = () => { if (adminInitial) return fallback; if (key === 'gallery') { ['bc_gallery','bc_gallery_v1','bc_gallery_v2','gallery','gallery:list','public:gallery'].forEach(k => { try { localStorage.removeItem(k); } catch (e) {} }); } try { const cached = JSON.parse(localStorage.getItem(persistedKey) || 'null'); if (cached?.expiresAt && cached.expiresAt > Date.now()) return cached.data || fallback; if (Array.isArray(cached) && key !== 'gallery') return cached; } catch (error) { localStorage.removeItem(persistedKey); } return fallback; };
                     if (!force && entry.data) { assign(entry.data); if (entry.expiresAt > Date.now()) return Promise.resolve(entry.data); }
                     if (!force && entry.promise) return entry.promise.then(value => { assign(value); return value; });
                     const promise = this.api(path, adminInitial ? { cache: 'no-store' } : {}).then(data => {
@@ -1272,7 +1268,7 @@
                     try {
                         const tasks = [];
                         if (sections.has('projects')) { if (!this.projects.length) this.projectsLoaded = false; tasks.push(fetchOnce('projects', adminInitial ? '/api/projects?includeArchived=true' : '/api/projects', (d,f)=>this.normalizeProjects(d,f), adminInitial ? [] : defaultProjects, v => { this.projects = v; this.projectsLoaded = true; })); }
-                        if (sections.has('gallery')) { if (!this.galleryItems.length) this.galleryLoaded = false; tasks.push(fetchOnce('gallery', adminInitial ? '/api/gallery?includeArchived=true' : '/api/gallery', (d,f)=>this.normalizeGallery(d,f), adminInitial ? [] : defaultGallery, v => { this.galleryItems = v; this.galleryLoaded = true; })); }
+                        if (sections.has('gallery')) { if (!this.galleryItems.length) this.galleryLoaded = false; tasks.push(fetchOnce('gallery', adminInitial ? '/api/gallery?includeArchived=true' : '/api/gallery', (d,f)=>this.normalizeGallery(d,f), [], v => { this.galleryItems = v; this.galleryLoaded = true; })); }
                         if (sections.has('works')) { if (!this.workItems.length) this.workItemsLoaded = false; tasks.push(fetchOnce('works', adminInitial ? '/api/works?includeArchived=true' : '/api/works', (d,f)=>this.normalizeWorkItems(d,f), [], v => { this.workItems = v; this.workItemsLoaded = true; })); }
                         if (sections.has('banners')) tasks.push(fetchOnce('banners', '/api/banners', (d)=>this.normalizeBanners(d, null), [], v => { this.banners = v; this.mainBanner = this.firstActiveBanner() || v[0] || this.normalizeBanner({}, 'both'); this.restartAdRotation(); }));
                         if (sections.has('stats')) tasks.push(fetchOnce('stats', '/api/stats', d=>({ ...this.stats, ...(d || {}) }), this.stats, v => { this.stats = v; }, { adminInitial, force: adminInitial }));
@@ -2103,14 +2099,24 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                     setTimeout(() => { this.toast.show = false; }, 4000);
                 },
 
-                setupEditProject(proj) {
+                async setupEditProject(proj) {
                     this.newProj = { ...proj, cat: this.normalizeCategory(proj.category || proj.cat || 'house'), category: this.normalizeCategory(proj.category || proj.cat || 'house'), titleAz: proj.titleAz || proj.title, titleRu: proj.titleRu, titleEn: proj.titleEn, descAz: proj.descAz || proj.descriptionAz || proj.desc, descRu: proj.descRu || proj.descriptionRu, descEn: proj.descEn || proj.descriptionEn, buildTimeAz: proj.buildTimeAz || proj.buildTime, buildTimeRu: proj.buildTimeRu, buildTimeEn: proj.buildTimeEn };
                     this.showProjectTranslations = false;
                     this.revokeProjectPreviewUrls();
                     const existingImages = (Array.isArray(proj.images) && proj.images.length ? proj.images : (proj.image ? [proj.image] : [])).filter(Boolean);
                     this.selectedProjectImages = existingImages.map(url => ({ id: this.projectImageId(), type: 'existing', url }));
                     this.syncProjectLegacyPreviewState();
+                    this.projectImagesLoading = true;
                     this.$nextTick(() => this.initProjectImageSortable());
+                    try {
+                        const detail = await this.api(`/api/projects/${proj.id || proj.slug}`, { cache: 'no-store' });
+                        const full = this.normalizeProject(detail);
+                        this.newProj = { ...this.newProj, ...full, cat: this.normalizeCategory(full.category || full.cat || this.newProj.cat), category: this.normalizeCategory(full.category || full.cat || this.newProj.category) };
+                        const detailImages = (Array.isArray(full.images) && full.images.length ? full.images : (full.originalImage || full.coverImage ? [full.originalImage || full.coverImage] : [])).filter(Boolean);
+                        this.selectedProjectImages = detailImages.map(url => ({ id: this.projectImageId(), type: 'existing', url }));
+                        this.syncProjectLegacyPreviewState();
+                    } catch (error) { this.showToast('Xəta', 'Layihə şəkilləri tam yüklənmədi.'); }
+                    finally { this.projectImagesLoading = false; this.$nextTick(() => this.initProjectImageSortable()); }
                 },
 
                 async saveProject() {
@@ -2123,7 +2129,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                         const orderedProjectImages = Array.isArray(this.selectedProjectImages) ? [...this.selectedProjectImages] : [];
                         const finalImages = orderedProjectImages.length
                             ? await this.resolveProjectImagesForSave(orderedProjectImages)
-                            : ['https://images.unsplash.com/photo-1510798831971-661eb04b3739?auto=format&fit=crop&q=80&w=800'];
+                            : [];
                         const finalImage = finalImages[0];
                         this.ensureAutoTranslations([['newProj.titleAz','newProj.titleRu','newProj.titleEn'], ['newProj.descAz','newProj.descRu','newProj.descEn'], ['newProj.buildTimeAz','newProj.buildTimeRu','newProj.buildTimeEn']]);
                         const endpoint = isEditMode ? `/api/projects/${this.newProj.id}` : '/api/projects';
@@ -2175,7 +2181,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                     this.triggerAction(async () => {
                         const selectedGalleryFiles = Array.isArray(this.galleryPreviewImagesFiles) ? this.galleryPreviewImagesFiles : [];
                         const finalImages = this.newGallery.type === 'image'
-                            ? (selectedGalleryFiles.length ? await Promise.all(selectedGalleryFiles.map(file => this.uploadMedia(file, 'gallery'))) : ((Array.isArray(this.galleryPreviewImages) ? this.galleryPreviewImages : []).length ? this.galleryPreviewImages : (this.galleryPreviewImg ? [this.galleryPreviewImg] : ['https://images.unsplash.com/photo-1542718610-a1d656d1884c?auto=format&fit=crop&q=80&w=800'])))
+                            ? (selectedGalleryFiles.length ? await Promise.all(selectedGalleryFiles.map(file => this.uploadMedia(file, 'gallery'))) : ((Array.isArray(this.galleryPreviewImages) ? this.galleryPreviewImages : []).length ? this.galleryPreviewImages : (this.galleryPreviewImg ? [this.galleryPreviewImg] : [])))
                             : [];
                         const finalSrc = this.newGallery.type === 'video'
                             ? (this.galleryPreviewImgFile ? await this.uploadMedia(this.galleryPreviewImgFile, 'gallery') : this.galleryPreviewImg)
@@ -2739,18 +2745,18 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                 setWorkImageFiles(event) { if (this.creatingWork) return; const files = [...(event.target.files || [])]; if (files.some(file => !this.isAllowedImageFile(file))) { this.showToast('Format dəstəklənmir', 'Bu şəkil formatı dəstəklənmir.'); event.target.value = ''; return; } if (files.length + (this.workForm.images || []).length > MAX_IMAGES_PER_ITEM) { this.showToast('Limit', 'Bir layihəyə maksimum 40 şəkil əlavə edə bilərsiniz.'); event.target.value = ''; return; } if (files.some(file => this.isHeicImageFile(file))) this.showToast('HEIC şəkli seçildi', 'Önizləmə bu brauzerdə mövcud deyil, lakin fayl yüklənəcək.'); this.workImageFiles = files; },
                 removePendingWorkImage(index) { if (this.creatingWork) return; this.workImageFiles = this.workImageFiles.filter((_, i) => i !== index); },
                 resetWorkForm(force = false) { if (this.creatingWork && !force) return; this.editingWorkItemId = null; this.workForm = { category: 'house', titleAz: '', titleRu: '', titleEn: '', descriptionAz: '', descriptionRu: '', descriptionEn: '', locationAz: '', locationRu: '', locationEn: '', completionDate: '', coverImage: '', images: [], featured: false, active: true, sortOrder: (this.workItems?.length || 0) }; this.workCoverFile = null; this.workImageFiles = []; this.workUploadProgress = ''; },
-                editWorkItem(item) { if (this.creatingWork) return; this.editingWorkItemId = item.id; this.workForm = { ...item, completionDate: item.completionDate ? String(item.completionDate).slice(0,10) : '' }; this.workCoverFile = null; this.workImageFiles = []; this.workUploadProgress = ''; },
+                async editWorkItem(item) { if (this.creatingWork) return; this.editingWorkItemId = item.id; this.workForm = { ...item, completionDate: item.completionDate ? String(item.completionDate).slice(0,10) : '' }; this.workCoverFile = null; this.workImageFiles = []; this.workUploadProgress = 'Şəkillər yüklənir...'; try { const detail = await this.api(`/api/work-items/${item.id || item.slug}`, { cache: 'no-store' }); this.workForm = { ...this.normalizeWorkItem(detail), completionDate: detail.completionDate ? String(detail.completionDate).slice(0,10) : '' }; } catch (error) { this.showToast('Xəta', 'İş şəkilləri tam yüklənmədi.'); } finally { this.workUploadProgress = ''; } },
                 async saveWorkItem() {
                     if (this.creatingWork) return;
                     const titleAz = String(this.workForm.titleAz || '').trim();
                     const existingCover = String(this.workForm.coverImage || '').trim();
                     if (!titleAz) { this.showToast('Məlumat çatışmır', 'Başlıq mütləqdir.'); return; }
-                    if (!this.workCoverFile && !existingCover) { this.showToast('Məlumat çatışmır', 'Əsas şəkil mütləqdir.'); return; }
+                    if (!this.workCoverFile && !existingCover && !(this.workForm.images || []).length) { this.showToast('Məlumat çatışmır', 'Ən azı bir şəkil mütləqdir.'); return; }
                     this.creatingWork = true;
                     this.workUploadProgress = '';
                     try {
                         this.workUploadProgress = this.workCoverFile ? 'Əsas şəkil yüklənir...' : 'Məlumatlar saxlanılır...';
-                        const cover = this.workCoverFile ? await this.uploadMedia(this.workCoverFile, 'works') : this.workForm.coverImage;
+                        const cover = this.workCoverFile ? await this.uploadMedia(this.workCoverFile, 'works') : (this.workForm.coverImage || (this.workForm.images || [])[0] || '');
                         const more = [];
                         for (let i = 0; i < this.workImageFiles.length; i += 1) {
                             this.workUploadProgress = `Şəkillər yüklənir: ${i + 1}/${this.workImageFiles.length}`;
@@ -5156,7 +5162,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                 <div x-show="!galleryLoaded" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                     <template x-for="idx in 4" :key="`gallery-skeleton-${idx}`"><div class="aspect-square rounded-2xl skeleton-shimmer"></div></template>
                 </div>
-                <div x-show="galleryLoaded && !(Array.isArray(galleryItems) && galleryItems.filter(g => !g.archived).length)" class="empty-state gallery-empty rounded-3xl border border-stone-200 bg-white p-10 text-center text-stone-500 font-bold" x-text="lang === 'az' ? 'Qalereya boşdur.' : (lang === 'ru' ? 'Галерея пуста.' : 'Gallery is empty.')"></div>
+                <div x-show="galleryLoaded && !(Array.isArray(galleryItems) && galleryItems.filter(g => !g.archived).length)" class="empty-state gallery-empty rounded-3xl border border-stone-200 bg-white p-10 text-center text-stone-500 font-bold" x-text="lang === 'az' ? 'Qalereyada hələ media əlavə edilməyib.' : (lang === 'ru' ? 'Галерея пуста.' : 'Gallery is empty.')"></div>
                 <div x-show="galleryLoaded" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                     <template x-for="(img, idx) in (Array.isArray(galleryItems) ? galleryItems : []).filter(g => !g.archived)" :key="img.id">
                         <div class="group relative aspect-square overflow-hidden rounded-2xl bg-stone-200 cursor-pointer shadow-sm hover:shadow-lg transition duration-300" @click="openGalleryModal(idx)">
