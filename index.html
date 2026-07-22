@@ -38,6 +38,7 @@
             const migratedBanner = null;
 
             const HERO_SLIDES_CACHE_KEY = 'bc_cached_hero_slides_v3';
+            const inFlightGetRequests = window.bcInFlightGetRequests || (window.bcInFlightGetRequests = new Map());
             const LEGACY_HERO_SLIDES_CACHE_KEYS = ['bc_cached_hero_slides'];
 
             const MAX_IMAGES_PER_ITEM = 40;
@@ -81,6 +82,12 @@
                 isAdvantagesExpanded: false,
                 homeGalleryImages: defaultHomeGalleryImages,
                 homeAdvantagesImages: defaultHomeAdvantagesImages,
+                whyWoodLoaded: false,
+                whyWoodLoading: false,
+                whyWoodError: '',
+                advantagesLoaded: false,
+                advantagesLoading: false,
+                advantagesError: '',
                 isLoading: false,
                 actionLoading: { heroSave: false, projectSave: false, workSave: false, gallerySave: false, bannerSave: false, contactSend: false, projectView: null, deleteId: null },
                 creatingWork: false,
@@ -111,6 +118,9 @@
                 ],
                 adminTabVisibility: { dashboard: false, messages: false, projects: false, works: false, gallery: false, hero: false, homeImages: false, ads: false },
                 adminInitializing: true,
+                adminBootstrapReady: false,
+                adminSessionKnown: false,
+                adminModulesKnown: false,
                 adminInitializationError: '',
                 adminLoadVersion: 0,
                 adminCache: {},
@@ -700,19 +710,28 @@
                     const isAdminRequest = path.startsWith('/api/messages') || path.startsWith('/api/stats') || path.includes('admin=true') || path.includes('includeArchived=true') || path.startsWith('/api/admin-panel-settings') || (this.adminLoggedIn && (path.startsWith('/api/projects') || path.startsWith('/api/works') || path.startsWith('/api/gallery') || path.startsWith('/api/banners') || path.startsWith('/api/hero-slides') || path.startsWith('/api/home-section-images')));
                     if (isAdminRequest && !fetchOptions.cache) fetchOptions.cache = 'no-store';
                     if (!fetchOptions.credentials) fetchOptions.credentials = 'include';
-                    const res = await fetch(`${this.apiBase}${path}`, fetchOptions);
-                    const contentType = res.headers.get('content-type') || '';
-                    const data = contentType.includes('application/json') ? await res.json().catch(() => null) : await res.text().catch(() => '');
-                    if (!res.ok) {
-                        if (res.status === 401 && isAdminRequest) { this.handleAdminSessionExpired(); }
-                        if (res.status === 404 && path.startsWith('/api/')) console.warn('API not available. Make sure Render deployment is Web Service, not Static Site.');
-                        const message = data?.message || data?.error || (typeof data === 'string' && data) || `API ${res.status}: ${path}`;
-                        const error = new Error(message);
-                        error.status = res.status;
-                        error.payload = data;
-                        throw error;
-                    }
-                    return res.status === 204 ? null : data;
+                    const method = String(fetchOptions.method || 'GET').toUpperCase();
+                    const fetchJson = async () => {
+                        const res = await fetch(`${this.apiBase}${path}`, fetchOptions);
+                        const contentType = res.headers.get('content-type') || '';
+                        const data = contentType.includes('application/json') ? await res.json().catch(() => null) : await res.text().catch(() => '');
+                        if (!res.ok) {
+                            if (res.status === 401 && isAdminRequest) { this.handleAdminSessionExpired(); }
+                            if (res.status === 404 && path.startsWith('/api/')) console.warn('API not available. Make sure Render deployment is Web Service, not Static Site.');
+                            const message = data?.message || data?.error || (typeof data === 'string' && data) || `API ${res.status}: ${path}`;
+                            const error = new Error(message);
+                            error.status = res.status;
+                            error.payload = data;
+                            throw error;
+                        }
+                        return res.status === 204 ? null : data;
+                    };
+                    if (method !== 'GET') return fetchJson();
+                    const requestKey = `${this.apiBase}${path}|${fetchOptions.cache || ''}|${fetchOptions.credentials || ''}`;
+                    if (inFlightGetRequests.has(requestKey)) return inFlightGetRequests.get(requestKey);
+                    const promise = fetchJson().finally(() => inFlightGetRequests.delete(requestKey));
+                    inFlightGetRequests.set(requestKey, promise);
+                    return promise;
                 },
 
                 async safeApi(path, fallback, options = {}) {
@@ -837,10 +856,12 @@
                     return items.length ? items : (Array.isArray(fallback) ? fallback.map(item => this.normalizeGalleryItem(item)) : []);
                 },
                 normalizeSlide(slide = {}) {
-                    const image = this.normalizeImageUrl(slide.image || slide.mediaUrl || slide.media_url || slide.src || slide.url || '');
+                    const variants = this.normalizeImageVariants(slide.imageVariants);
+                    const preferred = variants.large || variants.medium || '';
+                    const image = this.normalizeImageUrl(preferred || slide.image || slide.mediaUrl || slide.media_url || slide.src || slide.url || '');
                     const mediaType = this.getHeroMediaKind({ ...slide, mediaUrl: slide.mediaUrl || slide.media_url || image });
                     const mediaFit = ['cover', 'contain'].includes(slide.mediaFit || slide.media_fit) ? (slide.mediaFit || slide.media_fit) : (mediaType === 'video' ? 'contain' : 'cover');
-                    return { id: slide.id ?? '', image, mediaUrl: slide.mediaUrl || slide.media_url || image, src: slide.src || image, url: slide.url || image, mediaType, media_type: mediaType, mediaFit, media_fit: mediaFit, tag: slide.tag || slide.tagAz || '', tagAz: slide.tagAz || slide.tag || '', tagRu: slide.tagRu || slide.tag || '', tagEn: slide.tagEn || slide.tag || '', title1: slide.title1 || slide.title1Az || '', title1Az: slide.title1Az || slide.title1 || '', title1Ru: slide.title1Ru || slide.title1 || '', title1En: slide.title1En || slide.title1 || '', title2: slide.title2 || slide.title2Az || '', title2Az: slide.title2Az || slide.title2 || '', title2Ru: slide.title2Ru || slide.title2 || '', title2En: slide.title2En || slide.title2 || '', desc: slide.desc || slide.descAz || '', descAz: slide.descAz || slide.desc || '', descRu: slide.descRu || slide.desc || '', descEn: slide.descEn || slide.desc || '', active: slide.active ?? true, archived: Boolean(slide.archived), sortOrder: Number(slide.sortOrder) || 0 };
+                    return { id: slide.id ?? '', image, mediaUrl: image, originalMediaUrl: this.normalizeImageUrl(slide.originalMediaUrl || slide.mediaUrl || slide.media_url || slide.image || ''), imageVariants: variants, src: slide.src || image, url: slide.url || image, mediaType, media_type: mediaType, mediaFit, media_fit: mediaFit, tag: slide.tag || slide.tagAz || '', tagAz: slide.tagAz || slide.tag || '', tagRu: slide.tagRu || slide.tag || '', tagEn: slide.tagEn || slide.tag || '', title1: slide.title1 || slide.title1Az || '', title1Az: slide.title1Az || slide.title1 || '', title1Ru: slide.title1Ru || slide.title1 || '', title1En: slide.title1En || slide.title1 || '', title2: slide.title2 || slide.title2Az || '', title2Az: slide.title2Az || slide.title2 || '', title2Ru: slide.title2Ru || slide.title2 || '', title2En: slide.title2En || slide.title2 || '', desc: slide.desc || slide.descAz || '', descAz: slide.descAz || slide.desc || '', descRu: slide.descRu || slide.desc || '', descEn: slide.descEn || slide.desc || '', active: slide.active ?? true, archived: Boolean(slide.archived), sortOrder: Number(slide.sortOrder) || 0 };
                 },
                 normalizeSlides(payload, fallback = []) {
                     const items = this.asArray(payload).map(item => this.normalizeSlide(item));
@@ -872,8 +893,9 @@
                     if (this.isYouTubeUrl(url) || /\.(mp4|webm|mov)(?:[?#].*)?$/i.test(url)) return 'video';
                     return explicit === 'video' ? 'video' : 'image';
                 },
-                getHeroVisualUrl(slide = {}) {
-                    const url = this.getHeroMediaUrl(slide);
+                getHeroVisualUrl(slide = {}, preferred = 'large') {
+                    const variants = slide.imageVariants || {};
+                    const url = (preferred === 'medium' ? (variants.medium || variants.large) : (variants.large || variants.medium)) || this.getHeroMediaUrl(slide);
                     return this.getYouTubeThumbnail(url) || url;
                 },
                 getHeroMediaFit(slide = {}) {
@@ -1075,6 +1097,7 @@
                 async initializeAdminPanel() {
                     const version = ++this.adminLoadVersion;
                     this.adminInitializing = true;
+                    this.adminBootstrapReady = false; this.adminSessionKnown = true; this.adminModulesKnown = false;
                     this.adminInitializationError = '';
                     this.projectsLoaded = false;
                     this.galleryLoaded = false;
@@ -1084,6 +1107,7 @@
                         await this.loadAdminTabVisibility({ networkOnly: true });
                         if (version !== this.adminLoadVersion) return;
                         this.ensureVisibleAdminTab();
+                        this.adminModulesKnown = true; this.adminBootstrapReady = true;
                         await this.loadAdminSection(this.adminTab, { version });
                     } catch (error) {
                         if (version !== this.adminLoadVersion) return;
@@ -1101,7 +1125,7 @@
                     if (cached?.loadingPromise) return cached.loadingPromise;
                     if (cached?.loadedAt && Date.now() - cached.loadedAt < 120000) return cached.data;
                     const run = (async () => {
-                        if (tab === 'dashboard') await this.loadData({ adminInitial: true, version, sections: ['projects','works','stats'] });
+                        if (tab === 'dashboard') await this.loadData({ adminInitial: true, version, sections: ['stats'] });
                         else if (tab === 'projects') await this.loadData({ adminInitial: true, version, sections: ['projects'] });
                         else if (tab === 'works') await this.loadData({ adminInitial: true, version, sections: ['works'] });
                         else if (tab === 'gallery') await this.loadData({ adminInitial: true, version, sections: ['gallery'] });
@@ -1182,23 +1206,25 @@
                 },
 
                 normalizeHomeSectionImages(payload) {
-                    return this.asArray(payload).map(item => ({ id: item.id, sectionKey: item.sectionKey || item.section_key, title: item.title || '', src: item.src || item.imageUrl || item.image_url || '', imageUrl: item.imageUrl || item.image_url || item.src || '', sortOrder: Number(item.sortOrder ?? item.sort_order) || 0, active: item.active ?? true })).filter(item => item.src);
+                    return this.asArray(payload).map(item => { const variants = this.normalizeImageVariants(item.imageVariants); const src = variants.large || variants.medium || item.src || item.imageUrl || item.image_url || ''; return { id: item.id, sectionKey: item.sectionKey || item.section_key, title: item.title || '', src, imageUrl: src, originalImageUrl: item.originalImageUrl || item.imageUrl || item.image_url || '', imageVariants: variants, sortOrder: Number(item.sortOrder ?? item.sort_order) || 0, active: item.active ?? true }; }).filter(item => this.isValidMediaUrl(item.src));
                 },
 
                 async loadHomeSectionImages(adminInitial = false) {
                     const cacheKey = adminInitial ? 'admin:siteInfo' : 'siteInfo';
                     const entry = this.cacheEntry(cacheKey);
-                    if (!adminInitial && entry.data) { this.homeGalleryImages = entry.data.why; this.homeAdvantagesImages = entry.data.adv; return entry.data; }
+                    if (!adminInitial && entry.data) { this.homeGalleryImages = entry.data.why; this.homeAdvantagesImages = entry.data.adv; this.whyWoodLoaded = true; this.advantagesLoaded = true; this.whyWoodError = ''; this.advantagesError = ''; return entry.data; }
                     if (entry.promise) return entry.promise;
                     const run = (async () => {
                         try {
                             const fetchOptions = adminInitial ? { cache: 'no-store' } : {};
+                            this.whyWoodLoading = true; this.advantagesLoading = true;
                             const [why, adv] = await Promise.all([this.api('/api/home-section-images/why_wood', fetchOptions), this.api('/api/home-section-images/advantages', fetchOptions)]);
                             const whyItems = this.normalizeHomeSectionImages(why);
                             const advItems = this.normalizeHomeSectionImages(adv);
                             const data = { why: whyItems, adv: advItems };
                             this.homeGalleryImages = data.why;
                             this.homeAdvantagesImages = data.adv;
+                            this.whyWoodLoaded = true; this.advantagesLoaded = true; this.whyWoodError = ''; this.advantagesError = '';
                             this.rememberCacheData(cacheKey, data);
                             return data;
                         } catch (error) {
@@ -1206,19 +1232,23 @@
                             if (adminInitial) throw error;
                             this.homeGalleryImages = [];
                             this.homeAdvantagesImages = [];
+                            this.whyWoodLoaded = true; this.advantagesLoaded = true; this.whyWoodError = error?.message || 'load failed'; this.advantagesError = error?.message || 'load failed';
                             return { why: [], adv: [] };
                         }
-                    })().finally(() => { this.cacheEntry(cacheKey).promise = null; });
+                    })().finally(() => { this.whyWoodLoading = false; this.advantagesLoading = false; this.cacheEntry(cacheKey).promise = null; });
                     entry.promise = run;
                     return run;
                 },
 
+                isValidMediaUrl(url = '') { const value = String(url || '').trim(); return Boolean(value) && (value.startsWith('/uploads/') || /^https?:\/\//i.test(value)); },
+                homeSectionImageSrc(image = {}, preferred = 'large') { const variants = image.imageVariants || {}; return (preferred === 'medium' ? (variants.medium || variants.large) : (variants.large || variants.medium)) || image.src || image.imageUrl || ''; },
+                shouldRenderHomeImage(images = [], activeIndex = 0, index = 0) { const count = Array.isArray(images) ? images.length : 0; return count === 1 || Math.abs(Number(index) - Number(activeIndex)) <= 1 || (Number(activeIndex) === count - 1 && Number(index) === 0); },
                 visibleHomeGalleryImages() {
-                    return Array.isArray(this.homeGalleryImages) ? this.homeGalleryImages : [];
+                    return this.whyWoodLoaded && !this.whyWoodLoading && !this.whyWoodError && Array.isArray(this.homeGalleryImages) ? this.homeGalleryImages.filter(item => this.isValidMediaUrl(item.src)) : [];
                 },
 
                 visibleAdvantagesImages() {
-                    return Array.isArray(this.homeAdvantagesImages) ? this.homeAdvantagesImages : [];
+                    return this.advantagesLoaded && !this.advantagesLoading && !this.advantagesError && Array.isArray(this.homeAdvantagesImages) ? this.homeAdvantagesImages.filter(item => this.isValidMediaUrl(item.src)) : [];
                 },
 
                 nextHomeGalleryImage() {
@@ -2506,7 +2536,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                 workCategories() { return this.projectCategories(); },
                 projectCategoryLabel(category) { return this.workCategoryLabel(category); },
                 projectStatusLabel(project = {}) { return project.archived ? 'Arxivdə' : 'Aktiv'; },
-                projectAdminCover(project = {}) { return (Array.isArray(project.images) && project.images[0]) || project.image || project.coverImage || ''; },
+                projectAdminCover(project = {}) { return project.imageVariants?.thumb || project.imageVariants?.medium || (Array.isArray(project.imageItems) && project.imageItems[0]?.thumb) || (Array.isArray(project.images) && project.images[0]) || project.image || project.coverImage || ''; },
                 projectAdminTitle(project = {}) { return (this.lang === 'ru' ? project.titleRu : (this.lang === 'en' ? project.titleEn : project.title)) || project.titleAz || 'Başlıqsız layihə'; },
                 filteredAdminProjects() {
                     const search = String(this.projectAdminSearch || '').trim().toLowerCase();
@@ -2623,7 +2653,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                 },
                 galleryItemTitle(item = {}) { return item.titleAz || item.title || ''; },
                 galleryTypeLabel(type = 'image', item = {}) { return type === 'video' ? (this.isYouTubeUrl(item.src || item.mediaUrl || '') ? 'YouTube' : 'Video') : 'Şəkil'; },
-                galleryPreviewUrl(item = {}) { return item.type === 'video' ? (this.getYouTubeThumbnail(item.src || item.mediaUrl) || item.src || item.mediaUrl || '') : ((Array.isArray(item.images) && item.images[0]) || item.src || item.mediaUrl || ''); },
+                galleryPreviewUrl(item = {}) { return item.type === 'video' ? (this.getYouTubeThumbnail(item.src || item.mediaUrl) || item.src || item.mediaUrl || '') : (item.imageVariants?.thumb || item.imageVariants?.medium || (Array.isArray(item.images) && item.images[0]) || item.src || item.mediaUrl || ''); },
                 filteredAdminGallery() {
                     const search = String(this.galleryAdminSearch || '').trim().toLowerCase();
                     return (Array.isArray(this.galleryItems) ? this.galleryItems : []).filter(item => {
@@ -3771,6 +3801,29 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
             @media (max-width: 360px) {
                 [data-home-hero].hero-viewport .hero-desc { display: none !important; }
             }
+
+            .home-section-media-card {
+                border-radius: 1.75rem;
+                padding: 0.75rem;
+            }
+            .home-section-media {
+                width: 100%;
+                aspect-ratio: 4 / 3;
+                min-height: 320px;
+                max-height: 430px;
+                overflow: hidden;
+                border-radius: 1.35rem;
+            }
+            .home-section-media__image {
+                object-fit: cover;
+                object-position: center center;
+            }
+            @media (max-width: 767px) {
+                .home-section-media {
+                    min-height: 0;
+                    max-height: none;
+                }
+            }
             .home-why-media {
                 width: 100%;
                 height: auto !important;
@@ -4776,7 +4829,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                     <div class="home-why-section relative overflow-hidden rounded-[2rem] bg-gradient-to-br from-forest-50 via-white to-wood-50 border border-stone-200/70 p-6 sm:p-10 shadow-sm">
                         <div class="absolute -top-24 -right-16 w-72 h-72 rounded-full bg-forest-200/30 blur-3xl"></div>
                         <div class="absolute -bottom-24 -left-16 w-72 h-72 rounded-full bg-wood-200/35 blur-3xl"></div>
-                        <div class="home-why-grid relative grid lg:grid-cols-[1.15fr_.85fr] gap-10 items-center">
+                        <div :class="visibleHomeGalleryImages().length ? 'home-why-grid relative grid lg:grid-cols-[1.15fr_.85fr] gap-10 items-center' : 'home-why-grid relative grid gap-10 items-center'">
                             <div>
                                 <span class="inline-flex items-center gap-2 text-wood-700 font-bold uppercase tracking-widest text-xs"><i class="fa-solid fa-seedling"></i><span x-text="t('homeEcoChoice')">Ekoloji seçim</span></span>
                                 <h2 class="home-why-heading mt-3 text-3xl sm:text-4xl md:text-5xl font-black text-forest-950" x-text="t('homeWhyWood')">Niyə taxta evlər?</h2>
@@ -4798,31 +4851,31 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                                     </template>
                                 </div>
                             </div>
-                            <div class="bg-white rounded-[1.75rem] p-3 shadow-2xl shadow-forest-950/10 border border-stone-200" data-reveal="slide-left">
-                                <div class="home-why-media relative h-[320px] sm:h-[430px] overflow-hidden rounded-[1.35rem] cursor-pointer"
+                            <template x-if="visibleHomeGalleryImages().length"><div class="home-section-media-card bg-white shadow-2xl shadow-forest-950/10 border border-stone-200" data-reveal="slide-left">
+                                <div class="home-section-media relative cursor-pointer"
                                      @click="openHomeLightbox('why_wood', activeHomeGalleryIndex)">
                                     <template x-for="(image, index) in visibleHomeGalleryImages()" :key="image.src">
-                                        <img x-show="activeHomeGalleryIndex === index" x-transition.opacity.duration.500ms :src="image.src" :alt="image.title" class="absolute inset-0 w-full h-full object-cover">
+                                        <img x-show="activeHomeGalleryIndex === index" x-transition.opacity.duration.500ms :src="shouldRenderHomeImage(visibleHomeGalleryImages(), activeHomeGalleryIndex, index) ? homeSectionImageSrc(image, window.innerWidth < 768 ? 'medium' : 'large') : ''" :alt="image.title" loading="lazy" decoding="async" width="960" height="640" class="home-section-media__image absolute inset-0 w-full h-full object-cover">
                                     </template>
                                     <div class="absolute inset-0 pointer-events-none bg-gradient-to-t from-forest-950/55 via-transparent to-transparent"></div>
                                     <div class="absolute left-5 bottom-5 right-5 pointer-events-none text-white">
                                         <p class="text-xs font-bold uppercase tracking-widest text-wood-200" x-text="t('woodHomeAtmosphere')">Taxta ev atmosferi</p>
                                         <h3 class="text-2xl font-black" x-text="visibleHomeGalleryImages()[activeHomeGalleryIndex]?.title"></h3>
                                     </div>
-                                    <button @click.stop="prevHomeGalleryImage(); startHomeGalleryRotation()" class="absolute left-4 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white/85 hover:bg-white text-forest-900 shadow flex items-center justify-center"><i class="fa-solid fa-chevron-left"></i></button>
-                                    <button @click.stop="nextHomeGalleryImage(); startHomeGalleryRotation()" class="absolute right-4 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white/85 hover:bg-white text-forest-900 shadow flex items-center justify-center"><i class="fa-solid fa-chevron-right"></i></button>
-                                    <div class="absolute bottom-4 left-0 right-0 flex justify-center gap-2">
+                                    <button x-show="visibleHomeGalleryImages().length > 1" @click.stop="prevHomeGalleryImage(); startHomeGalleryRotation()" class="absolute left-4 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white/85 hover:bg-white text-forest-900 shadow flex items-center justify-center"><i class="fa-solid fa-chevron-left"></i></button>
+                                    <button x-show="visibleHomeGalleryImages().length > 1" @click.stop="nextHomeGalleryImage(); startHomeGalleryRotation()" class="absolute right-4 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white/85 hover:bg-white text-forest-900 shadow flex items-center justify-center"><i class="fa-solid fa-chevron-right"></i></button>
+                                    <div x-show="visibleHomeGalleryImages().length > 1" class="absolute bottom-4 left-0 right-0 flex justify-center gap-2">
                                         <template x-for="(image, index) in visibleHomeGalleryImages()" :key="`dot-${image.src}`"><button @click.stop="setHomeGalleryImage(index)" class="h-2 rounded-full transition-all" :class="activeHomeGalleryIndex === index ? 'w-8 bg-wood-400' : 'w-2 bg-white/70'"></button></template>
                                     </div>
                                 </div>
-                            </div>
+                            </div></template>
                         </div>
                     </div>
                 </section>
 
                 <!-- OUR ADVANTAGES -->
                 <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 ad-safe-content">
-                    <div class="grid lg:grid-cols-2 gap-8 items-center">
+                    <div :class="visibleAdvantagesImages().length ? 'grid lg:grid-cols-2 gap-8 items-center' : 'grid gap-8 items-center'">
                         <div class="bg-white rounded-[2rem] p-6 sm:p-8 border border-stone-200 shadow-sm" data-reveal="slide-right">
                             <span class="text-wood-600 font-bold uppercase tracking-widest text-xs" x-text="t('qualityStandards')">Keyfiyyət standartları</span>
                             <h2 class="mt-3 text-3xl sm:text-4xl font-black text-forest-950" x-text="t('advantagesTitle')">Üstünlüklərimiz</h2>
@@ -4840,17 +4893,17 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                                 <template x-for="badge in [t('badgeLacquer'),t('badgeIzobon'),t('badgeOsb'),t('badgeTreatment'),t('badgeKiln'),t('badgeInsect')]" :key="badge"><span class="px-3 py-2 rounded-full bg-wood-50 text-wood-800 text-xs font-bold border border-wood-100" x-text="badge"></span></template>
                             </div>
                         </div>
-                        <div class="bg-white rounded-[2rem] p-3 shadow-lg border border-stone-200" data-reveal="slide-left">
-                            <div class="home-advantages-media relative h-[420px] overflow-hidden rounded-[1.5rem] cursor-pointer"
+                        <template x-if="visibleAdvantagesImages().length"><div class="home-section-media-card bg-white shadow-lg border border-stone-200" data-reveal="slide-left">
+                            <div class="home-section-media relative cursor-pointer"
                                  @click="openHomeLightbox('advantages', activeAdvantagesImageIndex)">
                                 <template x-for="(image, index) in visibleAdvantagesImages()" :key="image.src">
-                                    <img x-show="activeAdvantagesImageIndex === index" x-transition.opacity.duration.500ms :src="image.src" :alt="image.title" class="absolute inset-0 w-full h-full object-cover">
+                                    <img x-show="activeAdvantagesImageIndex === index" x-transition.opacity.duration.500ms :src="shouldRenderHomeImage(visibleAdvantagesImages(), activeAdvantagesImageIndex, index) ? homeSectionImageSrc(image, window.innerWidth < 768 ? 'medium' : 'large') : ''" :alt="image.title" loading="lazy" decoding="async" width="960" height="640" class="home-section-media__image absolute inset-0 w-full h-full object-cover">
                                 </template>
                                 <div class="absolute inset-0 pointer-events-none bg-gradient-to-t from-forest-950/45 via-transparent to-transparent"></div>
                                 <h3 class="absolute left-5 bottom-5 right-5 pointer-events-none text-2xl font-black text-white" x-text="visibleAdvantagesImages()[activeAdvantagesImageIndex]?.title"></h3>
-                                <button @click.stop="prevAdvantagesImage(); startHomeGalleryRotation()" class="absolute left-4 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white/85 hover:bg-white text-forest-900 shadow flex items-center justify-center"><i class="fa-solid fa-chevron-left"></i></button>
-                                <button @click.stop="nextAdvantagesImage(); startHomeGalleryRotation()" class="absolute right-4 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white/85 hover:bg-white text-forest-900 shadow flex items-center justify-center"><i class="fa-solid fa-chevron-right"></i></button>
-                                <div class="absolute bottom-4 left-0 right-0 flex justify-center gap-2">
+                                <button x-show="visibleAdvantagesImages().length > 1" @click.stop="prevAdvantagesImage(); startHomeGalleryRotation()" class="absolute left-4 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white/85 hover:bg-white text-forest-900 shadow flex items-center justify-center"><i class="fa-solid fa-chevron-left"></i></button>
+                                <button x-show="visibleAdvantagesImages().length > 1" @click.stop="nextAdvantagesImage(); startHomeGalleryRotation()" class="absolute right-4 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white/85 hover:bg-white text-forest-900 shadow flex items-center justify-center"><i class="fa-solid fa-chevron-right"></i></button>
+                                <div x-show="visibleAdvantagesImages().length > 1" class="absolute bottom-4 left-0 right-0 flex justify-center gap-2">
                                     <template x-for="(image, index) in visibleAdvantagesImages()" :key="`adv-dot-${image.src}`"><button @click.stop="setAdvantagesImage(index)" class="h-2 rounded-full transition-all" :class="activeAdvantagesImageIndex === index ? 'w-8 bg-wood-400' : 'w-2 bg-white/70'"></button></template>
                                 </div>
                             </div>
@@ -5252,15 +5305,15 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
 
                 <!-- Admin Tab Navigation (All Translated Instantly) -->
                 <div class="admin-tab-grid">
-                    <template x-for="tab in visibleAdminTabs()" :key="tab.key">
+                    <template x-if="adminBootstrapReady"><div class="contents"><template x-for="tab in visibleAdminTabs()" :key="tab.key">
                         <button @click="setAdminTab(tab.key)" class="admin-tab-button" :class="adminTab === tab.key ? 'is-active' : ''" x-text="t(tab.labelKey)"></button>
-                    </template>
+                    </template></div></template>
                 </div>
 
                 <div x-show="!adminInitializing && adminInitializationError" class="bg-white p-6 rounded-3xl border border-red-200 shadow-sm text-sm"><p class="font-black text-red-700" x-text="adminInitializationError"></p><button type="button" @click="retryAdminInitialization()" class="mt-4 admin-primary-action">Yenidən yoxla</button></div>
                 <div x-show="!adminInitializing && !adminInitializationError" class="space-y-8">
                 <!-- SUB-TAB 1: LIVE DYNAMIC STATISTICS -->
-                <div x-show="adminTab === 'dashboard'" x-transition class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                <template x-if="adminBootstrapReady && adminTab === 'dashboard'"><div x-transition class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                     <div class="bg-white p-6 rounded-3xl border border-stone-200/80 shadow-sm flex items-center gap-4">
                         <div class="w-12 h-12 rounded-2xl bg-forest-50 text-forest-700 flex items-center justify-center text-xl"><i class="fa-solid fa-list-check"></i></div>
                         <div>
@@ -5289,10 +5342,10 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                             <span class="block text-2xl font-black text-stone-800" x-text="getDynamicStats().messagesCount"></span>
                         </div>
                     </div>
-                </div>
+                </div></template>
 
                 <!-- SUB-TAB 2: MESSAGES -->
-                <div x-show="adminTab === 'messages'" x-transition class="bg-white p-6 sm:p-8 rounded-3xl border border-stone-200/80 shadow-sm space-y-4 text-sm">
+                <template x-if="adminBootstrapReady && adminTab === 'messages'"><div x-transition class="bg-white p-6 sm:p-8 rounded-3xl border border-stone-200/80 shadow-sm space-y-4 text-sm">
                     <template x-for="msg in (Array.isArray(messages) ? messages : [])" :key="msg.id">
                         <div class="p-4 rounded-2xl border border-stone-200 bg-stone-50 flex flex-col lg:flex-row justify-between gap-4">
                             <div class="min-w-0">
@@ -5309,10 +5362,10 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                             </div>
                         </a>
                     </template>
-                </div>
+                </div></template>
 
                 <!-- SUB-TAB 3: PROJECTS -->
-                <div x-show="adminTab === 'projects'" x-transition class="admin-projects-layout text-xs font-bold uppercase tracking-wider text-stone-500">
+                <template x-if="adminBootstrapReady && adminTab === 'projects'"><div x-transition class="admin-projects-layout text-xs font-bold uppercase tracking-wider text-stone-500">
                     <div class="admin-project-form-card">
                         <h3 class="text-lg font-black text-stone-900 tracking-normal mb-4" x-text="newProj.id ? (lang==='az'?'Layihəni Redaktə Et':'Редактировать') : (lang==='az'?'Yeni Layihə Əlavə Et':'Добавить Проект')">Yeni Layihə</h3>
                         <div class="admin-project-form-grid">
@@ -5337,13 +5390,13 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                         <div class="admin-project-list-head"><div><h3>Mövcud Layihələr <span x-text="`— ${filteredAdminProjects().length} layihə`"></span></h3><p>Axtarış və filterlər yüklənmiş data üzərində işləyir.</p></div></div>
                         <div class="admin-project-toolbar"><input type="search" x-model.debounce.150ms="projectAdminSearch" placeholder="Layihə adına görə axtar" class="admin-project-input"><select x-model="projectAdminCategoryFilter" class="admin-project-input"><option value="all">Bütün kateqoriyalar</option><template x-for="cat in projectCategories().filter(c => c !== 'all')" :key="cat"><option :value="cat" x-text="projectCategoryLabel(cat)"></option></template></select><select x-model="projectAdminStatusFilter" class="admin-project-input"><option value="all">Hamısı</option><option value="active">Aktiv</option><option value="archived">Arxiv</option></select></div>
                         <div x-show="projectsLoaded && !filteredAdminProjects().length" class="admin-empty-state"><i class="fa-solid fa-folder-open"></i><strong>Layihə tapılmadı</strong><small>Filterləri dəyişərək yenidən yoxlayın.</small></div>
-                        <div class="admin-project-grid"><template x-for="proj in filteredAdminProjects()" :key="proj.id"><article class="admin-project-card"><div class="admin-project-cover"><template x-if="projectAdminCover(proj)"><img :src="projectAdminCover(proj)" @error="setWorkImageFallback($event)" alt=""></template><template x-if="!projectAdminCover(proj)"><div class="admin-project-placeholder"><i class="fa-regular fa-image"></i><span>Şəkil yoxdur</span></div></template><span class="admin-project-status" :class="proj.archived ? 'is-archived' : 'is-active'" x-text="projectStatusLabel(proj)"></span></div><div class="admin-project-body"><span class="admin-project-category" x-text="projectCategoryLabel(proj.category || proj.cat)"></span><h4 x-text="projectAdminTitle(proj)"></h4><div class="admin-project-specs"><span><i class="fa-solid fa-ruler-combined"></i><b x-text="formatAreaValue(proj.area)"></b></span><span><i class="fa-solid fa-layer-group"></i><b x-text="proj.stories || '—'"></b></span><span><i class="fa-solid fa-door-open"></i><b x-text="proj.rooms || '—'"></b></span><span><i class="fa-solid fa-calendar-check"></i><b x-text="formatBuildTimeValue(proj.buildTime || proj.buildTimeAz)"></b></span></div></div><div class="admin-project-actions"><button type="button" class="edit" @click="setupEditProject(proj)"><i class="fa-solid fa-pen-to-square"></i>Redaktə et</button><button type="button" class="archive" @click="toggleArchiveProject(proj)" x-text="proj.archived ? 'Aktiv et' : 'Arxivlə'"></button><button type="button" class="delete" @click="deleteProject(proj.id)"><i class="fa-regular fa-trash-can"></i>Sil</button></div></article></template></div>
+                        <div class="admin-project-grid"><template x-for="proj in filteredAdminProjects()" :key="proj.id"><article class="admin-project-card"><div class="admin-project-cover"><template x-if="projectAdminCover(proj)"><img :src="projectAdminCover(proj)" @error="setWorkImageFallback($event)" loading="lazy" decoding="async" width="320" height="220" alt=""></template><template x-if="!projectAdminCover(proj)"><div class="admin-project-placeholder"><i class="fa-regular fa-image"></i><span>Şəkil yoxdur</span></div></template><span class="admin-project-status" :class="proj.archived ? 'is-archived' : 'is-active'" x-text="projectStatusLabel(proj)"></span></div><div class="admin-project-body"><span class="admin-project-category" x-text="projectCategoryLabel(proj.category || proj.cat)"></span><h4 x-text="projectAdminTitle(proj)"></h4><div class="admin-project-specs"><span><i class="fa-solid fa-ruler-combined"></i><b x-text="formatAreaValue(proj.area)"></b></span><span><i class="fa-solid fa-layer-group"></i><b x-text="proj.stories || '—'"></b></span><span><i class="fa-solid fa-door-open"></i><b x-text="proj.rooms || '—'"></b></span><span><i class="fa-solid fa-calendar-check"></i><b x-text="formatBuildTimeValue(proj.buildTime || proj.buildTimeAz)"></b></span></div></div><div class="admin-project-actions"><button type="button" class="edit" @click="setupEditProject(proj)"><i class="fa-solid fa-pen-to-square"></i>Redaktə et</button><button type="button" class="archive" @click="toggleArchiveProject(proj)" x-text="proj.archived ? 'Aktiv et' : 'Arxivlə'"></button><button type="button" class="delete" @click="deleteProject(proj.id)"><i class="fa-regular fa-trash-can"></i>Sil</button></div></article></template></div>
                     </div>
-                </div>
+                </div></template>
 
                 <!-- SUB-TAB 4: GALLERY MANAGEMENT WITH REALTIME PREVIEWS -->
 
-                <div x-show="adminTab === 'works'" x-transition class="admin-works-layout">
+                <template x-if="adminBootstrapReady && adminTab === 'works'"><div x-transition class="admin-works-layout">
                     <div class="admin-work-form-card">
                         <div class="admin-work-card-head">
                             <h3 x-text="editingWorkItemId ? 'İşi redaktə et' : 'Yeni iş'"></h3>
@@ -5365,9 +5418,9 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                         <div x-show="workItemsLoaded && !filteredAdminWorks().length" class="admin-empty-state"><i class="fa-solid fa-briefcase"></i><strong>İş tapılmadı</strong><small>Filterləri dəyişin və ya yuxarıdakı formdan yeni iş yaradın.</small></div>
                         <div class="admin-work-grid"><template x-for="item in filteredAdminWorks()" :key="item.id"><article class="admin-work-premium-card"><div class="admin-project-cover"><img :src="item.coverImage || fallbackWorkImage()" @error="setWorkImageFallback($event)" alt=""><span class="admin-project-status" :class="item.archived ? 'is-archived' : 'is-active'" x-text="item.archived ? 'Arxivdə' : 'Aktiv'"></span><span x-show="item.featured" class="admin-card-featured">Seçilmiş</span></div><div class="admin-project-body"><span class="admin-project-category" x-text="workCategoryLabel(item.category)"></span><h4 :title="adminWorkTitle(item)" x-text="adminWorkTitle(item)"></h4><p class="admin-card-excerpt" x-text="adminWorkExcerpt(item)"></p><div class="admin-project-specs"><span><i class="fa-solid fa-location-dot"></i><b x-text="adminWorkLocation(item) || '—'"></b></span><span><i class="fa-solid fa-calendar-check"></i><b x-text="formatWorkDate(item.completionDate) || '—'"></b></span><span><i class="fa-solid fa-arrow-down-1-9"></i><b x-text="item.sortOrder"></b></span><span><i class="fa-solid fa-images"></i><b x-text="`${(item.images || []).length} şəkil`"></b></span></div></div><div class="admin-card-reorder"><button @click="moveWorkItem(item,-1)">↑ Yuxarı</button><button @click="moveWorkItem(item,1)">↓ Aşağı</button></div><div class="admin-project-actions admin-work-actions"><button type="button" class="edit" @click="editWorkItem(item)" :disabled="creatingWork"><i class="fa-solid fa-pen-to-square"></i>Redaktə et</button><button type="button" class="archive" @click="toggleWorkStatus(item)" x-text="item.archived ? 'Aktiv et' : 'Arxivlə'"></button><button type="button" class="select" @click="toggleWorkFeatured(item)" x-text="item.featured ? 'Çıxar' : 'Seçilmiş et'"></button><button type="button" class="delete" @click="deleteWorkItem(item)"><i class="fa-regular fa-trash-can"></i>Sil</button></div></article></template></div>
                     </div>
-                </div>
+                </div></template>
 
-                <div x-show="adminTab === 'gallery'" x-transition class="admin-gallery-layout text-xs font-bold uppercase tracking-wider text-stone-500">
+                <template x-if="adminBootstrapReady && adminTab === 'gallery'"><div x-transition class="admin-gallery-layout text-xs font-bold uppercase tracking-wider text-stone-500">
                     <div class="admin-gallery-form-card bg-white p-6 rounded-3xl border border-stone-200/80 shadow-sm space-y-4">
                         <h3 class="text-lg font-black text-stone-900 tracking-normal mb-4" x-text="lang==='az'?'Yeni Media Elementi':'Новое медиа'">Yeni Media</h3>
                         <div><label x-text="lang==='az'?'Media Növü':'Тип медиа'">Media Növü</label><select x-model="newGallery.type" class="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg text-stone-800 tracking-normal mt-1 font-medium"><option value="image">Şəkil</option><option value="video">YouTube Video Linki</option></select></div>
@@ -5379,12 +5432,12 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                         <div class="admin-work-list-head"><div><h3>Mövcud qalereya <span x-text="`— ${filteredAdminGallery().length} media`"></span></h3><p>Media kartları cache-dən render olunur və filterlər lokal işləyir.</p></div></div>
                         <div class="admin-entity-toolbar admin-gallery-toolbar"><input type="search" x-model.debounce.150ms="galleryAdminSearch" placeholder="Başlığa görə axtar" class="admin-project-input"><select x-model="galleryAdminTypeFilter" class="admin-project-input"><option value="all">Bütün media</option><option value="image">Şəkillər</option><option value="youtube">YouTube</option><option value="video">Videolar</option></select><select x-model="galleryAdminStatusFilter" class="admin-project-input"><option value="all">Hamısı</option><option value="active">Aktiv</option><option value="archived">Arxiv</option></select></div>
                         <div x-show="galleryLoaded && !filteredAdminGallery().length" class="admin-empty-state"><i class="fa-regular fa-images"></i><strong>Media tapılmadı</strong><small>Filterləri dəyişərək yenidən yoxlayın.</small></div>
-                        <div class="admin-gallery-grid"><template x-for="item in filteredAdminGallery()" :key="item.id"><article class="admin-gallery-card"><div class="admin-gallery-preview"><template x-if="galleryPreviewUrl(item)"><img :src="galleryPreviewUrl(item)" alt=""></template><template x-if="!galleryPreviewUrl(item)"><div class="admin-project-placeholder"><i class="fa-regular fa-image"></i><span>Media yoxdur</span></div></template><span class="admin-gallery-type" x-text="galleryTypeLabel(item.type, item)"></span><span class="admin-project-status" :class="item.archived ? 'is-archived' : 'is-active'" x-text="item.archived ? 'Arxivdə' : 'Aktiv'"></span><span x-show="item.type === 'video'" class="admin-play-badge"><i class="fa-solid fa-play"></i></span></div><div class="admin-gallery-body"><h4 x-show="galleryItemTitle(item)" :title="galleryItemTitle(item)" x-text="galleryItemTitle(item)"></h4><div class="admin-lang-badges"><span x-show="item.titleRu">RU</span><span x-show="item.titleEn">EN</span></div><div class="admin-project-specs"><span><i class="fa-solid fa-arrow-down-1-9"></i><b x-text="item.sortOrder || 0"></b></span><span><i class="fa-regular fa-clock"></i><b x-text="item.createdAt ? formatWorkDate(item.createdAt) : '—'"></b></span></div></div><div class="admin-card-reorder"><button @click="moveGalleryItem(item,-1)">↑ Yuxarı</button><button @click="moveGalleryItem(item,1)">↓ Aşağı</button></div><div class="admin-project-actions admin-gallery-actions"><button type="button" class="edit" @click="setupEditGallery(item)"><i class="fa-solid fa-pen-to-square"></i>Redaktə et</button><button type="button" class="archive" @click="toggleArchiveGallery(item)" x-text="item.archived ? 'Aktiv et' : 'Arxivlə'"></button><button type="button" class="delete" @click="deleteGalleryItem(item.id)"><i class="fa-regular fa-trash-can"></i>Sil</button></div></article></template></div>
+                        <div class="admin-gallery-grid"><template x-for="item in filteredAdminGallery()" :key="item.id"><article class="admin-gallery-card"><div class="admin-gallery-preview"><template x-if="galleryPreviewUrl(item)"><img :src="galleryPreviewUrl(item)" loading="lazy" decoding="async" width="320" height="220" alt=""></template><template x-if="!galleryPreviewUrl(item)"><div class="admin-project-placeholder"><i class="fa-regular fa-image"></i><span>Media yoxdur</span></div></template><span class="admin-gallery-type" x-text="galleryTypeLabel(item.type, item)"></span><span class="admin-project-status" :class="item.archived ? 'is-archived' : 'is-active'" x-text="item.archived ? 'Arxivdə' : 'Aktiv'"></span><span x-show="item.type === 'video'" class="admin-play-badge"><i class="fa-solid fa-play"></i></span></div><div class="admin-gallery-body"><h4 x-show="galleryItemTitle(item)" :title="galleryItemTitle(item)" x-text="galleryItemTitle(item)"></h4><div class="admin-lang-badges"><span x-show="item.titleRu">RU</span><span x-show="item.titleEn">EN</span></div><div class="admin-project-specs"><span><i class="fa-solid fa-arrow-down-1-9"></i><b x-text="item.sortOrder || 0"></b></span><span><i class="fa-regular fa-clock"></i><b x-text="item.createdAt ? formatWorkDate(item.createdAt) : '—'"></b></span></div></div><div class="admin-card-reorder"><button @click="moveGalleryItem(item,-1)">↑ Yuxarı</button><button @click="moveGalleryItem(item,1)">↓ Aşağı</button></div><div class="admin-project-actions admin-gallery-actions"><button type="button" class="edit" @click="setupEditGallery(item)"><i class="fa-solid fa-pen-to-square"></i>Redaktə et</button><button type="button" class="archive" @click="toggleArchiveGallery(item)" x-text="item.archived ? 'Aktiv et' : 'Arxivlə'"></button><button type="button" class="delete" @click="deleteGalleryItem(item.id)"><i class="fa-regular fa-trash-can"></i>Sil</button></div></article></template></div>
                     </div>
-                </div>
+                </div></template>
 
                 <!-- SUB-TAB 5: HERO SLIDE MULTIPAGE CUSTOMIZER -->
-                <div x-show="adminTab === 'hero'" x-transition class="bg-white p-6 rounded-3xl border border-stone-200/80 shadow-sm space-y-6 text-xs font-bold uppercase text-stone-500">
+                <template x-if="adminBootstrapReady && adminTab === 'hero'"><div x-transition class="bg-white p-6 rounded-3xl border border-stone-200/80 shadow-sm space-y-6 text-xs font-bold uppercase text-stone-500">
                     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3"><h3 class="text-lg font-black text-stone-900 tracking-normal" x-text="lang==='az'?'Ana Səhifə Hero Slaydların İdarə Olunması':'Управление слайдами главной'">Slaydlar</h3><button @click="resetHeroForm()" class="px-4 py-2 bg-forest-700 text-white rounded-xl font-black normal-case"><i class="fa-solid fa-plus mr-2"></i>Yeni hero slayd</button></div>
                     <div class="grid grid-cols-1 lg:grid-cols-[60fr_40fr] gap-6 items-start">
                         <div class="order-2 lg:order-1 bg-stone-50 border border-stone-200 rounded-3xl p-5 sm:p-6 space-y-5">
@@ -5431,7 +5484,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                             <template x-for="(sld, sIdx) in (Array.isArray(slides) ? slides : [])" :key="sld.id || sIdx">
                                 <div class="p-3 bg-white rounded-2xl border border-stone-200 hover:bg-stone-50 space-y-3" :class="newHero.activeIndex === sIdx && (selectedHeroId === sld.id || !isPersistedHero(sld)) ? '!border-wood-600 ring-2 ring-wood-200 shadow-md' : ''" draggable="true" @dragstart="onHeroDragStart($event, sIdx)" @dragover.prevent @drop="onHeroDrop($event, sIdx)">
                                     <div class="flex justify-between items-center gap-2"><span class="cursor-grab text-stone-400"><i class="fa-solid fa-grip-vertical"></i></span><span class="font-black text-forest-900 flex-1" x-text="`${sIdx + 1}-ci Slayd`"></span><span class="text-[9px] px-1.5 py-0.5 rounded uppercase" :class="sld.active === false ? 'bg-stone-100 text-stone-500' : 'bg-green-100 text-green-700'" x-text="sld.active === false ? 'Deaktiv' : 'Aktiv'"></span></div>
-                                    <template x-if="getHeroMediaUrl(sld) && getHeroMediaKind(sld) === 'video' && !isYouTubeUrl(getHeroMediaUrl(sld))"><video :src="getHeroMediaUrl(sld)" muted playsinline class="w-full h-32 lg:h-28 object-cover rounded-xl shadow"></video></template><template x-if="getHeroMediaUrl(sld) && (getHeroMediaKind(sld) !== 'video' || isYouTubeUrl(getHeroMediaUrl(sld)))"><img :src="getHeroVisualUrl(sld)" class="w-full h-32 lg:h-28 object-cover rounded-xl shadow"></template><template x-if="!getHeroMediaUrl(sld)"><div class="w-full h-32 lg:h-28 rounded-xl bg-stone-100 border border-dashed border-stone-300 text-stone-400 flex items-center justify-center normal-case">Media yoxdur</div></template>
+                                    <template x-if="getHeroMediaUrl(sld) && getHeroMediaKind(sld) === 'video' && !isYouTubeUrl(getHeroMediaUrl(sld))"><video :src="getHeroMediaUrl(sld)" muted playsinline class="w-full h-32 lg:h-28 object-cover rounded-xl shadow"></video></template><template x-if="getHeroMediaUrl(sld) && (getHeroMediaKind(sld) !== 'video' || isYouTubeUrl(getHeroMediaUrl(sld)))"><img :src="getHeroVisualUrl(sld, 'medium')" loading="lazy" decoding="async" width="320" height="180" class="w-full h-32 lg:h-28 object-cover rounded-xl shadow"></template><template x-if="!getHeroMediaUrl(sld)"><div class="w-full h-32 lg:h-28 rounded-xl bg-stone-100 border border-dashed border-stone-300 text-stone-400 flex items-center justify-center normal-case">Media yoxdur</div></template>
                                     <p class="text-[10px] text-stone-500 normal-case truncate" x-text="sld.tag || sld.title1 || 'Adsız hero slayd'"></p>
                                     <div class="grid grid-cols-2 gap-2">
                                         <button @click="setupEditHero(sIdx)" class="py-1.5 bg-forest-700 text-white rounded text-[10px] font-bold">Redaktə et</button>
@@ -5444,10 +5497,10 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                             </template>
                         </div>
                     </div>
-                </div>
+                </div></template>
 
 
-                <div x-show="adminTab === 'home-images'" x-transition class="grid grid-cols-1 lg:grid-cols-2 gap-6 text-xs font-bold uppercase text-stone-500">
+                <template x-if="adminBootstrapReady && adminTab === 'home-images'"><div x-transition class="grid grid-cols-1 lg:grid-cols-2 gap-6 text-xs font-bold uppercase text-stone-500">
                     <template x-for="cfg in [{key:'why_wood', title:t('homeWhyWood'), items: visibleHomeGalleryImages()}, {key:'advantages', title:t('advantagesTitle'), items: visibleAdvantagesImages()}]" :key="cfg.key">
                         <div class="bg-white p-6 rounded-3xl border border-stone-200/80 shadow-sm space-y-4">
                             <h3 class="text-lg font-black text-stone-900 tracking-normal" x-text="cfg.title"></h3>
@@ -5458,7 +5511,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                             <div class="space-y-3">
                                 <template x-for="(item, idx) in cfg.items" :key="item.id || item.src">
                                     <div class="p-3 bg-stone-50 rounded-2xl border border-stone-200 flex items-center justify-between gap-3">
-                                        <div class="flex items-center gap-3 min-w-0"><img :src="item.src" class="w-14 h-14 object-cover rounded-xl shadow"><div class="min-w-0"><p class="text-stone-900 normal-case truncate" x-text="item.title || item.src"></p><p class="text-[9px]" x-text="item.active === false ? 'Deaktiv' : 'Aktiv'"></p></div></div>
+                                        <div class="flex items-center gap-3 min-w-0"><img :src="item.imageVariants?.thumb || item.imageVariants?.medium || item.src" loading="lazy" decoding="async" width="56" height="56" class="w-14 h-14 object-cover rounded-xl shadow"><div class="min-w-0"><p class="text-stone-900 normal-case truncate" x-text="item.title || item.src"></p><p class="text-[9px]" x-text="item.active === false ? 'Deaktiv' : 'Aktiv'"></p></div></div>
                                         <div class="grid grid-cols-2 gap-1 shrink-0">
                                             <button @click="toggleHomeSectionImage(cfg.key, item)" class="px-2 py-1 bg-wood-50 text-wood-700 rounded" x-text="item.active === false ? 'Aktiv et' : 'Deaktiv et'"></button>
                                             <button @click="deleteHomeSectionImage(cfg.key, item)" class="px-2 py-1 bg-red-50 text-red-700 rounded">Sil</button>
@@ -5470,10 +5523,10 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                             </div>
                         </div>
                     </template>
-                </div>
+                </div></template>
 
                 <!-- SUB-TAB 6: SINGLE AD BANNER CUSTOMIZER -->
-                <div x-show="adminTab === 'ads'" x-transition class="bg-white p-6 rounded-3xl border border-stone-200/80 shadow-sm space-y-6 text-xs font-bold uppercase text-stone-500">
+                <template x-if="adminBootstrapReady && adminTab === 'ads'"><div x-transition class="bg-white p-6 rounded-3xl border border-stone-200/80 shadow-sm space-y-6 text-xs font-bold uppercase text-stone-500">
                     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                         <div>
                             <h3 class="text-lg font-black text-stone-900 tracking-normal">Reklam bannerləri</h3>

@@ -440,6 +440,18 @@ async function createImageVariants(sourcePath, publicUrl) {
   return imageVariantsFor(publicUrl);
 }
 
+async function safeDeleteUploadFamily(url = '') {
+  const originalPath = uploadUrlToPath(url);
+  if (!originalPath) return;
+  const urls = [url, imageVariantUrl(url, 'thumb'), imageVariantUrl(url, 'medium'), imageVariantUrl(url, 'large')].filter(Boolean);
+  await Promise.all(urls.map(candidate => {
+    const filePath = uploadUrlToPath(candidate);
+    if (!filePath || path.dirname(filePath) !== path.dirname(originalPath)) return Promise.resolve();
+    return fs.promises.unlink(filePath).catch(() => {});
+  }));
+  clearUploadExistsCache(urls);
+}
+
 function projectOut(p, options = {}) {
   const list = options.list === true; const descAz = list ? excerptText(p.descriptionAz) : p.descriptionAz; const descRu = list ? excerptText(p.descriptionRu) : p.descriptionRu; const descEn = list ? excerptText(p.descriptionEn) : p.descriptionEn;
   const originalImages = jsonArray(p.images); const cover = p.coverImage || originalImages[0] || ''; const images = list ? [listImage(cover, 'medium')].filter(Boolean) : originalImages; return { id: p.id, legacyId: p.legacyId, slug:p.slug, type:'project', category: p.category, cat: p.category, categoryNameAz: p.categoryNameAz || catMap[p.category]?.az || p.category, categoryNameRu: p.categoryNameRu || catMap[p.category]?.ru || p.category, categoryNameEn: p.categoryNameEn || catMap[p.category]?.en || p.category, catName: p.categoryNameAz || catMap[p.category]?.az || p.category, catNameRu: p.categoryNameRu || catMap[p.category]?.ru || p.category, catNameEn: p.categoryNameEn || catMap[p.category]?.en || p.category, title: p.titleAz, titleAz: p.titleAz, titleRu: p.titleRu, titleEn: p.titleEn, shortDescription: descAz, shortDescriptionAz: descAz, shortDescriptionRu: descRu, shortDescriptionEn: descEn, description: descAz, desc: descAz, descriptionAz: descAz, descriptionRu: descRu, descriptionEn: descEn, descRu: descRu, descEn:descEn, area:p.area, stories:p.stories, rooms:p.rooms, buildTime:p.buildTimeAz, buildTimeAz:p.buildTimeAz, buildTimeRu:p.buildTimeRu, buildTimeEn:p.buildTimeEn, image:listImage(cover, list ? 'medium' : 'large'), coverImage:listImage(cover, list ? 'medium' : 'large'), originalImage:cover, imageVariants:withImageVariants(cover), images, imageItems:list ? undefined : imageItemsFor(originalImages), views:p.views, archived:p.archived, createdAt:p.createdAt, updatedAt:p.updatedAt, __detailLoaded: !list };
@@ -454,7 +466,7 @@ function slideIn(b = {}, options = {}) { const mediaUrl = b.mediaUrl || b.media_
   if (mediaUrl) { data.mediaUrl = mediaUrl; data.image = b.image || mediaUrl; data.mediaType = mediaType; }
   if (options.includeSortOrder || Object.prototype.hasOwnProperty.call(b, 'sortOrder')) data.sortOrder = Number(b.sortOrder) || 0;
   return Object.fromEntries(Object.entries(data).filter(([,v]) => v !== undefined)); }
-function homeSectionImageOut(i) { return { id: i.id, sectionKey: i.sectionKey, title: i.title, imageUrl: i.imageUrl, src: i.imageUrl, sortOrder: i.sortOrder, active: i.active, createdAt: i.createdAt, updatedAt: i.updatedAt }; }
+function homeSectionImageOut(i) { const variants = withImageVariants(i.imageUrl); const src = variants?.large || variants?.medium || i.imageUrl; return { id: i.id, sectionKey: i.sectionKey, title: i.title, imageUrl: src, originalImageUrl: i.imageUrl, src, imageVariants: variants, sortOrder: i.sortOrder, active: i.active, createdAt: i.createdAt, updatedAt: i.updatedAt }; }
 function homeSectionImageIn(b = {}) { return { sectionKey: b.sectionKey || b.section_key, title: b.title || null, imageUrl: b.imageUrl || b.image_url || b.src, active: b.active ?? true }; }
 function normalizePlacement(value) { return ['left', 'right', 'both'].includes(value) ? value : 'both'; }
 function bannerOut(b) {
@@ -660,13 +672,13 @@ app.post('/api/hero-slides', requireAdminWrite, async (req, res) => {
     const mediaType = isVideoUrl(mediaUrl) ? 'video' : (body.mediaType || body.media_type || body.type || 'image');
     const data = slideIn({ ...body, mediaUrl, image: body.image || mediaUrl, mediaType, sortOrder: (last?.sortOrder ?? -1) + 1 }, { includeSortOrder: true });
     console.info('[hero-slides:post:data]', { keys: Object.keys(data) });
-    res.status(201).json(slideOut(await prisma.heroSlide.create({ select: heroSlideSelect, data })));
+    const created = slideOut(await prisma.heroSlide.create({ select: heroSlideSelect, data })); invalidateCache(['hero:list']); res.status(201).json(created);
   } catch (err) {
     console.error('[hero-slides:post:error]', { name: err?.name, code: err?.code, message: err?.message, meta: err?.meta });
     res.status(500).json({ ok: false, error: 'HERO_SLIDE_CREATE_FAILED', message: err?.message || 'Hero slide create failed', code: err?.code, field: err?.meta?.field_name || err?.meta?.column || err?.meta?.target });
   }
 });
-app.put('/api/hero-slides/reorder', requireAdminWrite, wrap(async (req,res)=>{ const ids=req.body.ids || (req.body.items||[]).map(it=>it.id); const validIds=(ids||[]).map(String).filter(isUuid); if (validIds.length !== (ids||[]).length) return invalidHeroId(res); await Promise.all(validIds.map((id,i)=>prisma.heroSlide.update({where:{id},data:{sortOrder:i}}))); res.json((await prisma.heroSlide.findMany({select:heroSlideSelect,orderBy:[{sortOrder:'asc'},{id:'asc'}]})).map(slideOut)); }));
+app.put('/api/hero-slides/reorder', requireAdminWrite, wrap(async (req,res)=>{ const ids=req.body.ids || (req.body.items||[]).map(it=>it.id); const validIds=(ids||[]).map(String).filter(isUuid); if (validIds.length !== (ids||[]).length) return invalidHeroId(res); await Promise.all(validIds.map((id,i)=>prisma.heroSlide.update({where:{id},data:{sortOrder:i}}))); invalidateCache(['hero:list']); res.json((await prisma.heroSlide.findMany({select:heroSlideSelect,orderBy:[{sortOrder:'asc'},{id:'asc'}]})).map(slideOut)); }));
 app.put('/api/hero-slides/:id', requireAdminWrite, async (req, res) => {
   try {
     const where = heroIdWhere(req.params.id);
@@ -677,14 +689,14 @@ app.put('/api/hero-slides/:id', requireAdminWrite, async (req, res) => {
     if (!data.mediaUrl && !data.image) { data.mediaUrl = existing.mediaUrl || existing.image; data.image = existing.image || existing.mediaUrl; }
     if (!data.mediaUrl) return res.status(400).json({ ok: false, error: 'MEDIA_REQUIRED', message: 'Hero slayd üçün şəkil və ya video mütləqdir.' });
     if (!data.image) data.image = data.mediaUrl;
-    res.json(slideOut(await prisma.heroSlide.update({ select: heroSlideSelect, where: { id: existing.id }, data })));
+    const updated = slideOut(await prisma.heroSlide.update({ select: heroSlideSelect, where: { id: existing.id }, data })); invalidateCache(['hero:list']); res.json(updated);
   } catch (err) {
     console.error('[hero-slides:put:error]', { name: err?.name, code: err?.code, message: err?.message, meta: err?.meta });
     res.status(500).json({ ok: false, error: 'HERO_SLIDE_UPDATE_FAILED', message: err?.message || 'Hero slide update failed', code: err?.code, field: err?.meta?.field_name || err?.meta?.column || err?.meta?.target });
   }
 });
-app.delete('/api/hero-slides/:id', requireAdminWrite, wrap(async (req,res)=>{ const where=heroIdWhere(req.params.id); if(!where) return invalidHeroId(res); await prisma.heroSlide.delete({where}); res.json({ok:true});}));
-app.patch('/api/hero-slides/:id/toggle', requireAdminWrite, wrap(async (req,res)=>{ const where=heroIdWhere(req.params.id); if(!where) return invalidHeroId(res); const s=await prisma.heroSlide.findUniqueOrThrow({select:{id:true,active:true},where}); res.json(slideOut(await prisma.heroSlide.update({select:heroSlideSelect,where:{id:s.id},data:{active:req.body.active ?? !s.active}}))); }));
+app.delete('/api/hero-slides/:id', requireAdminWrite, wrap(async (req,res)=>{ const where=heroIdWhere(req.params.id); if(!where) return invalidHeroId(res); const slide = await prisma.heroSlide.findUnique({ select: heroSlideSelect, where }); await prisma.heroSlide.delete({where}); await safeDeleteUploadFamily(slide?.mediaUrl || slide?.image); invalidateCache(['hero:list']); res.json({ok:true});}));
+app.patch('/api/hero-slides/:id/toggle', requireAdminWrite, wrap(async (req,res)=>{ const where=heroIdWhere(req.params.id); if(!where) return invalidHeroId(res); const s=await prisma.heroSlide.findUniqueOrThrow({select:{id:true,active:true},where}); const updated = slideOut(await prisma.heroSlide.update({select:heroSlideSelect,where:{id:s.id},data:{active:req.body.active ?? !s.active}})); invalidateCache(['hero:list']); res.json(updated); }));
 
 app.get('/api/admin-panel-settings/:key', requireAdmin, wrap(async (req,res)=>{ const setting=await prisma.adminPanelSetting.findUnique({where:{key:req.params.key}}); if(setting) return res.json(settingOut(setting)); if(req.params.key==='admin_tab_visibility') return res.json({key:req.params.key,value:adminTabDefaultVisibility}); res.status(404).json({ok:false,error:'SETTING_NOT_FOUND',message:'Admin panel setting not found'}); }));
 app.put('/api/admin-panel-settings/:key', requireAdminWrite, wrap(async (req,res)=>{ const value=req.body.value && typeof req.body.value==='object' ? req.body.value : req.body; res.json(settingOut(await prisma.adminPanelSetting.upsert({where:{key:req.params.key},create:{key:req.params.key,value},update:{value}}))); }));
@@ -692,11 +704,11 @@ app.put('/api/admin-panel-settings/:key', requireAdminWrite, wrap(async (req,res
 
 app.get('/api/home-section-images', wrap(async (req,res)=>res.json((await prisma.homeSectionImage.findMany({ orderBy:[{sectionKey:'asc'},{sortOrder:'asc'}] })).map(homeSectionImageOut))));
 app.get('/api/home-section-images/:sectionKey', wrap(async (req,res)=>res.json((await prisma.homeSectionImage.findMany({ where:{sectionKey:req.params.sectionKey, active:true}, orderBy:[{sortOrder:'asc'},{id:'asc'}] })).map(homeSectionImageOut))));
-app.post('/api/home-section-images', requireAdminWrite, wrap(async (req,res)=>{ const data=homeSectionImageIn(req.body); if(!data.sectionKey) return res.status(400).json({ok:false,error:'SECTION_REQUIRED'}); if(!data.imageUrl) return res.status(400).json({ok:false,error:'IMAGE_REQUIRED'}); const last=await prisma.homeSectionImage.findFirst({where:{sectionKey:data.sectionKey},orderBy:{sortOrder:'desc'}}); res.status(201).json(homeSectionImageOut(await prisma.homeSectionImage.create({data:{...data,sortOrder:(last?.sortOrder ?? -1)+1}}))); }));
-app.put('/api/home-section-images/reorder', requireAdminWrite, wrap(async (req,res)=>{ const ids=req.body.ids||[]; const sectionKey=req.body.sectionKey||req.body.section_key; await Promise.all(ids.map((id,i)=>prisma.homeSectionImage.update({where:{id:String(id)},data:{sortOrder:i, ...(sectionKey ? {sectionKey} : {})}}))); res.json((await prisma.homeSectionImage.findMany({where:sectionKey?{sectionKey}:{},orderBy:[{sortOrder:'asc'},{id:'asc'}]})).map(homeSectionImageOut)); }));
-app.put('/api/home-section-images/:id', requireAdminWrite, wrap(async (req,res)=>{ const data=homeSectionImageIn(req.body); if(!data.imageUrl) delete data.imageUrl; res.json(homeSectionImageOut(await prisma.homeSectionImage.update({where:{id:String(req.params.id)},data}))); }));
-app.delete('/api/home-section-images/:id', requireAdminWrite, wrap(async (req,res)=>{await prisma.homeSectionImage.delete({where:{id:String(req.params.id)}});res.json({ok:true});}));
-app.patch('/api/home-section-images/:id/toggle', requireAdminWrite, wrap(async (req,res)=>{ const item=await prisma.homeSectionImage.findUniqueOrThrow({where:{id:String(req.params.id)}}); res.json(homeSectionImageOut(await prisma.homeSectionImage.update({where:{id:item.id},data:{active:req.body.active ?? !item.active}}))); }));
+app.post('/api/home-section-images', requireAdminWrite, wrap(async (req,res)=>{ const data=homeSectionImageIn(req.body); if(!data.sectionKey) return res.status(400).json({ok:false,error:'SECTION_REQUIRED'}); if(!data.imageUrl) return res.status(400).json({ok:false,error:'IMAGE_REQUIRED'}); const last=await prisma.homeSectionImage.findFirst({where:{sectionKey:data.sectionKey},orderBy:{sortOrder:'desc'}}); const created = homeSectionImageOut(await prisma.homeSectionImage.create({data:{...data,sortOrder:(last?.sortOrder ?? -1)+1}})); invalidateCache(['home-section-images']); res.status(201).json(created); }));
+app.put('/api/home-section-images/reorder', requireAdminWrite, wrap(async (req,res)=>{ const ids=req.body.ids||[]; const sectionKey=req.body.sectionKey||req.body.section_key; await Promise.all(ids.map((id,i)=>prisma.homeSectionImage.update({where:{id:String(id)},data:{sortOrder:i, ...(sectionKey ? {sectionKey} : {})}}))); invalidateCache(['home-section-images']); res.json((await prisma.homeSectionImage.findMany({where:sectionKey?{sectionKey}:{},orderBy:[{sortOrder:'asc'},{id:'asc'}]})).map(homeSectionImageOut)); }));
+app.put('/api/home-section-images/:id', requireAdminWrite, wrap(async (req,res)=>{ const data=homeSectionImageIn(req.body); if(!data.imageUrl) delete data.imageUrl; const updated = homeSectionImageOut(await prisma.homeSectionImage.update({where:{id:String(req.params.id)},data})); invalidateCache(['home-section-images']); res.json(updated); }));
+app.delete('/api/home-section-images/:id', requireAdminWrite, wrap(async (req,res)=>{const item = await prisma.homeSectionImage.findUnique({where:{id:String(req.params.id)}}); await prisma.homeSectionImage.delete({where:{id:String(req.params.id)}}); await safeDeleteUploadFamily(item?.imageUrl); invalidateCache(['home-section-images']); res.json({ok:true});}));
+app.patch('/api/home-section-images/:id/toggle', requireAdminWrite, wrap(async (req,res)=>{ const item=await prisma.homeSectionImage.findUniqueOrThrow({where:{id:String(req.params.id)}}); const updated = homeSectionImageOut(await prisma.homeSectionImage.update({where:{id:item.id},data:{active:req.body.active ?? !item.active}})); invalidateCache(['home-section-images']); res.json(updated); }));
 
 app.get('/api/banners', wrap(async (req,res)=>res.json((await prisma.banner.findMany({ where:req.query.public==='true'?{active:true}:{}, orderBy:[{displayOrder:'asc'},{createdAt:'asc'}]})).map(bannerOut))));
 app.get('/api/banners/main', wrap(async (req,res)=>res.json(bannerOut(await prisma.banner.findFirst({where:{active:true},orderBy:[{displayOrder:'asc'},{createdAt:'asc'}]})) || null)));
@@ -735,7 +747,7 @@ app.post('/api/uploads', requireAdminWrite, upload.single('file'), wrap(async (r
   const publicUrl = `/uploads/${bucket}/${filename}`;
   clearUploadExistsCache(publicUrl);
   const variants = await createImageVariants(filePath, publicUrl).catch(error => { console.warn('[uploads:variants]', { message: error?.message, bucket }); return null; });
-  res.status(201).json({ ok: true, bucket, path: objectPath, publicUrl, variants });
+  res.status(201).json({ ok: true, bucket, path: objectPath, publicUrl, imageVariants: variants, variants });
 }));
 
 app.post('/api/uploads/sign', requireAdminWrite, (req,res)=>{
