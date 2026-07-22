@@ -1213,12 +1213,39 @@
                     return run;
                 },
 
+                isValidHomeMediaImage(image) {
+                    const src = String(this.homeImageSrc(image) || '').trim();
+                    if (!src || image?.mediaInvalid) return false;
+                    const lowerSrc = src.toLowerCase();
+                    return !['placeholder', 'unsplash.com', 'images.unsplash.com'].some(token => lowerSrc.includes(token));
+                },
+
+                validHomeGalleryImages() {
+                    return Array.isArray(this.homeGalleryImages) ? this.homeGalleryImages.filter(image => this.isValidHomeMediaImage(image)) : [];
+                },
+
+                validAdvantagesImages() {
+                    return Array.isArray(this.homeAdvantagesImages) ? this.homeAdvantagesImages.filter(image => this.isValidHomeMediaImage(image)) : [];
+                },
+
+                hasValidWhyWoodMedia() {
+                    return this.validHomeGalleryImages().length > 0;
+                },
+
+                hasValidAdvantagesMedia() {
+                    return this.validAdvantagesImages().length > 0;
+                },
+
+                markHomeMediaInvalid(image) {
+                    if (image && !image.mediaInvalid) image.mediaInvalid = true;
+                },
+
                 visibleHomeGalleryImages() {
-                    return Array.isArray(this.homeGalleryImages) ? this.homeGalleryImages : [];
+                    return this.validHomeGalleryImages();
                 },
 
                 visibleAdvantagesImages() {
-                    return Array.isArray(this.homeAdvantagesImages) ? this.homeAdvantagesImages : [];
+                    return this.validAdvantagesImages();
                 },
 
                 nextHomeGalleryImage() {
@@ -4466,22 +4493,23 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
         .calculator-modal {
             position: relative;
             z-index: 20001;
-            width: min(94vw, 560px);
-            max-height: calc(100dvh - 28px);
+            width: min(calc(100vw - 32px), 540px);
+            max-height: calc(100vh - 32px);
             display: flex;
             flex-direction: column;
-            overflow: hidden;
+            overflow-x: hidden;
+            overflow-y: auto;
             background: #fbfaf7;
-            border-radius: 28px;
+            border-radius: 24px;
             border: 1px solid rgba(255,255,255,.72);
-            box-shadow: 0 34px 90px rgba(5, 25, 17, 0.34);
+            box-shadow: 0 28px 72px rgba(5, 25, 17, 0.30);
             opacity: 1;
         }
         .calculator-header {
             position: relative;
             flex: 0 0 auto;
-            min-height: 78px;
-            padding: 18px 22px;
+            min-height: 64px;
+            padding: 14px 18px;
             display: flex;
             align-items: center;
             justify-content: space-between;
@@ -4492,7 +4520,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
             display: flex;
             align-items: center;
             gap: 13px;
-            font-size: 24px;
+            font-size: clamp(22px, 4vw, 25px);
             line-height: 1.1;
             font-weight: 800;
             margin: 0;
@@ -4500,9 +4528,9 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
         }
         .calculator-header-icon {
             display: flex;
-            width: 44px;
-            height: 44px;
-            flex: 0 0 44px;
+            width: 38px;
+            height: 38px;
+            flex: 0 0 38px;
             align-items: center;
             justify-content: center;
             border-radius: 999px;
@@ -4510,9 +4538,9 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
             color: #e7cda8;
         }
         .calculator-close {
-            width: 44px;
-            height: 44px;
-            flex: 0 0 44px;
+            width: 38px;
+            height: 38px;
+            flex: 0 0 38px;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -4527,19 +4555,19 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
             overflow-y: auto;
             overscroll-behavior: contain;
             -webkit-overflow-scrolling: touch;
-            padding: 24px 24px calc(26px + env(safe-area-inset-bottom));
+            padding: 18px 18px calc(18px + env(safe-area-inset-bottom));
             background: linear-gradient(180deg, #fbfaf7 0%, #f4f6f1 100%);
         }
         .calculator-section { min-width: 0; }
         .calculator-label {
             display: block;
-            margin-bottom: 10px;
+            margin-bottom: 7px;
             color: rgba(68, 64, 60, .70) !important;
-            font-size: 12px !important;
-            letter-spacing: .16em !important;
+            font-size: 11px !important;
+            letter-spacing: .14em !important;
         }
         .calculator-option-grid,
-        .calculator-floor-grid { gap: 12px !important; }
+        .calculator-floor-grid { gap: 10px !important; }
         .calculator-option-card,
         .calculator-floor-btn {
             border-color: rgba(19, 60, 42, .10) !important;
@@ -4547,10 +4575,10 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
             box-shadow: 0 12px 28px rgba(20, 40, 30, .06);
             transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease, background .2s ease, color .2s ease;
         }
-        .calculator-option-card { min-height: 78px !important; padding: 16px !important; gap: 14px !important; border-radius: 22px !important; }
-        .calculator-option-card i { color: #bd583a; font-size: 21px !important; }
-        .calculator-option-title { color: #123c2a; font-size: 16px !important; letter-spacing: -.01em; }
-        .calculator-option-subtitle { margin-top: 4px; color: rgba(68,64,60,.62); font-size: 12px !important; }
+        .calculator-option-card { min-height: 58px !important; padding: 11px 12px !important; gap: 10px !important; border-radius: 16px !important; }
+        .calculator-option-card i { color: #bd583a; font-size: 18px !important; }
+        .calculator-option-title { color: #123c2a; font-size: 15px !important; letter-spacing: -.01em; }
+        .calculator-option-subtitle { margin-top: 2px; color: rgba(68,64,60,.62); font-size: 11px !important; }
         .calculator-option-card:hover,
         .calculator-floor-btn:hover { transform: translateY(-1px); border-color: rgba(189, 88, 58, .22) !important; box-shadow: 0 16px 34px rgba(20, 40, 30, .09); }
         .calculator-option-card[class*="bg-forest-700"],
@@ -4563,15 +4591,22 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
         .calculator-option-card[class*="bg-forest-700"] i,
         .calculator-option-card[class*="bg-forest-700"] .calculator-option-title,
         .calculator-option-card[class*="bg-forest-700"] .calculator-option-subtitle { color: #fff !important; }
-        .calculator-floor-btn { min-height: 72px !important; border-radius: 20px !important; font-size: 22px !important; }
-        .calculator-area-card { border-color: rgba(19,60,42,.10) !important; border-radius: 24px !important; padding: 18px !important; box-shadow: 0 14px 32px rgba(20,40,30,.06) !important; }
-        .calculator-area-row { margin-bottom: 16px !important; gap: 14px; }
-        .calculator-area-value { background: #eef5ed !important; color: #123c2a !important; font-size: 22px !important; padding: 8px 14px !important; white-space: nowrap; }
+        .calculator-floor-btn { min-height: 58px !important; border-radius: 16px !important; font-size: 19px !important; }
+        .calculator-area-card { border-color: rgba(19,60,42,.10) !important; border-radius: 18px !important; padding: 14px !important; box-shadow: 0 14px 32px rgba(20,40,30,.06) !important; }
+        .calculator-area-row { margin-bottom: 10px !important; gap: 10px; }
+        .calculator-area-value { background: #eef5ed !important; color: #123c2a !important; font-size: 18px !important; padding: 5px 11px !important; white-space: nowrap; }
         .calculator-slider { height: 8px; accent-color: #bd583a; }
-        .calculator-price-panel { border-radius: 24px !important; padding: 20px !important; background: linear-gradient(135deg, #0d2f24, #174c35) !important; box-shadow: 0 24px 54px rgba(13,47,36,.24); }
-        .calculator-price-value { font-size: clamp(34px, 6vw, 44px) !important; letter-spacing: -.04em; white-space: nowrap; }
-        .calculator-request-btn { border-radius: 18px !important; min-height: 54px; background: linear-gradient(135deg, #bd583a, #a84b31) !important; padding: 0 28px !important; box-shadow: 0 14px 30px rgba(189,88,58,.24) !important; }
+        .calculator-price-panel { border-radius: 18px !important; padding: 14px !important; background: linear-gradient(135deg, #0d2f24, #174c35) !important; box-shadow: 0 18px 42px rgba(13,47,36,.22); display: grid !important; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 12px; overflow: hidden; }
+        .calculator-price-value { font-size: clamp(26px, 5vw, 34px) !important; letter-spacing: -.04em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .calculator-request-btn { border-radius: 15px !important; min-height: 46px; min-width: 118px; background: linear-gradient(135deg, #bd583a, #a84b31) !important; padding: 0 18px !important; box-shadow: 0 12px 26px rgba(189,88,58,.22) !important; white-space: nowrap; }
         .calculator-request-btn:hover { transform: translateY(-1px); }
+        .home-section-media {
+            width: 100%;
+            aspect-ratio: 4 / 3;
+            overflow: hidden;
+            border-radius: 24px;
+        }
+        .home-section-media img { object-fit: cover; }
 
         @media (max-width: 767px) {
             [data-home-hero].hero-viewport .hero-content,
@@ -4639,10 +4674,11 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
             .calculator-overlay { z-index: 20000 !important; }
             .calculator-modal {
                 z-index: 20001 !important;
-                width: min(94vw, 440px) !important;
-                max-height: calc(100dvh - 28px) !important;
+                width: calc(100vw - 24px) !important;
+                max-height: calc(100vh - 32px) !important;
                 background: #ffffff !important;
-                overflow: hidden !important;
+                overflow-x: hidden !important;
+                overflow-y: auto !important;
             }
             .calculator-header {
                 min-height: 68px !important;
@@ -4661,7 +4697,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
             .calculator-area-label, .calculator-area-card .calculator-label { font-size: 13px !important; }
             .calculator-area-value { font-size: 22px !important; }
             .calculator-slider { margin-top: 12px !important; }
-            .calculator-price-panel { padding: 16px !important; border-radius: 19px !important; margin-top: 0 !important; }
+            .calculator-price-panel { grid-template-columns: 1fr !important; padding: 14px !important; border-radius: 18px !important; margin-top: 0 !important; }
             .calculator-price-label { font-size: 12px !important; }
             .calculator-price-value { font-size: clamp(27px, 7vw, 34px) !important; line-height: 1.1 !important; }
             .calculator-request-btn { height: 48px !important; min-height: 48px !important; width: 100% !important; font-size: 16px !important; margin-top: 14px !important; border-radius: 14px !important; }
@@ -4870,7 +4906,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                     <div class="home-why-section relative overflow-hidden rounded-[2rem] bg-gradient-to-br from-forest-50 via-white to-wood-50 border border-stone-200/70 p-6 sm:p-10 shadow-sm">
                         <div class="absolute -top-24 -right-16 w-72 h-72 rounded-full bg-forest-200/30 blur-3xl"></div>
                         <div class="absolute -bottom-24 -left-16 w-72 h-72 rounded-full bg-wood-200/35 blur-3xl"></div>
-                        <div class="home-why-grid relative grid lg:grid-cols-[1.15fr_.85fr] gap-10 items-center">
+                        <div class="home-why-grid relative grid gap-10 items-center" :class="hasValidWhyWoodMedia() ? 'lg:grid-cols-[minmax(0,1fr)_minmax(320px,0.9fr)]' : 'grid-cols-1'">
                             <div>
                                 <span class="inline-flex items-center gap-2 text-wood-700 font-bold uppercase tracking-widest text-xs"><i class="fa-solid fa-seedling"></i><span x-text="t('homeEcoChoice')">Ekoloji seçim</span></span>
                                 <h2 class="home-why-heading mt-3 text-3xl sm:text-4xl md:text-5xl font-black text-forest-950" x-text="t('homeWhyWood')">Niyə taxta evlər?</h2>
@@ -4892,31 +4928,33 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                                     </template>
                                 </div>
                             </div>
-                            <div class="bg-white rounded-[1.75rem] p-3 shadow-2xl shadow-forest-950/10 border border-stone-200" data-reveal="slide-left">
-                                <div class="home-why-media relative h-[320px] sm:h-[430px] overflow-hidden rounded-[1.35rem] cursor-pointer"
+                            <template x-if="hasValidWhyWoodMedia()">
+                                <div class="home-section-media-card bg-white rounded-[1.75rem] p-3 shadow-2xl shadow-forest-950/10 border border-stone-200" data-reveal="slide-left">
+                                <div class="home-section-media home-why-media relative cursor-pointer"
                                      @click="openHomeLightbox('why_wood', activeHomeGalleryIndex)">
                                     <template x-for="(image, index) in visibleHomeGalleryImages()" :key="image.src">
-                                        <img x-show="activeHomeGalleryIndex === index" x-transition.opacity.duration.500ms :src="image.src" :alt="image.title" class="absolute inset-0 w-full h-full object-cover">
+                                        <img x-show="activeHomeGalleryIndex === index" x-transition.opacity.duration.500ms :src="image.src" :alt="image.title" class="absolute inset-0 w-full h-full object-cover" @error="markHomeMediaInvalid(image)">
                                     </template>
                                     <div class="absolute inset-0 pointer-events-none bg-gradient-to-t from-forest-950/55 via-transparent to-transparent"></div>
                                     <div class="absolute left-5 bottom-5 right-5 pointer-events-none text-white">
                                         <p class="text-xs font-bold uppercase tracking-widest text-wood-200" x-text="t('woodHomeAtmosphere')">Taxta ev atmosferi</p>
                                         <h3 class="text-2xl font-black" x-text="visibleHomeGalleryImages()[activeHomeGalleryIndex]?.title"></h3>
                                     </div>
-                                    <button @click.stop="prevHomeGalleryImage(); startHomeGalleryRotation()" class="absolute left-4 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white/85 hover:bg-white text-forest-900 shadow flex items-center justify-center"><i class="fa-solid fa-chevron-left"></i></button>
-                                    <button @click.stop="nextHomeGalleryImage(); startHomeGalleryRotation()" class="absolute right-4 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white/85 hover:bg-white text-forest-900 shadow flex items-center justify-center"><i class="fa-solid fa-chevron-right"></i></button>
-                                    <div class="absolute bottom-4 left-0 right-0 flex justify-center gap-2">
+                                    <button @click.stop="prevHomeGalleryImage(); startHomeGalleryRotation()" x-show="visibleHomeGalleryImages().length > 1" class="absolute left-4 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white/85 hover:bg-white text-forest-900 shadow flex items-center justify-center"><i class="fa-solid fa-chevron-left"></i></button>
+                                    <button x-show="visibleHomeGalleryImages().length > 1" @click.stop="nextHomeGalleryImage(); startHomeGalleryRotation()" class="absolute right-4 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white/85 hover:bg-white text-forest-900 shadow flex items-center justify-center"><i class="fa-solid fa-chevron-right"></i></button>
+                                    <div x-show="visibleHomeGalleryImages().length > 1" class="absolute bottom-4 left-0 right-0 flex justify-center gap-2">
                                         <template x-for="(image, index) in visibleHomeGalleryImages()" :key="`dot-${image.src}`"><button @click.stop="setHomeGalleryImage(index)" class="h-2 rounded-full transition-all" :class="activeHomeGalleryIndex === index ? 'w-8 bg-wood-400' : 'w-2 bg-white/70'"></button></template>
                                     </div>
                                 </div>
-                            </div>
+                                </div>
+                            </template>
                         </div>
                     </div>
                 </section>
 
                 <!-- OUR ADVANTAGES -->
                 <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 ad-safe-content">
-                    <div class="grid lg:grid-cols-2 gap-8 items-center">
+                    <div class="grid gap-8 items-center" :class="hasValidAdvantagesMedia() ? 'lg:grid-cols-2' : 'grid-cols-1'">
                         <div class="bg-white rounded-[2rem] p-6 sm:p-8 border border-stone-200 shadow-sm" data-reveal="slide-right">
                             <span class="text-wood-600 font-bold uppercase tracking-widest text-xs" x-text="t('qualityStandards')">Keyfiyyət standartları</span>
                             <h2 class="mt-3 text-3xl sm:text-4xl font-black text-forest-950" x-text="t('advantagesTitle')">Üstünlüklərimiz</h2>
@@ -4934,21 +4972,23 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                                 <template x-for="badge in [t('badgeLacquer'),t('badgeIzobon'),t('badgeOsb'),t('badgeTreatment'),t('badgeKiln'),t('badgeInsect')]" :key="badge"><span class="px-3 py-2 rounded-full bg-wood-50 text-wood-800 text-xs font-bold border border-wood-100" x-text="badge"></span></template>
                             </div>
                         </div>
-                        <div class="bg-white rounded-[2rem] p-3 shadow-lg border border-stone-200" data-reveal="slide-left">
-                            <div class="home-advantages-media relative h-[420px] overflow-hidden rounded-[1.5rem] cursor-pointer"
+                        <template x-if="hasValidAdvantagesMedia()">
+                            <div class="home-section-media-card bg-white rounded-[2rem] p-3 shadow-lg border border-stone-200" data-reveal="slide-left">
+                            <div class="home-section-media home-advantages-media relative cursor-pointer"
                                  @click="openHomeLightbox('advantages', activeAdvantagesImageIndex)">
                                 <template x-for="(image, index) in visibleAdvantagesImages()" :key="image.src">
-                                    <img x-show="activeAdvantagesImageIndex === index" x-transition.opacity.duration.500ms :src="image.src" :alt="image.title" class="absolute inset-0 w-full h-full object-cover">
+                                    <img x-show="activeAdvantagesImageIndex === index" x-transition.opacity.duration.500ms :src="image.src" :alt="image.title" class="absolute inset-0 w-full h-full object-cover" @error="markHomeMediaInvalid(image)">
                                 </template>
                                 <div class="absolute inset-0 pointer-events-none bg-gradient-to-t from-forest-950/45 via-transparent to-transparent"></div>
                                 <h3 class="absolute left-5 bottom-5 right-5 pointer-events-none text-2xl font-black text-white" x-text="visibleAdvantagesImages()[activeAdvantagesImageIndex]?.title"></h3>
-                                <button @click.stop="prevAdvantagesImage(); startHomeGalleryRotation()" class="absolute left-4 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white/85 hover:bg-white text-forest-900 shadow flex items-center justify-center"><i class="fa-solid fa-chevron-left"></i></button>
-                                <button @click.stop="nextAdvantagesImage(); startHomeGalleryRotation()" class="absolute right-4 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white/85 hover:bg-white text-forest-900 shadow flex items-center justify-center"><i class="fa-solid fa-chevron-right"></i></button>
-                                <div class="absolute bottom-4 left-0 right-0 flex justify-center gap-2">
+                                <button @click.stop="prevAdvantagesImage(); startHomeGalleryRotation()" x-show="visibleAdvantagesImages().length > 1" class="absolute left-4 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white/85 hover:bg-white text-forest-900 shadow flex items-center justify-center"><i class="fa-solid fa-chevron-left"></i></button>
+                                <button x-show="visibleAdvantagesImages().length > 1" @click.stop="nextAdvantagesImage(); startHomeGalleryRotation()" class="absolute right-4 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white/85 hover:bg-white text-forest-900 shadow flex items-center justify-center"><i class="fa-solid fa-chevron-right"></i></button>
+                                <div x-show="visibleAdvantagesImages().length > 1" class="absolute bottom-4 left-0 right-0 flex justify-center gap-2">
                                     <template x-for="(image, index) in visibleAdvantagesImages()" :key="`adv-dot-${image.src}`"><button @click.stop="setAdvantagesImage(index)" class="h-2 rounded-full transition-all" :class="activeAdvantagesImageIndex === index ? 'w-8 bg-wood-400' : 'w-2 bg-white/70'"></button></template>
                                 </div>
                             </div>
-                        </div>
+                            </div>
+                        </template>
                     </div>
                 </section>
 
