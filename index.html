@@ -3353,8 +3353,22 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
         @media (prefers-reduced-motion: reduce) {
             .hero-kicker, .hero-title, .hero-desc, .hero-actions { animation: none; }
         }
-        .ad-content-grid, .public-desktop-shell { display: grid; grid-template-columns: minmax(0, 1fr); }
-        .ad-rail { display: none; }
+        .public-page-ad-shell {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr);
+            align-items: stretch;
+            width: 100%;
+            max-width: 1280px;
+            margin-inline: auto;
+            overflow: visible;
+        }
+        .public-main-content { min-width: 0; grid-column: 1; overflow: visible; }
+        .public-ad-rail { display: none; align-self: stretch; min-height: 100%; overflow: visible; }
+        .public-ad-sticky-stack {
+            position: sticky;
+            top: calc(var(--header-height, 88px) + 16px);
+            align-self: start;
+        }
         [data-reveal] { opacity: 1; transform: none; }
         [data-reveal].reveal-ready { opacity: 0; transform: translateY(18px) scale(.99); transition: opacity 420ms ease, transform 420ms ease; }
         [data-reveal=slide-left].reveal-ready { transform: translateX(18px) scale(.99); }
@@ -4064,21 +4078,27 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
         }
         @media (min-width: 1900px) {
             .ad-safe-content { padding-left: 0; padding-right: 0; }
-            .public-desktop-shell {
-                grid-template-columns: var(--left-ad-width, 0px) minmax(0, 1180px) var(--right-ad-width, 0px);
+            .public-page-ad-shell {
+                grid-template-columns: var(--left-ad-width, 0px) minmax(760px, 1180px) var(--right-ad-width, 0px);
                 gap: 24px;
-                align-items: start;
+                align-items: stretch;
                 width: max-content;
                 max-width: calc(100vw - 32px);
-                margin-inline: auto;
+                overflow: visible;
             }
-            .public-main-column { min-width: 0; grid-column: 2; }
-            .public-ad-rail { display: block; min-width: 0; align-self: stretch; }
-            .public-ad-rail-left { grid-column: 1; }
-            .public-ad-rail-right { grid-column: 3; }
-            .public-desktop-shell.is-admin-route { display: block; max-width: 1280px; }
-            .public-desktop-shell.is-admin-route .public-main-column { min-width: 0; }
-            .public-ad-sticky-stack { position: sticky; top: calc(var(--header-height) + 16px); align-self: start; display: flex; flex-direction: column; align-items: center; gap: 24px; }
+            .public-main-content { min-width: 760px; grid-column: 2; overflow: visible; }
+            .public-ad-rail { display: block; min-width: 0; align-self: stretch; min-height: 100%; overflow: visible; }
+            .public-ad-rail--left { grid-column: 1; }
+            .public-ad-rail--right { grid-column: 3; }
+            .public-ad-sticky-stack {
+                position: sticky;
+                top: calc(var(--header-height, 88px) + 16px);
+                align-self: start;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                gap: 24px;
+            }
             .ad-box { flex: none; }
             .ad-frame { flex: none; background: #fff; box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1); border-radius: 16px; overflow: hidden; border: 1px solid rgb(231 229 228); }
             .side-ad-media { display: block; width: 100%; height: 100%; object-fit: cover; border-radius: 16px; }
@@ -4905,8 +4925,11 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                     </button>
                 </div>
 
-                <div class="public-desktop-shell ad-content-grid mx-auto w-full max-w-[calc(100vw-2rem)]" :style="publicAdShellStyle()" :class="{ 'has-ads': hasAnyRenderableBanner(), 'has-left-ad': hasRenderableBanner('left'), 'has-right-ad': hasRenderableBanner('right'), 'max-w-7xl': !hasAnyRenderableBanner() }">
-                <aside x-show="getLeftSideAds().length" x-cloak class="ad-rail public-ad-rail public-ad-rail-left" data-ad-side="left">
+            </div>
+
+            <!-- SHARED PUBLIC THREE-COLUMN SHELL -->
+            <div x-show="!['admin', 'login'].includes(page)" x-cloak class="public-page-ad-shell" :style="publicAdShellStyle()" :class="{ 'has-ads': hasAnyRenderableBanner(), 'has-left-ad': getLeftSideAds().length, 'has-right-ad': getRightSideAds().length, 'max-w-7xl': !hasAnyRenderableBanner() }">
+                <aside x-show="getLeftSideAds().length" x-cloak class="public-ad-rail public-ad-rail--left" data-ad-side="left">
                     <div class="public-ad-sticky-stack">
                         <template x-for="ad in getLeftSideAds()" :key="`left-${ad.id || ad.src}`">
                             <div class="ad-box">
@@ -4922,7 +4945,8 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                     </div>
                 </aside>
 
-                    <div class="public-main-column min-w-0 space-y-16">
+                <main class="public-main-content">
+                    <div x-show="page === 'home'" x-cloak class="page-content home-page space-y-16">
 
                 <!-- PREMIUM FEATURE SECTION -->
                 <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 sm:pt-12 lg:pt-14 ad-safe-content" data-reveal>
@@ -5108,44 +5132,9 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                     </div>
                 </section>
                     </div>
-                <aside x-show="getRightSideAds().length" x-cloak class="ad-rail public-ad-rail public-ad-rail-right" data-ad-side="right">
-                    <div class="public-ad-sticky-stack">
-                        <template x-for="ad in getRightSideAds()" :key="`right-${ad.id || ad.src}`">
-                            <div class="ad-box">
-                                <div class="ad-frame" :style="publicAdStyle(ad)">
-                                    <a :href="ad.link || '#'" target="_blank" rel="noopener" class="block w-full h-full relative group" @click="incrementAdClick('right', ad)">
-                                        <template x-if="ad.mediaType === 'image'"><img :src="ad.src || ad.mediaUrl" class="side-ad-media group-hover:scale-105 transition duration-500" loading="lazy" decoding="async" alt="Reklam banneri"></template>
-                                        <template x-if="ad.mediaType === 'video'"><video :src="ad.src || ad.mediaUrl" autoplay muted loop playsinline class="side-ad-media"></video></template>
-                                    </a>
-                                </div>
-                                <p class="public-ad-title" x-text="ad.title"></p>
-                            </div>
-                        </template>
-                    </div>
-                </aside>
-
-                </div>
-            </div>
 
             <!-- 2. PROJECTS CATALOGUE PAGE -->
-            <div x-show="page !== 'home'" x-cloak class="page-shell page-content public-desktop-shell ad-content-grid mx-auto w-full max-w-[calc(100vw-2rem)]" :style="publicAdShellStyle()" :class="{ 'has-ads': hasAnyRenderableBanner() && !['admin', 'login'].includes(page), 'has-left-ad': hasRenderableBanner('left') && !['admin', 'login'].includes(page), 'has-right-ad': hasRenderableBanner('right') && !['admin', 'login'].includes(page), 'max-w-7xl': !hasAnyRenderableBanner(), 'is-admin-route': ['admin', 'login'].includes(page) }">
-                <aside x-show="!['admin', 'login'].includes(page) && getLeftSideAds().length" x-cloak class="ad-rail public-ad-rail public-ad-rail-left" data-ad-side="left">
-                    <div class="public-ad-sticky-stack">
-                        <template x-for="ad in getLeftSideAds()" :key="`left-${ad.id || ad.src}`">
-                            <div class="ad-box">
-                                <div class="ad-frame" :style="publicAdStyle(ad)">
-                                    <a :href="ad.link || '#'" target="_blank" rel="noopener" class="block w-full h-full relative group" @click="incrementAdClick('left', ad)">
-                                        <template x-if="ad.mediaType === 'image'"><img :src="ad.src || ad.mediaUrl" class="side-ad-media group-hover:scale-105 transition duration-500" loading="lazy" decoding="async" alt="Reklam banneri"></template>
-                                        <template x-if="ad.mediaType === 'video'"><video :src="ad.src || ad.mediaUrl" autoplay muted loop playsinline class="side-ad-media"></video></template>
-                                    </a>
-                                </div>
-                                <p class="public-ad-title" x-text="ad.title"></p>
-                            </div>
-                        </template>
-                    </div>
-                </aside>
-
-                <div class="public-main-column min-w-0">
+                    <div x-show="!['home', 'admin', 'login'].includes(page)" x-cloak class="page-shell page-content">
             <div x-show="page === 'projects'" x-cloak class="projects-page max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-12 ad-safe-content">
                 <div class="text-center max-w-3xl mx-auto space-y-4">
                     <span class="text-wood-600 font-bold uppercase tracking-widest text-sm block" x-text="t('allProjects')">Layihələrimiz</span>
@@ -5395,6 +5384,26 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                     <p class="text-stone-600 leading-relaxed">Bu bölmə haqqında məlumat tezliklə yenilənəcək. Ətraflı məlumat üçün bizimlə əlaqə saxlayın.</p>
                     <a href="/elaqe" class="inline-flex items-center justify-center rounded-2xl bg-forest-700 px-5 py-3 font-bold text-white shadow hover:bg-forest-800">Əlaqə saxlayın</a>
                 </div>
+            </div>
+
+                    </div>
+                </main>
+
+                <aside x-show="getRightSideAds().length" x-cloak class="public-ad-rail public-ad-rail--right" data-ad-side="right">
+                    <div class="public-ad-sticky-stack">
+                        <template x-for="ad in getRightSideAds()" :key="`right-${ad.id || ad.src}`">
+                            <div class="ad-box">
+                                <div class="ad-frame" :style="publicAdStyle(ad)">
+                                    <a :href="ad.link || '#'" target="_blank" rel="noopener" class="block w-full h-full relative group" @click="incrementAdClick('right', ad)">
+                                        <template x-if="ad.mediaType === 'image'"><img :src="ad.src || ad.mediaUrl" class="side-ad-media group-hover:scale-105 transition duration-500" loading="lazy" decoding="async" alt="Reklam banneri"></template>
+                                        <template x-if="ad.mediaType === 'video'"><video :src="ad.src || ad.mediaUrl" autoplay muted loop playsinline class="side-ad-media"></video></template>
+                                    </a>
+                                </div>
+                                <p class="public-ad-title" x-text="ad.title"></p>
+                            </div>
+                        </template>
+                    </div>
+                </aside>
             </div>
 
             <!-- 6. ADMIN LOGIN PAGE -->
@@ -5761,25 +5770,6 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                         </div>
                     </div>
                 </div>            </div>
-                </div>
-                <aside x-show="!['admin', 'login'].includes(page) && getRightSideAds().length" x-cloak class="ad-rail public-ad-rail public-ad-rail-right" data-ad-side="right">
-                    <div class="public-ad-sticky-stack">
-                        <template x-for="ad in getRightSideAds()" :key="`right-${ad.id || ad.src}`">
-                            <div class="ad-box">
-                                <div class="ad-frame" :style="publicAdStyle(ad)">
-                                    <a :href="ad.link || '#'" target="_blank" rel="noopener" class="block w-full h-full relative group" @click="incrementAdClick('right', ad)">
-                                        <template x-if="ad.mediaType === 'image'"><img :src="ad.src || ad.mediaUrl" class="side-ad-media group-hover:scale-105 transition duration-500" loading="lazy" decoding="async" alt="Reklam banneri"></template>
-                                        <template x-if="ad.mediaType === 'video'"><video :src="ad.src || ad.mediaUrl" autoplay muted loop playsinline class="side-ad-media"></video></template>
-                                    </a>
-                                </div>
-                                <p class="public-ad-title" x-text="ad.title"></p>
-                            </div>
-                        </template>
-                    </div>
-                </aside>
-
-            </div>
-
             <!-- FOOTER -->
             </main><footer class="site-footer relative left-1/2 w-screen max-w-[100vw] -translate-x-1/2 text-stone-100 pt-9 pb-6 border-t border-white/[.08]" style="background: radial-gradient(circle at top right, rgba(184,138,96,.12), transparent 45%), linear-gradient(180deg, #17372F 0%, #10271F 45%, #0B1915 100%);">
                 <div class="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-7">
