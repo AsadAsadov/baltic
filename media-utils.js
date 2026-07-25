@@ -8,8 +8,26 @@ function isYouTubeUrl(value = '') {
   return /(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)/i.test(String(value || ''));
 }
 
+function extractMediaUrl(value = '') {
+  if (value == null) return '';
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (!trimmed) return '';
+    if ((trimmed.startsWith('{') && trimmed.endsWith('}')) || (trimmed.startsWith('[') && trimmed.endsWith(']'))) {
+      try { return extractMediaUrl(JSON.parse(trimmed)); } catch (_) {}
+    }
+    return trimmed;
+  }
+  if (typeof value !== 'object') return '';
+  for (const key of ['url', 'src', 'original', 'mediaUrl', 'audioUrl', 'imageUrl', 'coverImage', 'image']) {
+    const found = extractMediaUrl(value[key]);
+    if (found) return found;
+  }
+  return extractMediaUrl(value.variants?.original || value.imageVariants?.original);
+}
+
 function normalizeMediaUrl(url = '') {
-  let value = String(url || '').trim().replace(/\\/g, '/');
+  let value = extractMediaUrl(url).trim().replace(/\\/g, '/');
   if (!value) return '';
   if (/^(data:|blob:)/i.test(value) || isYouTubeUrl(value)) return value;
   value = value.replace(/\/uploads(?:\/uploads)+\//ig, '/uploads/');
@@ -53,4 +71,4 @@ function imageVariantUrl(url = '', variant = 'medium') {
   return `${value.slice(0, -ext.length)}-${variant}.webp`;
 }
 
-module.exports = { IMAGE_EXT_RE, VIDEO_EXT_RE, AUDIO_EXT_RE, normalizeMediaUrl, uploadUrlToPath, imageVariantUrl, isYouTubeUrl };
+module.exports = { IMAGE_EXT_RE, VIDEO_EXT_RE, AUDIO_EXT_RE, extractMediaUrl, normalizeMediaUrl, uploadUrlToPath, imageVariantUrl, isYouTubeUrl };

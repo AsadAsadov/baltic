@@ -15,7 +15,7 @@ const sharp = require('sharp');
 const { performance } = require('perf_hooks');
 const { execFile } = require('child_process');
 const { promisify } = require('util');
-const { VIDEO_EXT_RE, normalizeMediaUrl, uploadUrlToPath: mediaUploadUrlToPath, imageVariantUrl } = require('./media-utils');
+const { VIDEO_EXT_RE, AUDIO_EXT_RE, extractMediaUrl, normalizeMediaUrl, uploadUrlToPath: mediaUploadUrlToPath, imageVariantUrl } = require('./media-utils');
 
 const execFileAsync = promisify(execFile);
 
@@ -112,6 +112,13 @@ const isAllowedAudioUpload = (file) => {
 const isAllowedUploadFile = (file, bucket) => bucket === 'audio'
   ? isAllowedAudioUpload(file)
   : isAllowedImageUpload(file) || isAllowedVideoUpload(file);
+const publicUrlForUploadedFile = (file, bucket) => {
+  if (!allowedUploadBuckets.includes(bucket)) return '';
+  const filename = path.basename(String(file?.filename || file?.originalname || ''));
+  if (!filename || filename.includes('..') || filename.includes('/') || filename.includes('\\')) return '';
+  return `/uploads/${bucket}/${filename}`;
+};
+
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: {
@@ -281,7 +288,7 @@ function validateCategory(value, label = 'category') {
 }
 const workCategoryMap = Object.fromEntries(Object.entries(CATEGORY_LABELS).map(([key, labels]) => [key, { ru: labels.ru, en: labels.en }]))
 function excerptText(value = '', limit = 180) { const clean = String(value || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim(); return clean.length > limit ? `${clean.slice(0, limit).trim()}…` : clean; }
-function workOut(w, options = {}) { const list = options.list === true; const descAz = list ? excerptText(w.descriptionAz) : w.descriptionAz; const descRu = list ? excerptText(w.descriptionRu) : w.descriptionRu; const descEn = list ? excerptText(w.descriptionEn) : w.descriptionEn; const originalImages = [...new Set([w.coverImage, ...jsonArray(w.images)].map(normalizeStoredMediaUrl).filter(Boolean))]; const cover = listImage(w.coverImage) || imageItemsFor(originalImages)[0]?.original || ''; return w && { id:w.id, slug:w.slug, type:'work', category:w.category, categoryNameAz:CATEGORY_LABELS[w.category]?.az || w.category, categoryRu:CATEGORY_LABELS[w.category]?.ru || w.category, categoryEn:CATEGORY_LABELS[w.category]?.en || w.category, title:w.titleAz, titleAz:w.titleAz, titleRu:w.titleRu, titleEn:w.titleEn, description:descAz, descriptionAz:descAz, descriptionRu:descRu, descriptionEn:descEn, location:w.locationAz, locationAz:w.locationAz, locationRu:w.locationRu, locationEn:w.locationEn, area:w.area, stories:w.stories, rooms:w.rooms, buildTime:w.buildTimeAz, buildTimeAz:w.buildTimeAz, buildTimeRu:w.buildTimeRu, buildTimeEn:w.buildTimeEn, completionDate:w.completionDate, coverImage:cover, image:cover, originalImage:cover, imageVariants:withImageVariants(cover), images:list ? [cover].filter(Boolean) : originalImages, imageItems:list ? undefined : imageItemsFor(originalImages), sortOrder:w.sortOrder, archived:w.archived, featured:w.featured, active:w.active, createdAt:w.createdAt, updatedAt:w.updatedAt, __detailLoaded: !list }; }
+function workOut(w, options = {}) { const list = options.list === true; const descAz = list ? excerptText(w.descriptionAz) : w.descriptionAz; const descRu = list ? excerptText(w.descriptionRu) : w.descriptionRu; const descEn = list ? excerptText(w.descriptionEn) : w.descriptionEn; const originalImages = orderedMediaUrls(w.coverImage, w.images); const cover = listImage(w.coverImage) || imageItemsFor(originalImages)[0]?.original || ''; return w && { id:w.id, slug:w.slug, type:'work', category:w.category, categoryNameAz:CATEGORY_LABELS[w.category]?.az || w.category, categoryRu:CATEGORY_LABELS[w.category]?.ru || w.category, categoryEn:CATEGORY_LABELS[w.category]?.en || w.category, title:w.titleAz, titleAz:w.titleAz, titleRu:w.titleRu, titleEn:w.titleEn, description:descAz, descriptionAz:descAz, descriptionRu:descRu, descriptionEn:descEn, location:w.locationAz, locationAz:w.locationAz, locationRu:w.locationRu, locationEn:w.locationEn, area:w.area, stories:w.stories, rooms:w.rooms, buildTime:w.buildTimeAz, buildTimeAz:w.buildTimeAz, buildTimeRu:w.buildTimeRu, buildTimeEn:w.buildTimeEn, completionDate:w.completionDate, coverImage:cover, image:cover, originalImage:cover, imageVariants:withImageVariants(cover), images:list ? [cover].filter(Boolean) : originalImages, imageItems:list ? undefined : imageItemsFor(originalImages), sortOrder:w.sortOrder, archived:w.archived, featured:w.featured, active:w.active, createdAt:w.createdAt, updatedAt:w.updatedAt, __detailLoaded: !list }; }
 const hasOwn = (obj, key) => Object.prototype.hasOwnProperty.call(obj || {}, key);
 const firstPresent = (body, keys, fallback = undefined) => {
   for (const key of keys) if (hasOwn(body, key)) return body[key];
@@ -401,6 +408,16 @@ const catMap = CATEGORY_LABELS;
 const IMAGE_VARIANT_WIDTHS = { thumb: 480, medium: 960, large: 1600 };
 const IMAGE_VARIANT_QUALITY = { thumb: 74, medium: 78, large: 82 };
 const normalizeStoredMediaUrl = normalizeMediaUrl;
+const orderedMediaUrls = (cover, images = []) => {
+  const seen = new Set();
+  return [cover, ...(Array.isArray(images) ? images : [])]
+    .map(value => normalizeStoredMediaUrl(extractMediaUrl(value)))
+    .filter(url => {
+      if (!url || seen.has(url)) return false;
+      seen.add(url);
+      return true;
+    });
+};
 const uploadUrlToPath = (url = '') => mediaUploadUrlToPath(url, uploadRoot);
 const uploadExistsCache = new Map();
 const UPLOAD_EXISTS_TTL_MS = 5 * 60 * 1000;
@@ -481,10 +498,10 @@ async function createImageVariants(sourcePath, publicUrl) {
 
 function projectOut(p, options = {}) {
   const list = options.list === true; const descAz = list ? excerptText(p.descriptionAz) : p.descriptionAz; const descRu = list ? excerptText(p.descriptionRu) : p.descriptionRu; const descEn = list ? excerptText(p.descriptionEn) : p.descriptionEn;
-  const originalImages = [...new Set([p.coverImage, ...jsonArray(p.images)].map(normalizeStoredMediaUrl).filter(Boolean))]; const preferredCover = normalizeStoredMediaUrl(p.coverImage) || originalImages[0] || ''; const cover = listImage(preferredCover) || imageItemsFor(originalImages)[0]?.original || ''; const images = list ? [cover].filter(Boolean) : originalImages; return { id: p.id, legacyId: p.legacyId, slug:p.slug, type:'project', category: p.category, cat: p.category, categoryNameAz: p.categoryNameAz || catMap[p.category]?.az || p.category, categoryNameRu: p.categoryNameRu || catMap[p.category]?.ru || p.category, categoryNameEn: p.categoryNameEn || catMap[p.category]?.en || p.category, catName: p.categoryNameAz || catMap[p.category]?.az || p.category, catNameRu: p.categoryNameRu || catMap[p.category]?.ru || p.category, catNameEn: p.categoryNameEn || catMap[p.category]?.en || p.category, title: p.titleAz, titleAz:p.titleAz, titleRu:p.titleRu, titleEn:p.titleEn, shortDescription:descAz, shortDescriptionAz:descAz, shortDescriptionRu:descRu, shortDescriptionEn:descEn, description:descAz, desc:descAz, descriptionAz:descAz, descriptionRu:descRu, descriptionEn:descEn, descRu, descEn, area:p.area, stories:p.stories, rooms:p.rooms, buildTime:p.buildTimeAz, buildTimeAz:p.buildTimeAz, buildTimeRu:p.buildTimeRu, buildTimeEn:p.buildTimeEn, image:cover, coverImage:cover, originalImage:cover, imageVariants:withImageVariants(cover), images, imageItems:list ? undefined : imageItemsFor(originalImages), views:p.views, archived:p.archived, createdAt:p.createdAt, updatedAt:p.updatedAt, __detailLoaded:!list };
+  const originalImages = orderedMediaUrls(p.coverImage, p.images); const preferredCover = normalizeStoredMediaUrl(p.coverImage) || originalImages[0] || ''; const cover = listImage(preferredCover) || imageItemsFor(originalImages)[0]?.original || ''; const images = list ? [cover].filter(Boolean) : originalImages; return { id: p.id, legacyId: p.legacyId, slug:p.slug, type:'project', category: p.category, cat: p.category, categoryNameAz: p.categoryNameAz || catMap[p.category]?.az || p.category, categoryNameRu: p.categoryNameRu || catMap[p.category]?.ru || p.category, categoryNameEn: p.categoryNameEn || catMap[p.category]?.en || p.category, catName: p.categoryNameAz || catMap[p.category]?.az || p.category, catNameRu: p.categoryNameRu || catMap[p.category]?.ru || p.category, catNameEn: p.categoryNameEn || catMap[p.category]?.en || p.category, title: p.titleAz, titleAz:p.titleAz, titleRu:p.titleRu, titleEn:p.titleEn, shortDescription:descAz, shortDescriptionAz:descAz, shortDescriptionRu:descRu, shortDescriptionEn:descEn, description:descAz, desc:descAz, descriptionAz:descAz, descriptionRu:descRu, descriptionEn:descEn, descRu, descEn, area:p.area, stories:p.stories, rooms:p.rooms, buildTime:p.buildTimeAz, buildTimeAz:p.buildTimeAz, buildTimeRu:p.buildTimeRu, buildTimeEn:p.buildTimeEn, image:cover, coverImage:cover, originalImage:cover, imageVariants:withImageVariants(cover), images, imageItems:list ? undefined : imageItemsFor(originalImages), views:p.views, archived:p.archived, createdAt:p.createdAt, updatedAt:p.updatedAt, __detailLoaded:!list };
 }
-function galleryOut(g, options = {}) { const list = !!options.list; const originalImages = jsonArray(g.images).map(normalizeStoredMediaUrl); const primary = normalizeStoredMediaUrl(g.mediaUrl || originalImages[0] || ''); const src = g.type === 'image' ? listImage(primary, list ? 'medium' : 'large') : primary; const posterUrl = g.type === 'video' ? existingUploadUrl(videoPosterUrl(primary)) : ''; return { id: g.id, src, mediaUrl: src, originalMediaUrl: primary, posterUrl, imageVariants: withImageVariants(primary), images: list && g.type === 'image' ? [src].filter(Boolean) : originalImages, title: g.titleAz, titleAz: g.titleAz, titleRu:g.titleRu, titleEn:g.titleEn, type:g.type, archived:g.archived, sortOrder:g.sortOrder, createdAt:g.createdAt, updatedAt:g.updatedAt }; }
-function galleryIn(b) { const images = b.images || (b.src ? [b.src] : []); const limited = limitImageArray(images); if (limited.errors) return { errors: limited.errors }; return { mediaUrl: b.src || b.mediaUrl || '', images, titleAz: b.titleAz || b.title || '', titleRu: b.titleRu, titleEn: b.titleEn, type: b.type || 'image', sortOrder: Number(b.sortOrder) || 0 }; }
+function galleryOut(g, options = {}) { const list = !!options.list; const mediaType = isYouTubeUrl(g.mediaUrl) ? 'video' : (g.type || 'image'); const originalImages = jsonArray(g.images).map(value => normalizeStoredMediaUrl(extractMediaUrl(value))).filter(Boolean); const primary = normalizeStoredMediaUrl(extractMediaUrl(g.mediaUrl || originalImages[0] || '')); const src = mediaType === 'image' ? listImage(primary) : primary; const posterUrl = mediaType === 'video' && !isYouTubeUrl(primary) ? existingUploadUrl(videoPosterUrl(primary)) : ''; return { id: g.id, src, mediaUrl: src, originalMediaUrl: primary, posterUrl, imageVariants: mediaType === 'image' ? withImageVariants(primary) : null, images: list && mediaType === 'image' ? [src].filter(Boolean) : originalImages, title: g.titleAz, titleAz: g.titleAz, titleRu:g.titleRu, titleEn:g.titleEn, type:mediaType, archived:g.archived, sortOrder:g.sortOrder, createdAt:g.createdAt, updatedAt:g.updatedAt }; }
+function galleryIn(b) { const images = (b.images || (b.src ? [b.src] : [])).map(extractMediaUrl).filter(Boolean); const limited = limitImageArray(images); if (limited.errors) return { errors: limited.errors }; return { mediaUrl: b.src || b.mediaUrl || '', images, titleAz: b.titleAz || b.title || '', titleRu: b.titleRu, titleEn: b.titleEn, type: b.type || 'image', sortOrder: Number(b.sortOrder) || 0 }; }
 function getYouTubeId(url = '') { const value = String(url || '').trim(); const patterns = [/[?&]v=([^&]+)/i, /youtu\.be\/([^?&#/]+)/i, /youtube\.com\/embed\/([^?&#/]+)/i, /youtube\.com\/shorts\/([^?&#/]+)/i]; for (const pattern of patterns) { const match = value.match(pattern); if (match?.[1]) return decodeURIComponent(match[1]).replace(/[^a-zA-Z0-9_-]/g, ''); } return ''; }
 function isYouTubeUrl(url = '') { return Boolean(getYouTubeId(url)); }
 function isVideoUrl(url = '') { return isYouTubeUrl(url) || /\.(mp4|webm|mov)(?:[?#].*)?$/i.test(String(url)); }
@@ -532,6 +549,7 @@ const slugId = (slug = '') => String(slug || '').split('-').pop();
 const publicOrigin = () => (process.env.PUBLIC_SITE_URL || 'https://balticcaspian.com').replace(/\/+$/, '');
 const absoluteUrl = (req, url = '') => /^https?:\/\//i.test(url) ? url : `${publicOrigin()}${String(url || '').startsWith('/') ? '' : '/'}${url || ''}`;
 const escapeHtml = (value = '') => String(value || '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+const audioMimeForUrl = (url='') => { const ext = path.extname(String(url).split(/[?#]/)[0]).toLowerCase(); return ext === '.mp3' ? 'audio/mpeg' : ext === '.wav' ? 'audio/wav' : ext === '.ogg' ? 'audio/ogg' : (ext === '.m4a' || ext === '.aac') ? 'audio/aac' : ''; };
 const isBrowserImage = (url='') => /\.(jpe?g|png|webp|avif|gif)(?:[?#].*)?$/i.test(String(url||''));
 async function uniqueSlug(model, title, requested, existingId = null) {
   const base = sanitizeSlug(requested || title || existingId || 'detal');
@@ -684,11 +702,12 @@ app.get('/api/audio-tracks', wrap(async (req,res)=>{
   if (admin && req.session?.adminAuthenticated !== true) return res.status(401).json({ok:false,error:'ADMIN_AUTH_REQUIRED'});
   const rows = await prisma.siteAudioTrack.findMany({ where:admin ? {} : {active:true}, orderBy:[{sortOrder:'asc'},{createdAt:'asc'}] });
   res.set('Cache-Control', admin ? 'no-store' : 'public, max-age=30');
-  res.json(rows.map(row => ({ ...row, audioUrl: normalizeStoredMediaUrl(row.audioUrl) })));
+  res.json(rows.map(row => { const audioUrl = normalizeStoredMediaUrl(row.audioUrl); return { ...row, audioUrl, audioMime: audioMimeForUrl(audioUrl) }; }));
 }));
 app.post('/api/audio-tracks', requireAdminWrite, wrap(async (req,res)=>{
-  const title=String(req.body?.title||'').trim(), audioUrl=String(req.body?.audioUrl||'').trim();
+  const title=String(req.body?.title||'').trim(), audioUrl=normalizeStoredMediaUrl(req.body?.audioUrl||'');
   if(!title || !audioUrl) return res.status(400).json({ok:false,error:'TITLE_AND_AUDIO_REQUIRED'});
+  if(!AUDIO_EXT_RE.test(audioUrl)) return res.status(400).json({ok:false,error:'UNSUPPORTED_AUDIO_URL'});
   res.status(201).json(await prisma.siteAudioTrack.create({data:{title,audioUrl,active:req.body.active!==false,sortOrder:Number(req.body.sortOrder)||0}}));
 }));
 app.put('/api/audio-tracks/reorder', requireAdminWrite, wrap(async (req,res)=>{
@@ -696,8 +715,9 @@ app.put('/api/audio-tracks/reorder', requireAdminWrite, wrap(async (req,res)=>{
   res.json({ok:true});
 }));
 app.put('/api/audio-tracks/:id', requireAdminWrite, wrap(async (req,res)=>{
-  const title=String(req.body?.title||'').trim(), audioUrl=String(req.body?.audioUrl||'').trim();
+  const title=String(req.body?.title||'').trim(), audioUrl=normalizeStoredMediaUrl(req.body?.audioUrl||'');
   if(!title || !audioUrl) return res.status(400).json({ok:false,error:'TITLE_AND_AUDIO_REQUIRED'});
+  if(!AUDIO_EXT_RE.test(audioUrl)) return res.status(400).json({ok:false,error:'UNSUPPORTED_AUDIO_URL'});
   res.json(await prisma.siteAudioTrack.update({where:{id:String(req.params.id)},data:{title,audioUrl,active:req.body.active!==false,sortOrder:Number(req.body.sortOrder)||0}}));
 }));
 app.patch('/api/audio-tracks/:id/toggle', requireAdminWrite, wrap(async (req,res)=>{
@@ -786,7 +806,6 @@ app.get('/api/health/storage', (req, res) => res.json({ ok: true, localStorage: 
 
 app.post('/api/uploads', requireAdminWrite, upload.single('file'), wrap(async (req, res) => {
   const bucket = req.body.bucket;
-  console.info('[uploads:start]', { bucket, fileExists: Boolean(req.file), mimetype: req.file?.mimetype });
   if (!allowedUploadBuckets.includes(bucket)) {
     return res.status(400).json({ ok: false, error: 'INVALID_BUCKET', buckets: allowedUploadBuckets });
   }
@@ -802,7 +821,7 @@ app.post('/api/uploads', requireAdminWrite, upload.single('file'), wrap(async (r
     await fs.promises.unlink(originalFilePath).catch(() => {});
     return res.status(500).json({ ok:false, error:'UPLOAD_WRITE_FAILED', message:'Yüklənən fayl diskdə təsdiqlənmədi.' });
   }
-  let publicUrl = `/uploads/${bucket}/${filename}`;
+  let publicUrl = publicUrlForUploadedFile({ filename }, bucket);
   let filePath = originalFilePath;
   if (isAllowedVideoUpload(req.file) && /\.mov$/i.test(filename)) {
     try {
@@ -832,7 +851,7 @@ app.post('/api/uploads/sign', requireAdminWrite, (req,res)=>{
   if (!allowedUploadBuckets.includes(bucket)) return res.status(400).json({ error: 'Invalid bucket', buckets: allowedUploadBuckets });
   const filename = `${Date.now()}-${crypto.randomUUID()}-${safeUploadFilename(req.body.filename || 'upload')}`;
   const objectPath = path.join(bucket, filename);
-  const publicUrl = `/uploads/${bucket}/${filename}`;
+  const publicUrl = publicUrlForUploadedFile({ filename }, bucket);
   res.json({ bucket, path: objectPath, publicUrl, uploadUrl: null, todo: 'Use POST /api/uploads for multipart uploads' });
 });
 

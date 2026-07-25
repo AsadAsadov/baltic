@@ -837,8 +837,25 @@
                     if (payload && typeof payload === 'object') return [payload];
                     return [];
                 },
+                extractMediaUrl(value = '') {
+                    if (value == null) return '';
+                    if (typeof value === 'string') {
+                        const trimmed = value.trim();
+                        if (!trimmed) return '';
+                        if ((trimmed.startsWith('{') && trimmed.endsWith('}')) || (trimmed.startsWith('[') && trimmed.endsWith(']'))) {
+                            try { return this.extractMediaUrl(JSON.parse(trimmed)); } catch (_) {}
+                        }
+                        return trimmed;
+                    }
+                    if (typeof value !== 'object') return '';
+                    for (const key of ['url', 'src', 'original', 'mediaUrl', 'audioUrl', 'imageUrl', 'coverImage', 'image']) {
+                        const found = this.extractMediaUrl(value[key]);
+                        if (found) return found;
+                    }
+                    return this.extractMediaUrl(value.variants?.original || value.imageVariants?.original);
+                },
                 normalizeImageUrl(url = '') {
-                    let value = String(url || '').trim().replace(/\\/g, '/');
+                    let value = this.extractMediaUrl(url).trim().replace(/\\/g, '/');
                     if (!value) return '';
                     if (/^(data:|blob:)/i.test(value) || this.isYouTubeUrl?.(value)) return value;
                     value = value.replace(/\/uploads\/uploads\//ig, '/uploads/');
@@ -856,7 +873,7 @@
                     return value;
                 },
                 normalizeImageList(images = []) {
-                    return (Array.isArray(images) ? images : []).map(image => this.normalizeImageUrl(image)).filter(Boolean);
+                    return (Array.isArray(images) ? images : []).map(image => this.normalizeImageUrl(this.extractMediaUrl(image))).filter(Boolean);
                 },
                 normalizeImageVariants(variants = {}) {
                     return variants && typeof variants === 'object' ? {
@@ -898,7 +915,7 @@
                 imageLoading(index = 0, eagerCount = 2) { return Number(index) < eagerCount ? 'eager' : 'lazy'; },
                 imageFetchPriority(index = 0, eagerCount = 2) { return Number(index) < eagerCount ? 'high' : 'low'; },
                 normalizeProject(project = {}) {
-                    const rawImages = [project.coverImage, project.cover_image, project.thumbnail, project.image, project.cover, ...(Array.isArray(project.images) ? project.images : [])];
+                    const rawImages = [project.coverImage, project.cover_image, project.thumbnail, project.image, project.cover, ...(Array.isArray(project.images) ? project.images : [])].map(value => this.extractMediaUrl(value));
                     const seenImages = new Set();
                     const images = rawImages.map(image => this.normalizeImageUrl(image)).filter(image => image && !seenImages.has(image) && seenImages.add(image));
                     const image = images[0] || '';
@@ -1619,14 +1636,12 @@
                     } else if (!this.isAllowedImageFile(file) && !fileType.startsWith('video/')) {
                         throw new Error('Bu media formatı dəstəklənmir.');
                     }
-                    console.info('[uploadMedia:start]', { bucket, filename: file.name, type: file.type, size: file.size });
                     const formData = new FormData();
                     formData.append('bucket', bucket);
                     formData.append('file', file);
                     try {
                         const res = await fetch(`${this.apiBase}/api/uploads`, { method: 'POST', body: formData });
                         const data = await res.json().catch(() => ({}));
-                        console.info('[uploadMedia:response]', { bucket, filename: file.name, status: res.status, data });
                         if (!res.ok || !data?.ok || !data.publicUrl) throw new Error(data?.message || data?.error || `Upload failed (${res.status})`);
                         return data.publicUrl;
                     } catch (error) {
@@ -1785,10 +1800,14 @@
                 async loadAudioTracks(admin = false) {
                     try {
                         const tracks = await this.api(admin ? '/api/audio-tracks?admin=true' : '/api/audio-tracks', admin ? { cache:'no-store' } : {});
-                        this.audioTracks = (Array.isArray(tracks) ? tracks : []).map(track => ({ ...track, audioUrl: this.normalizeImageUrl(track.audioUrl || '') }));
+                        this.audioTracks = (Array.isArray(tracks) ? tracks : []).map(track => ({ ...track, audioUrl: this.normalizeImageUrl(track.audioUrl || ''), audioMime: track.audioMime || this.audioMimeForUrl(track.audioUrl || '') }));
                         if (this.activeAudioIndex >= this.activeAudioTracks().length) this.activeAudioIndex = 0;
                         this.$nextTick(() => this.prepareCurrentAudio(false));
                     } catch (error) { if (admin) throw error; console.warn('Audio siyahısı yüklənmədi', error); }
+                },
+                audioMimeForUrl(url = '') {
+                    const ext = String(url || '').split(/[?#]/)[0].toLowerCase().match(/\.[a-z0-9]+$/)?.[0] || '';
+                    return ext === '.mp3' ? 'audio/mpeg' : ext === '.wav' ? 'audio/wav' : ext === '.ogg' ? 'audio/ogg' : (ext === '.m4a' || ext === '.aac') ? 'audio/aac' : '';
                 },
                 ensureCurrentAudioSource() {
                     const audio = this.$refs.siteAudio;
@@ -1796,7 +1815,10 @@
                     const source = this.normalizeImageUrl(track?.audioUrl || '');
                     if (!audio || !source) return null;
                     const expected = new URL(source, location.origin).href;
-                    if (audio.src !== expected) {
+                    if (audio.currentSrc !== expected && audio.src !== expected) {
+                        audio.pause();
+                        audio.removeAttribute('src');
+                        audio.load();
                         audio.src = source;
                         audio.load();
                     }
@@ -1828,8 +1850,8 @@
                         this.audioAutoplayBlocked = false;
                         this.scheduleAudioCollapse();
                     } catch (error) {
-                        console.error('Audio playback failed', error);
-                        this.audioError = error?.message || 'Audio səsləndirilə bilmədi';
+                        console.error('Audio play failed', { name: error?.name, message: error?.message, src: audio.currentSrc });
+                        this.audioError = error?.message || 'Musiqini başlatmaq mümkün olmadı';
                         this.audioAutoplayBlocked = true;
                         this.audioPanelOpen = true;
                         this.audioPlayerCollapsed = false;
@@ -5451,9 +5473,9 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                 </div>
 
                 <div x-show="galleryLoaded && !(Array.isArray(galleryItems) && galleryItems.filter(g => !g.archived).length)" class="empty-state gallery-empty rounded-3xl border border-stone-200 bg-white p-10 text-center text-stone-500 font-bold" x-text="lang === 'az' ? 'Qalereyada hələ media əlavə edilməyib.' : (lang === 'ru' ? 'Галерея пуста.' : 'Gallery is empty.')"></div>
-                <div x-show="galleryLoaded" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                <div x-show="galleryLoaded" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-4 justify-center">
                     <template x-for="(img, idx) in (Array.isArray(galleryItems) ? galleryItems : []).filter(g => !g.archived)" :key="img.id">
-                        <div class="group relative aspect-square overflow-hidden rounded-2xl bg-stone-200 cursor-pointer shadow-sm hover:shadow-lg transition duration-300" @click="openGalleryModal(idx)">
+                        <div class="group relative aspect-[4/3] overflow-hidden rounded-2xl bg-stone-200 cursor-pointer shadow-sm hover:shadow-lg transition duration-300" @click="openGalleryModal(idx)">
                             <template x-if="img.type === 'video'">
                                 <div class="w-full h-full relative">
                                     <div class="absolute inset-0 flex items-center justify-center bg-black/40 z-10 text-white group-hover:bg-black/20 transition">
@@ -6104,7 +6126,7 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
     </div>
 
     <div x-show="!['admin','login'].includes(page)" x-cloak class="site-audio-player" :class="{ 'is-collapsed': audioPlayerCollapsed }">
-        <audio x-ref="siteAudio" :src="currentAudioTrack()?.audioUrl || ''" preload="metadata" @play="handleSiteAudioPlay()" @pause="audioPlaying=false" @ended="changeAudioTrack(1)" @volumechange="audioVolume=$event.target.volume"></audio>
+        <audio x-ref="siteAudio" preload="metadata" @play="handleSiteAudioPlay()" @pause="audioPlaying=false" @ended="changeAudioTrack(1)" @volumechange="audioVolume=$event.target.volume"></audio>
         <button x-show="audioPlayerCollapsed" type="button" class="site-audio-collapsed-button" @click="toggleAudioPanel()" :aria-label="audioPlaying ? 'Səs pleyerini aç' : 'Səsi başladın'">
             <i class="fa-solid" :class="audioPlaying ? 'fa-music' : 'fa-play'"></i>
         </button>
