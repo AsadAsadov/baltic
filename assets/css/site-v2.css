@@ -1806,3 +1806,195 @@ body.is-home-page .header-main nav a:hover {
         grid-template-columns: minmax(0, min(100%, 420px)) !important;
     }
 }
+
+/* Final responsive layout, hero and audio fixes (2026-07-25). */
+:root {
+    --site-content-max: 1280px;
+    --mobile-bottom-nav-height: 76px;
+}
+
+.ad-safe-content,
+.desktop-page-container,
+.projects-page,
+.gallery-page,
+.works-page,
+.contact-shell {
+    width: min(calc(100% - 32px), var(--site-content-max)) !important;
+    max-width: var(--site-content-max) !important;
+    margin-inline: auto !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+}
+
+.public-page-ad-shell.has-ads {
+    overflow-x: clip;
+}
+
+@media (min-width: 1600px) {
+    .public-page-ad-shell.has-ads {
+        display: grid !important;
+        width: min(calc(100% - 32px), 1920px) !important;
+        max-width: 1920px !important;
+        grid-template-columns: clamp(190px, 16vw, 280px) minmax(900px, 1fr) clamp(190px, 16vw, 280px) !important;
+        column-gap: clamp(18px, 1.6vw, 30px) !important;
+        margin-inline: auto !important;
+        align-items: start !important;
+    }
+
+    .public-page-ad-shell.has-ads .public-ad-rail,
+    .public-page-ad-shell.has-ads .ad-frame {
+        display: block !important;
+        width: 100% !important;
+        min-width: 0 !important;
+        max-width: 280px !important;
+    }
+}
+
+@media (min-width: 1400px) and (max-width: 1599px) {
+    .public-page-ad-shell.has-ads {
+        display: grid !important;
+        width: min(calc(100% - 24px), 1560px) !important;
+        max-width: 1560px !important;
+        grid-template-columns: minmax(170px, 210px) minmax(920px, 1fr) minmax(170px, 210px) !important;
+        column-gap: 18px !important;
+        margin-inline: auto !important;
+    }
+
+    .public-page-ad-shell.has-ads .public-ad-rail,
+    .public-page-ad-shell.has-ads .ad-frame {
+        display: block !important;
+        width: 100% !important;
+        min-width: 0 !important;
+        max-width: 210px !important;
+    }
+}
+
+@media (max-width: 1399px) {
+    .public-page-ad-shell.has-ads {
+        display: block !important;
+        width: 100% !important;
+        max-width: none !important;
+    }
+
+    .public-page-ad-shell.has-ads .public-ad-rail {
+        display: none !important;
+    }
+
+    .public-page-ad-shell.has-ads .ad-safe-content,
+    .public-page-ad-shell.has-ads .projects-page,
+    .public-page-ad-shell.has-ads .works-page,
+    .public-page-ad-shell.has-ads .gallery-page,
+    .public-page-ad-shell.has-ads .about-page {
+        width: min(calc(100% - 32px), 1160px) !important;
+        max-width: 1160px !important;
+    }
+}
+
+.home-why-grid {
+    grid-template-columns: minmax(0, 1fr);
+}
+
+@media (min-width: 1180px) {
+    .home-why-grid:has(.home-section-media-card) {
+        grid-template-columns: minmax(0, 1.35fr) minmax(320px, .85fr) !important;
+    }
+
+    .home-why-cards {
+        grid-template-columns: repeat(3, minmax(150px, 1fr)) !important;
+    }
+}
+
+@media (min-width: 768px) and (max-width: 1179px) {
+    .home-why-cards {
+        grid-template-columns: repeat(2, minmax(190px, 1fr)) !important;
+    }
+}
+
+.home-why-card {
+    min-width: 0;
+    height: 100%;
+    padding: clamp(18px, 1.35vw, 22px) !important;
+}
+
+.home-why-card h3 {
+    line-height: 1.18;
+    overflow-wrap: normal;
+    word-break: normal;
+    hyphens: none;
+}
+
+.home-why-card p {
+    line-height: 1.55;
+}
+
+.hero-viewport,
+.public-main-content [data-home-hero].hero-viewport,
+.public-main-content [data-home-hero].hero-viewport > .absolute.inset-0.z-0,
+.public-main-content [data-home-hero] .hero-slide,
+.public-main-content [data-home-hero] .hero-slide-media-main,
+.public-main-content [data-home-hero] .hero-slide-video-main {
+    overflow: hidden !important;
+}
+
+.hero-slide-media,
+.hero-slide-media-main,
+.hero-slide-video,
+.hero-slide-video-main,
+.gallery-card-media {
+    display: block;
+    max-width: 100%;
+}
+
+@media (max-width: 767px) {
+    .public-main-content [data-home-hero].hero-viewport {
+        width: calc(100% - 20px) !important;
+        height: auto !important;
+        min-height: 0 !important;
+        max-height: 52vh !important;
+        aspect-ratio: 16 / 10 !important;
+        padding: 0 !important;
+        align-items: stretch !important;
+        border-radius: 22px !important;
+    }
+
+    .public-main-content [data-home-hero] .hero-content,
+    .public-main-content [data-home-hero] .mobile-hero-content {
+        left: 16px !important;
+        right: 16px !important;
+        bottom: 46px !important;
+        width: auto !important;
+        max-width: calc(100% - 32px) !important;
+    }
+}
+
+.gallery-page > .grid {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 400px)) !important;
+    justify-content: center !important;
+    gap: 24px !important;
+}
+
+.gallery-page > .grid > div,
+.gallery-card {
+    width: 100% !important;
+    max-width: 420px !important;
+    justify-self: center !important;
+}
+
+.gallery-card-media,
+.gallery-page .group.relative {
+    aspect-ratio: 4 / 3 !important;
+    object-fit: cover !important;
+}
+
+@media (max-width: 767px) {
+    .site-audio-player {
+        right: 12px !important;
+        bottom: calc(var(--mobile-bottom-nav-height, 76px) + var(--mobile-bottom-nav-gap, 14px) + env(safe-area-inset-bottom) + 12px) !important;
+        width: min(340px, calc(100vw - 24px)) !important;
+    }
+
+    .site-audio-player.is-collapsed {
+        width: 52px !important;
+        height: 52px !important;
+    }
+}
