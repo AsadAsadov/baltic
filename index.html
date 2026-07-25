@@ -5589,8 +5589,10 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                                     {i:'fa-gauge-high',t:t('aboutBenefit4Title'),d:t('aboutBenefit4Desc')}
                                 ]" :key="benefit.t">
                                     <article class="benefit-card">
-                                        <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-forest-50 text-forest-700"><i class="fa-solid" :class="benefit.i"></i></span>
-                                        <div><h3 class="font-black text-forest-950" x-text="benefit.t"></h3><p class="mt-1 text-sm leading-6 text-stone-600" x-text="benefit.d"></p></div>
+                                        <div class="benefit-card-inner">
+                                            <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-forest-50 text-forest-700"><i class="fa-solid" :class="benefit.i"></i></span>
+                                            <div><h3 class="font-black text-forest-950" x-text="benefit.t"></h3><p class="mt-1 text-sm leading-6 text-stone-600" x-text="benefit.d"></p></div>
+                                        </div>
                                     </article>
                                 </template>
                             </div>
