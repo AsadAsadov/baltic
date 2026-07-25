@@ -150,6 +150,9 @@
                 slides: [],
                 slidesLoaded: false,
                 messages: [],
+                adminMessagesLoading: false,
+                adminMessagesError: '',
+                adminMessagesRequestToken: 0,
 
                 // Dynamic Live Statistics
                 stats: {
@@ -1079,7 +1082,6 @@
                     this.projectsLoaded = false;
                     this.galleryLoaded = false;
                     this.workItemsLoaded = false;
-                    this.messages = [];
                     try {
                         await this.loadAdminTabVisibility({ networkOnly: true });
                         if (version !== this.adminLoadVersion) return;
@@ -1096,6 +1098,7 @@
 
                 async loadAdminSection(tab = this.adminTab, options = {}) {
                     const version = options.version || this.adminLoadVersion;
+                    if (tab === 'messages') return this.loadAdminMessages({ version, force: options.force });
                     const key = tab === 'ads' ? 'banners' : (tab === 'home-images' ? 'homeImages' : tab);
                     const cached = this.adminCache[key];
                     if (cached?.loadingPromise) return cached.loadingPromise;
@@ -1105,7 +1108,6 @@
                         else if (tab === 'projects') await this.loadData({ adminInitial: true, version, sections: ['projects'] });
                         else if (tab === 'works') await this.loadData({ adminInitial: true, version, sections: ['works'] });
                         else if (tab === 'gallery') await this.loadData({ adminInitial: true, version, sections: ['gallery'] });
-                        else if (tab === 'messages') await this.loadData({ adminInitial: true, version, sections: ['messages'] });
                         else if (tab === 'ads') await this.loadData({ adminInitial: true, version, sections: ['banners'] });
                         else if (tab === 'hero') await this.loadHeroSlides(true);
                         else if (tab === 'home-images') await this.loadHomeSectionImages(true);
@@ -1115,6 +1117,32 @@
                     return run;
                 },
                 setAdminTab(tab) { this.adminTab = tab; if (tab === 'hero') this.resetHeroForm(); this.loadAdminSection(tab).catch(error => { console.warn('Admin tab lazy load failed', error); this.showToast('Xəta', 'Bölmə məlumatları yüklənmədi.'); }); },
+
+                async loadAdminMessages(options = {}) {
+                    if (!this.adminLoggedIn) return this.messages;
+                    const cached = this.adminCache.messages;
+                    if (cached?.loadingPromise) return cached.loadingPromise;
+                    if (!options.force && cached?.loadedAt && Date.now() - cached.loadedAt < 120000) return this.messages;
+                    const token = ++this.adminMessagesRequestToken;
+                    this.adminMessagesLoading = true;
+                    this.adminMessagesError = '';
+                    const run = this.api('/api/messages', { cache: 'no-store' }).then(payload => {
+                        if (token !== this.adminMessagesRequestToken || (options.version && options.version !== this.adminLoadVersion)) return this.messages;
+                        const rows = Array.isArray(payload) ? payload : [];
+                        this.messages = rows;
+                        this.stats.messagesCount = rows.length;
+                        this.adminCache.messages = { data: rows, loadedAt: Date.now(), loadingPromise: null };
+                        return rows;
+                    }).catch(error => {
+                        if (token === this.adminMessagesRequestToken) this.adminMessagesError = 'Müraciətlər yüklənmədi. Yenidən cəhd edin.';
+                        throw error;
+                    }).finally(() => {
+                        if (token === this.adminMessagesRequestToken) this.adminMessagesLoading = false;
+                        if (this.adminCache.messages?.loadingPromise === run) this.adminCache.messages.loadingPromise = null;
+                    });
+                    this.adminCache.messages = { ...(cached || {}), loadingPromise: run };
+                    return run;
+                },
 
                 retryAdminInitialization() { this.initializeAdminPanel(); },
 
@@ -1821,6 +1849,23 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                         .sort((a, b) => (Number(a.displayOrder) || 0) - (Number(b.displayOrder) || 0));
                 },
 
+                getLeftSideAds() { return this.getActiveBannersForSide('left'); },
+                getRightSideAds() { return this.getActiveBannersForSide('right'); },
+                publicAdDimension(value, fallback) {
+                    const number = Number(value);
+                    return Number.isFinite(number) && number > 0 ? number : fallback;
+                },
+                publicAdStyle(ad) {
+                    return `width:${this.publicAdDimension(ad?.width, 260)}px;height:${this.publicAdDimension(ad?.height, 600)}px`;
+                },
+                publicAdRailWidth(side) {
+                    const ads = side === 'left' ? this.getLeftSideAds() : this.getRightSideAds();
+                    return ads.reduce((maximum, ad) => Math.max(maximum, this.publicAdDimension(ad?.width, 260)), 0);
+                },
+                publicAdShellStyle() {
+                    return `--left-ad-width:${this.publicAdRailWidth('left')}px;--right-ad-width:${this.publicAdRailWidth('right')}px`;
+                },
+
                 currentBannerForSide(side) {
                     const list = this.getActiveBannersForSide(side);
                     if (!list.length) return this.getSafeBanner({}, side);
@@ -1937,8 +1982,8 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                     });
                 },
 
-                incrementAdClick(side = 'left') {
-                    const banner = this.bannerForSide(side);
+                incrementAdClick(side = 'left', renderedBanner = null) {
+                    const banner = renderedBanner || this.bannerForSide(side);
                     if (banner.active && (banner.src || banner.mediaUrl)) {
                         banner.clicks = (banner.clicks || 0) + 1;
                         if (banner.id) this.api(`/api/banners/${banner.id}/click`, { method: 'POST' }).catch(() => this.showToast('API xəta', 'Reklam klik DB-yə yazılmadı.'));
@@ -4017,25 +4062,27 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
             }
             .project-card__cta { display: none !important; }
         }
-        @media (min-width: 1280px) {
+        @media (min-width: 1900px) {
             .ad-safe-content { padding-left: 0; padding-right: 0; }
             .public-desktop-shell {
-                grid-template-columns: minmax(120px, 160px) minmax(0, 1180px) minmax(120px, 160px);
+                grid-template-columns: var(--left-ad-width, 0px) minmax(0, 1180px) var(--right-ad-width, 0px);
                 gap: 24px;
                 align-items: start;
-                width: 100%;
-                max-width: 1600px;
+                width: max-content;
+                max-width: calc(100vw - 32px);
                 margin-inline: auto;
             }
             .public-main-column { min-width: 0; grid-column: 2; }
-            .public-ad-rail { display: flex; flex-direction: column; gap: 24px; min-width: 0; position: static; }
+            .public-ad-rail { display: block; min-width: 0; align-self: stretch; }
             .public-ad-rail-left { grid-column: 1; }
             .public-ad-rail-right { grid-column: 3; }
             .public-desktop-shell.is-admin-route { display: block; max-width: 1280px; }
             .public-desktop-shell.is-admin-route .public-main-column { min-width: 0; }
-            .ad-box { position: static; width: 100%; max-width: 160px; }
-            .ad-frame { width: 100%; height: auto; aspect-ratio: var(--ad-width, 260) / var(--ad-height, 600); max-width: 160px; background: #fff; box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1); border-radius: 16px; overflow: hidden; border: 1px solid rgb(231 229 228); }
-            .ad-media { display: block; width: 100%; height: 100%; object-fit: cover; border-radius: 16px; }
+            .public-ad-sticky-stack { position: sticky; top: calc(var(--header-height) + 16px); align-self: start; display: flex; flex-direction: column; align-items: center; gap: 24px; }
+            .ad-box { flex: none; }
+            .ad-frame { flex: none; background: #fff; box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1); border-radius: 16px; overflow: hidden; border: 1px solid rgb(231 229 228); }
+            .side-ad-media { display: block; width: 100%; height: 100%; object-fit: cover; border-radius: 16px; }
+            .public-ad-title { max-width: 100%; margin-top: 12px; padding-inline: 4px; color: #78716c; font-size: 12px; font-weight: 700; text-align: center; overflow-wrap: anywhere; }
         }
 
 
@@ -4858,16 +4905,20 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                     </button>
                 </div>
 
-                <div class="public-desktop-shell ad-content-grid mx-auto w-full max-w-[calc(100vw-2rem)]" :class="{ 'has-ads': hasAnyRenderableBanner(), 'has-left-ad': hasRenderableBanner('left'), 'has-right-ad': hasRenderableBanner('right'), 'max-w-7xl': !hasAnyRenderableBanner() }">
-                <aside x-show="hasRenderableBanner('left')" x-cloak class="ad-rail public-ad-rail public-ad-rail-left" data-ad-side="left">
-                    <div class="ad-box flex flex-col items-center py-2">
-                        <div class="ad-frame relative" :style="`--ad-width: ${Math.min(bannerForSide($el.closest('[data-ad-side]')?.dataset.adSide || 'left').width || 260, 260)}px; --ad-height: ${bannerForSide($el.closest('[data-ad-side]')?.dataset.adSide || 'left').height || 600}px;`">
-                            <a :href="bannerForSide('left').link || '#'" target="_blank" rel="noopener" class="block w-full h-full relative group" @click="incrementAdClick($el.closest('[data-ad-side]')?.dataset.adSide || 'left')">
-                                <template x-if="currentBannerForSide('left').mediaType === 'image'"><img :src="currentBannerForSide('left').src || currentBannerForSide('left').mediaUrl" class="ad-media group-hover:scale-105 transition duration-500" loading="lazy" decoding="async" alt="Reklam banneri"></template>
-                                <template x-if="currentBannerForSide('left').mediaType === 'video'"><video :src="currentBannerForSide('left').src || currentBannerForSide('left').mediaUrl" autoplay muted loop playsinline class="ad-media"></video></template>
-                            </a>
-                        </div>
-                        <p class="text-xs text-stone-500 font-bold mt-3 text-center max-w-[260px] break-words px-1" x-text="bannerForSide('left').title"></p>
+                <div class="public-desktop-shell ad-content-grid mx-auto w-full max-w-[calc(100vw-2rem)]" :style="publicAdShellStyle()" :class="{ 'has-ads': hasAnyRenderableBanner(), 'has-left-ad': hasRenderableBanner('left'), 'has-right-ad': hasRenderableBanner('right'), 'max-w-7xl': !hasAnyRenderableBanner() }">
+                <aside x-show="getLeftSideAds().length" x-cloak class="ad-rail public-ad-rail public-ad-rail-left" data-ad-side="left">
+                    <div class="public-ad-sticky-stack">
+                        <template x-for="ad in getLeftSideAds()" :key="`left-${ad.id || ad.src}`">
+                            <div class="ad-box">
+                                <div class="ad-frame" :style="publicAdStyle(ad)">
+                                    <a :href="ad.link || '#'" target="_blank" rel="noopener" class="block w-full h-full relative group" @click="incrementAdClick('left', ad)">
+                                        <template x-if="ad.mediaType === 'image'"><img :src="ad.src || ad.mediaUrl" class="side-ad-media group-hover:scale-105 transition duration-500" loading="lazy" decoding="async" alt="Reklam banneri"></template>
+                                        <template x-if="ad.mediaType === 'video'"><video :src="ad.src || ad.mediaUrl" autoplay muted loop playsinline class="side-ad-media"></video></template>
+                                    </a>
+                                </div>
+                                <p class="public-ad-title" x-text="ad.title"></p>
+                            </div>
+                        </template>
                     </div>
                 </aside>
 
@@ -5057,15 +5108,19 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                     </div>
                 </section>
                     </div>
-                <aside x-show="hasRenderableBanner('right')" x-cloak class="ad-rail public-ad-rail public-ad-rail-right" data-ad-side="right">
-                    <div class="ad-box flex flex-col items-center py-2">
-                        <div class="ad-frame relative" :style="`--ad-width: ${Math.min(bannerForSide($el.closest('[data-ad-side]')?.dataset.adSide || 'right').width || 260, 260)}px; --ad-height: ${bannerForSide($el.closest('[data-ad-side]')?.dataset.adSide || 'right').height || 600}px;`">
-                            <a :href="bannerForSide('right').link || '#'" target="_blank" rel="noopener" class="block w-full h-full relative group" @click="incrementAdClick($el.closest('[data-ad-side]')?.dataset.adSide || 'right')">
-                                <template x-if="currentBannerForSide('right').mediaType === 'image'"><img :src="currentBannerForSide('right').src || currentBannerForSide('right').mediaUrl" class="ad-media group-hover:scale-105 transition duration-500" loading="lazy" decoding="async" alt="Reklam banneri"></template>
-                                <template x-if="currentBannerForSide('right').mediaType === 'video'"><video :src="currentBannerForSide('right').src || currentBannerForSide('right').mediaUrl" autoplay muted loop playsinline class="ad-media"></video></template>
-                            </a>
-                        </div>
-                        <p class="text-xs text-stone-500 font-bold mt-3 text-center max-w-[260px] break-words px-1" x-text="bannerForSide('right').title"></p>
+                <aside x-show="getRightSideAds().length" x-cloak class="ad-rail public-ad-rail public-ad-rail-right" data-ad-side="right">
+                    <div class="public-ad-sticky-stack">
+                        <template x-for="ad in getRightSideAds()" :key="`right-${ad.id || ad.src}`">
+                            <div class="ad-box">
+                                <div class="ad-frame" :style="publicAdStyle(ad)">
+                                    <a :href="ad.link || '#'" target="_blank" rel="noopener" class="block w-full h-full relative group" @click="incrementAdClick('right', ad)">
+                                        <template x-if="ad.mediaType === 'image'"><img :src="ad.src || ad.mediaUrl" class="side-ad-media group-hover:scale-105 transition duration-500" loading="lazy" decoding="async" alt="Reklam banneri"></template>
+                                        <template x-if="ad.mediaType === 'video'"><video :src="ad.src || ad.mediaUrl" autoplay muted loop playsinline class="side-ad-media"></video></template>
+                                    </a>
+                                </div>
+                                <p class="public-ad-title" x-text="ad.title"></p>
+                            </div>
+                        </template>
                     </div>
                 </aside>
 
@@ -5073,16 +5128,20 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
             </div>
 
             <!-- 2. PROJECTS CATALOGUE PAGE -->
-            <div x-show="page !== 'home'" x-cloak class="page-shell page-content public-desktop-shell ad-content-grid mx-auto w-full max-w-[calc(100vw-2rem)]" :class="{ 'has-ads': hasAnyRenderableBanner() && !['admin', 'login'].includes(page), 'has-left-ad': hasRenderableBanner('left') && !['admin', 'login'].includes(page), 'has-right-ad': hasRenderableBanner('right') && !['admin', 'login'].includes(page), 'max-w-7xl': !hasAnyRenderableBanner(), 'is-admin-route': ['admin', 'login'].includes(page) }">
-                <aside x-show="!['admin', 'login'].includes(page) && hasRenderableBanner('left')" x-cloak class="ad-rail public-ad-rail public-ad-rail-left" data-ad-side="left">
-                    <div class="ad-box flex flex-col items-center py-2">
-                        <div class="ad-frame relative" :style="`--ad-width: ${Math.min(bannerForSide($el.closest('[data-ad-side]')?.dataset.adSide || 'left').width || 260, 260)}px; --ad-height: ${bannerForSide($el.closest('[data-ad-side]')?.dataset.adSide || 'left').height || 600}px;`">
-                            <a :href="bannerForSide('left').link || '#'" target="_blank" rel="noopener" class="block w-full h-full relative group" @click="incrementAdClick($el.closest('[data-ad-side]')?.dataset.adSide || 'left')">
-                                <template x-if="currentBannerForSide('left').mediaType === 'image'"><img :src="currentBannerForSide('left').src || currentBannerForSide('left').mediaUrl" class="ad-media group-hover:scale-105 transition duration-500" loading="lazy" decoding="async" alt="Reklam banneri"></template>
-                                <template x-if="currentBannerForSide('left').mediaType === 'video'"><video :src="currentBannerForSide('left').src || currentBannerForSide('left').mediaUrl" autoplay muted loop playsinline class="ad-media"></video></template>
-                            </a>
-                        </div>
-                        <p class="text-xs text-stone-500 font-bold mt-3 text-center max-w-[260px] break-words px-1" x-text="bannerForSide('left').title"></p>
+            <div x-show="page !== 'home'" x-cloak class="page-shell page-content public-desktop-shell ad-content-grid mx-auto w-full max-w-[calc(100vw-2rem)]" :style="publicAdShellStyle()" :class="{ 'has-ads': hasAnyRenderableBanner() && !['admin', 'login'].includes(page), 'has-left-ad': hasRenderableBanner('left') && !['admin', 'login'].includes(page), 'has-right-ad': hasRenderableBanner('right') && !['admin', 'login'].includes(page), 'max-w-7xl': !hasAnyRenderableBanner(), 'is-admin-route': ['admin', 'login'].includes(page) }">
+                <aside x-show="!['admin', 'login'].includes(page) && getLeftSideAds().length" x-cloak class="ad-rail public-ad-rail public-ad-rail-left" data-ad-side="left">
+                    <div class="public-ad-sticky-stack">
+                        <template x-for="ad in getLeftSideAds()" :key="`left-${ad.id || ad.src}`">
+                            <div class="ad-box">
+                                <div class="ad-frame" :style="publicAdStyle(ad)">
+                                    <a :href="ad.link || '#'" target="_blank" rel="noopener" class="block w-full h-full relative group" @click="incrementAdClick('left', ad)">
+                                        <template x-if="ad.mediaType === 'image'"><img :src="ad.src || ad.mediaUrl" class="side-ad-media group-hover:scale-105 transition duration-500" loading="lazy" decoding="async" alt="Reklam banneri"></template>
+                                        <template x-if="ad.mediaType === 'video'"><video :src="ad.src || ad.mediaUrl" autoplay muted loop playsinline class="side-ad-media"></video></template>
+                                    </a>
+                                </div>
+                                <p class="public-ad-title" x-text="ad.title"></p>
+                            </div>
+                        </template>
                     </div>
                 </aside>
 
@@ -5437,6 +5496,12 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
 
                 <!-- SUB-TAB 2: MESSAGES -->
                 <div x-show="adminTab === 'messages'" x-transition class="bg-white p-6 sm:p-8 rounded-3xl border border-stone-200/80 shadow-sm space-y-4 text-sm">
+                    <p x-show="adminMessagesLoading && !messages.length" class="text-stone-500 font-semibold">Müraciətlər yüklənir...</p>
+                    <div x-show="adminMessagesError" class="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-red-700">
+                        <span x-text="adminMessagesError"></span>
+                        <button type="button" class="rounded-lg bg-red-700 px-3 py-2 text-xs font-bold text-white" @click="loadAdminMessages({ force: true })">Yenidən cəhd et</button>
+                    </div>
+                    <p x-show="!adminMessagesLoading && !adminMessagesError && !messages.length" class="text-stone-500 font-semibold">Müraciət yoxdur.</p>
                     <template x-for="msg in (Array.isArray(messages) ? messages : [])" :key="msg.id">
                         <div class="p-4 rounded-2xl border border-stone-200 bg-stone-50 flex flex-col lg:flex-row justify-between gap-4">
                             <div class="min-w-0">
@@ -5449,9 +5514,9 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                                     <i class="fa-brands fa-whatsapp"></i>
                                     <span>WhatsApp ilə əlaqə</span>
                                 </a>
-                                <button @click="deleteMessage(msg.id)" class="bg-red-50 text-red-600 py-2 px-3 rounded-xl text-xs font-bold" x-text="lang==='az' ? 'Sil' : (lang==='ru' ? 'Удалить' : 'Delete')">Sil</span>
+                                <button @click="deleteMessage(msg.id)" class="bg-red-50 text-red-600 py-2 px-3 rounded-xl text-xs font-bold" x-text="lang==='az' ? 'Sil' : (lang==='ru' ? 'Удалить' : 'Delete')">Sil</button>
                             </div>
-                        </a>
+                        </div>
                     </template>
                 </div>
 
@@ -5697,15 +5762,19 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                     </div>
                 </div>            </div>
                 </div>
-                <aside x-show="!['admin', 'login'].includes(page) && hasRenderableBanner('right')" x-cloak class="ad-rail public-ad-rail public-ad-rail-right" data-ad-side="right">
-                    <div class="ad-box flex flex-col items-center py-2">
-                        <div class="ad-frame relative" :style="`--ad-width: ${Math.min(bannerForSide($el.closest('[data-ad-side]')?.dataset.adSide || 'right').width || 260, 260)}px; --ad-height: ${bannerForSide($el.closest('[data-ad-side]')?.dataset.adSide || 'right').height || 600}px;`">
-                            <a :href="bannerForSide('right').link || '#'" target="_blank" rel="noopener" class="block w-full h-full relative group" @click="incrementAdClick($el.closest('[data-ad-side]')?.dataset.adSide || 'right')">
-                                <template x-if="currentBannerForSide('right').mediaType === 'image'"><img :src="currentBannerForSide('right').src || currentBannerForSide('right').mediaUrl" class="ad-media group-hover:scale-105 transition duration-500" loading="lazy" decoding="async" alt="Reklam banneri"></template>
-                                <template x-if="currentBannerForSide('right').mediaType === 'video'"><video :src="currentBannerForSide('right').src || currentBannerForSide('right').mediaUrl" autoplay muted loop playsinline class="ad-media"></video></template>
-                            </a>
-                        </div>
-                        <p class="text-xs text-stone-500 font-bold mt-3 text-center max-w-[260px] break-words px-1" x-text="bannerForSide('right').title"></p>
+                <aside x-show="!['admin', 'login'].includes(page) && getRightSideAds().length" x-cloak class="ad-rail public-ad-rail public-ad-rail-right" data-ad-side="right">
+                    <div class="public-ad-sticky-stack">
+                        <template x-for="ad in getRightSideAds()" :key="`right-${ad.id || ad.src}`">
+                            <div class="ad-box">
+                                <div class="ad-frame" :style="publicAdStyle(ad)">
+                                    <a :href="ad.link || '#'" target="_blank" rel="noopener" class="block w-full h-full relative group" @click="incrementAdClick('right', ad)">
+                                        <template x-if="ad.mediaType === 'image'"><img :src="ad.src || ad.mediaUrl" class="side-ad-media group-hover:scale-105 transition duration-500" loading="lazy" decoding="async" alt="Reklam banneri"></template>
+                                        <template x-if="ad.mediaType === 'video'"><video :src="ad.src || ad.mediaUrl" autoplay muted loop playsinline class="side-ad-media"></video></template>
+                                    </a>
+                                </div>
+                                <p class="public-ad-title" x-text="ad.title"></p>
+                            </div>
+                        </template>
                     </div>
                 </aside>
 
