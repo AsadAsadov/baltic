@@ -67,6 +67,11 @@
                 showHeroTranslations: false,
                 translationTimers: {},
                 activeSlide: 0,
+                audioPanelOpen: false,
+                audioPlaying: false,
+                audioError: false,
+                audioCollapseTimer: null,
+                audioSource: '/uploads/audio/site-music.mp3',
                 heroMuted: true,
                 heroVolume: 0.6,
                 filterCategory: 'all',
@@ -729,21 +734,49 @@
                     }
                 },
 
+
+                toggleAudioPanel() { this.audioPanelOpen = !this.audioPanelOpen; },
+                async playAudio() {
+                    const audio = this.$refs.siteAudio;
+                    if (!audio) return;
+                    audio.src = this.normalizeMediaUrl(this.audioSource);
+                    try {
+                        await audio.play();
+                        this.audioPlaying = true;
+                        this.audioError = false;
+                        clearTimeout(this.audioCollapseTimer);
+                        this.audioCollapseTimer = setTimeout(() => { this.audioPanelOpen = false; }, 2500);
+                    } catch (error) {
+                        console.error('Audio playback failed:', error);
+                        this.audioError = true;
+                    }
+                },
+                pauseAudio() { const audio = this.$refs.siteAudio; if (audio) audio.pause(); this.audioPlaying = false; clearTimeout(this.audioCollapseTimer); },
+                toggleAudioPlayback() { return this.audioPlaying ? this.pauseAudio() : this.playAudio(); },
                 asArray(payload) {
                     if (Array.isArray(payload)) return payload;
                     if (Array.isArray(payload?.data)) return payload.data;
                     if (payload && typeof payload === 'object') return [payload];
                     return [];
                 },
-                normalizeImageUrl(url = '') {
-                    const value = String(url || '').trim();
+                normalizeMediaUrl(url = '') {
+                    let value = String(url || '').trim();
                     if (!value) return '';
-                    if (value.startsWith('/uploads/')) return value;
+                    value = value.replace(/\\/g, '/').replace(/\/uploads\/uploads\//gi, '/uploads/');
+                    if (/^(https?:)?\/\/(www\.)?(youtube\.com|youtu\.be)\//i.test(value)) return value;
+                    value = value.replace(/^https?:\/\/(www\.)?balticcaspian\.com(?=\/uploads\/)/i, '');
+                    const uploadIndex = value.toLowerCase().lastIndexOf('/uploads/');
+                    if (uploadIndex >= 0) value = value.slice(uploadIndex);
+                    if (/^uploads\//i.test(value)) value = `/${value}`;
+                    value = value.replace(/\/uploads\/uploads\//gi, '/uploads/');
+                    if (value.startsWith('/uploads/')) return encodeURI(decodeURI(value));
                     if (/^https?:\/\//i.test(value)) return value;
                     return value;
                 },
+                normalizeImageUrl(url = '') { return this.normalizeMediaUrl(url); },
                 normalizeImageList(images = []) {
-                    return (Array.isArray(images) ? images : []).map(image => this.normalizeImageUrl(image)).filter(Boolean);
+                    const seen = new Set();
+                    return (Array.isArray(images) ? images : []).map(image => this.normalizeMediaUrl(image)).filter(Boolean).filter(url => { const key = url.split(/[?#]/)[0].toLowerCase(); if (seen.has(key)) return false; seen.add(key); return true; });
                 },
                 normalizeImageVariants(variants = {}) {
                     return variants && typeof variants === 'object' ? {
@@ -784,8 +817,8 @@
                 imageLoading(index = 0, eagerCount = 2) { return Number(index) < eagerCount ? 'eager' : 'lazy'; },
                 imageFetchPriority(index = 0, eagerCount = 2) { return Number(index) < eagerCount ? 'high' : 'low'; },
                 normalizeProject(project = {}) {
-                    const images = this.normalizeImageList(project.images);
-                    const image = this.normalizeImageUrl(project.image || project.coverImage || project.cover || images[0] || '');
+                    const images = this.normalizeImageList([project.coverImage, project.cover_image, project.thumbnail, project.image, project.originalImage, ...(Array.isArray(project.images) ? project.images : [])]);
+                    const image = images[0] || '';
                     const cat = this.normalizeCategory(project.cat || project.category || 'house');
                     return {
                         id: project.id ?? '',
@@ -818,8 +851,8 @@
                         coverImage: project.coverImage || image,
                         originalImage: this.normalizeImageUrl(project.originalImage || project.cover || project.coverImage || project.image || images[0] || ''),
                         imageVariants: this.normalizeImageVariants(project.imageVariants),
-                        imageItems: this.normalizeImageItems(project.imageItems),
-                        images: images.length ? images : (image ? [image] : []),
+                        imageItems: this.normalizeImageItems(project.imageItems).length ? this.normalizeImageItems(project.imageItems) : images.map(src => ({ original: src, thumb: src, medium: src, large: src })),
+                        images: images,
                         views: Number(project.views) || 0,
                         archived: Boolean(project.archived),
                         __detailLoaded: project.__detailLoaded === true
@@ -831,7 +864,7 @@
                 },
                 normalizeGalleryItem(item = {}) {
                     const images = this.normalizeImageList(item.images);
-                    const src = this.normalizeImageUrl(item.src || item.image || item.url || item.mediaUrl || images[0] || '');
+                    const src = this.normalizeMediaUrl(item.src || item.image || item.url || item.mediaUrl || images[0] || '');
                     return { id: item.id ?? '',
                         slug: item.slug || '', src, image: item.image || src, url: item.url || src, mediaUrl: item.mediaUrl || src, originalMediaUrl: this.normalizeImageUrl(item.originalMediaUrl || item.mediaUrl || item.src || item.image || item.url || images[0] || ''), imageVariants: this.normalizeImageVariants(item.imageVariants), images: images.length ? images : (src && (item.type || 'image') === 'image' ? [src] : []), title: item.title || item.titleAz || '', titleAz: item.titleAz || item.title || '', titleRu: item.titleRu || item.title || '', titleEn: item.titleEn || item.title || '', type: item.type || 'image', archived: Boolean(item.archived), sortOrder: Number(item.sortOrder) || 0 };
                 },
@@ -843,7 +876,7 @@
                     const image = this.normalizeImageUrl(slide.image || slide.mediaUrl || slide.media_url || slide.src || slide.url || '');
                     const mediaType = this.getHeroMediaKind({ ...slide, mediaUrl: slide.mediaUrl || slide.media_url || image });
                     const mediaFit = ['cover', 'contain'].includes(slide.mediaFit || slide.media_fit) ? (slide.mediaFit || slide.media_fit) : (mediaType === 'video' ? 'contain' : 'cover');
-                    return { id: slide.id ?? '', image, mediaUrl: slide.mediaUrl || slide.media_url || image, src: slide.src || image, url: slide.url || image, mediaType, media_type: mediaType, mediaFit, media_fit: mediaFit, tag: slide.tag || slide.tagAz || '', tagAz: slide.tagAz || slide.tag || '', tagRu: slide.tagRu || slide.tag || '', tagEn: slide.tagEn || slide.tag || '', title1: slide.title1 || slide.title1Az || '', title1Az: slide.title1Az || slide.title1 || '', title1Ru: slide.title1Ru || slide.title1 || '', title1En: slide.title1En || slide.title1 || '', title2: slide.title2 || slide.title2Az || '', title2Az: slide.title2Az || slide.title2 || '', title2Ru: slide.title2Ru || slide.title2 || '', title2En: slide.title2En || slide.title2 || '', desc: slide.desc || slide.descAz || '', descAz: slide.descAz || slide.desc || '', descRu: slide.descRu || slide.desc || '', descEn: slide.descEn || slide.desc || '', active: slide.active ?? true, archived: Boolean(slide.archived), sortOrder: Number(slide.sortOrder) || 0 };
+                    return { id: slide.id ?? '', image, mediaUrl: this.normalizeMediaUrl(slide.mediaUrl || slide.media_url || image), src: slide.src || image, url: slide.url || image, mediaType, media_type: mediaType, mediaFit, media_fit: mediaFit, tag: slide.tag || slide.tagAz || '', tagAz: slide.tagAz || slide.tag || '', tagRu: slide.tagRu || slide.tag || '', tagEn: slide.tagEn || slide.tag || '', title1: slide.title1 || slide.title1Az || '', title1Az: slide.title1Az || slide.title1 || '', title1Ru: slide.title1Ru || slide.title1 || '', title1En: slide.title1En || slide.title1 || '', title2: slide.title2 || slide.title2Az || '', title2Az: slide.title2Az || slide.title2 || '', title2Ru: slide.title2Ru || slide.title2 || '', title2En: slide.title2En || slide.title2 || '', desc: slide.desc || slide.descAz || '', descAz: slide.descAz || slide.desc || '', descRu: slide.descRu || slide.desc || '', descEn: slide.descEn || slide.desc || '', active: slide.active ?? true, archived: Boolean(slide.archived), sortOrder: Number(slide.sortOrder) || 0 };
                 },
                 normalizeSlides(payload, fallback = []) {
                     const items = this.asArray(payload).map(item => this.normalizeSlide(item));
@@ -854,6 +887,7 @@
                 },
 
                 isYouTubeUrl(url = '') { return Boolean(this.getYouTubeId(url)); },
+                isLocalVideoUrl(url = '') { return /\.(mp4|webm|mov)(?:[?#].*)?$/i.test(String(url || '')); },
                 getYouTubeId(url = '') {
                     const value = String(url || '').trim();
                     if (!value) return '';
@@ -949,7 +983,7 @@
                 },
                 getSafeBanner(banner = {}, side = 'both') {
                     const source = banner && typeof banner === 'object' ? banner : {};
-                    const src = source.src || source.image || source.mediaUrl || source.media_url || source.url || '';
+                    const src = this.normalizeMediaUrl(source.src || source.image || source.mediaUrl || source.media_url || source.url || '');
                     const link = source.link || source.linkUrl || source.link_url || '#';
                     const rawMediaType = source.mediaType || source.type || source.media_type || 'image';
                     const mediaType = /\.(mp4|webm|mov)(?:[?#].*)?$/i.test(src) ? 'video' : rawMediaType;
@@ -2651,9 +2685,9 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                     return map[normalized]?.[this.lang] || category;
                 },
                 normalizeWorkItem(item = {}) {
-                    const images = this.normalizeImageList(item.images);
-                    const coverImage = this.normalizeImageUrl(item.coverImage || item.image || images[0] || '');
-                    return { id:item.id || '', slug:item.slug || '', category:this.normalizeCategory(item.category || 'house'), title:item.title || item.titleAz || '', titleAz:item.titleAz || item.title || '', titleRu:item.titleRu || item.title || '', titleEn:item.titleEn || item.title || '', description:item.description || item.descriptionAz || '', descriptionAz:item.descriptionAz || item.description || '', descriptionRu:item.descriptionRu || item.description || '', descriptionEn:item.descriptionEn || item.description || '', location:item.location || item.locationAz || '', locationAz:item.locationAz || item.location || '', locationRu:item.locationRu || item.location || '', locationEn:item.locationEn || item.location || '', completionDate:item.completionDate || '', area:item.area || '', stories:item.stories ?? '', rooms:item.rooms ?? '', buildTime:item.buildTime || item.buildTimeAz || '', buildTimeAz:item.buildTimeAz || item.buildTime || '', buildTimeRu:item.buildTimeRu || item.buildTime || '', buildTimeEn:item.buildTimeEn || item.buildTime || '', coverImage, image:coverImage, originalImage:this.normalizeImageUrl(item.originalImage || item.coverImage || item.image || images[0] || ''), imageVariants:this.normalizeImageVariants(item.imageVariants), imageItems:this.normalizeImageItems(item.imageItems), images:images.length ? images : (coverImage ? [coverImage] : []), sortOrder:Number(item.sortOrder)||0, archived:Boolean(item.archived), featured:Boolean(item.featured), active:item.active !== false, createdAt:item.createdAt || '', __detailLoaded: item.__detailLoaded === true };
+                    const images = this.normalizeImageList([item.coverImage, item.cover_image, item.thumbnail, item.image, item.originalImage, ...(Array.isArray(item.images) ? item.images : [])]);
+                    const coverImage = images[0] || '';
+                    return { id:item.id || '', slug:item.slug || '', category:this.normalizeCategory(item.category || 'house'), title:item.title || item.titleAz || '', titleAz:item.titleAz || item.title || '', titleRu:item.titleRu || item.title || '', titleEn:item.titleEn || item.title || '', description:item.description || item.descriptionAz || '', descriptionAz:item.descriptionAz || item.description || '', descriptionRu:item.descriptionRu || item.description || '', descriptionEn:item.descriptionEn || item.description || '', location:item.location || item.locationAz || '', locationAz:item.locationAz || item.location || '', locationRu:item.locationRu || item.location || '', locationEn:item.locationEn || item.location || '', completionDate:item.completionDate || '', area:item.area || '', stories:item.stories ?? '', rooms:item.rooms ?? '', buildTime:item.buildTime || item.buildTimeAz || '', buildTimeAz:item.buildTimeAz || item.buildTime || '', buildTimeRu:item.buildTimeRu || item.buildTime || '', buildTimeEn:item.buildTimeEn || item.buildTime || '', coverImage, image:coverImage, originalImage:this.normalizeImageUrl(item.originalImage || item.coverImage || item.image || images[0] || ''), imageVariants:this.normalizeImageVariants(item.imageVariants), imageItems:this.normalizeImageItems(item.imageItems).length ? this.normalizeImageItems(item.imageItems) : images.map(src => ({ original: src, thumb: src, medium: src, large: src })), images:images, sortOrder:Number(item.sortOrder)||0, archived:Boolean(item.archived), featured:Boolean(item.featured), active:item.active !== false, createdAt:item.createdAt || '', __detailLoaded: item.__detailLoaded === true };
                 },
                 normalizeWorkItems(payload, fallback = []) { const items = this.asArray(payload).map(item => this.normalizeWorkItem(item)); return items.length ? items : fallback.map(item => this.normalizeWorkItem(item)); },
                 localizedWorkTitle(item) { return this.lang === 'en' ? (item.titleEn || item.titleAz) : (this.lang === 'ru' ? (item.titleRu || item.titleAz) : item.titleAz); },
@@ -4935,8 +4969,8 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                             <div class="ad-box">
                                 <div class="ad-frame" :style="publicAdStyle(ad)">
                                     <a :href="ad.link || '#'" target="_blank" rel="noopener" class="block w-full h-full relative group" @click="incrementAdClick('left', ad)">
-                                        <template x-if="ad.mediaType === 'image'"><img :src="ad.src || ad.mediaUrl" class="side-ad-media group-hover:scale-105 transition duration-500" loading="lazy" decoding="async" alt="Reklam banneri"></template>
-                                        <template x-if="ad.mediaType === 'video'"><video :src="ad.src || ad.mediaUrl" autoplay muted loop playsinline class="side-ad-media"></video></template>
+                                        <template x-if="ad.mediaType === 'image'"><img :src="normalizeMediaUrl(ad.src || ad.mediaUrl)" class="side-ad-media group-hover:scale-105 transition duration-500" loading="lazy" decoding="async" alt="Reklam banneri"></template>
+                                        <template x-if="ad.mediaType === 'video'"><video :src="normalizeMediaUrl(ad.src || ad.mediaUrl)" autoplay muted loop playsinline preload="metadata" class="side-ad-media"></video></template>
                                     </a>
                                 </div>
                                 <p class="public-ad-title" x-text="ad.title"></p>
@@ -5224,11 +5258,10 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                     <template x-for="(img, idx) in (Array.isArray(galleryItems) ? galleryItems : []).filter(g => !g.archived)" :key="img.id">
                         <div class="group relative aspect-square overflow-hidden rounded-2xl bg-stone-200 cursor-pointer shadow-sm hover:shadow-lg transition duration-300" @click="openGalleryModal(idx)">
                             <template x-if="img.type === 'video'">
-                                <div class="w-full h-full relative">
-                                    <div class="absolute inset-0 flex items-center justify-center bg-black/40 z-10 text-white group-hover:bg-black/20 transition">
-                                        <i class="fa-regular fa-circle-play text-5xl"></i>
-                                    </div>
-                                    <img :src="getYouTubeThumbnail(img.src)" class="w-full h-full object-cover">
+                                <div class="w-full h-full relative bg-black">
+                                    <div class="absolute inset-0 flex items-center justify-center bg-black/35 z-10 text-white group-hover:bg-black/15 transition"><i class="fa-regular fa-circle-play text-5xl"></i></div>
+                                    <template x-if="isYouTubeUrl(img.src || img.mediaUrl)"><img :src="getYouTubeThumbnail(img.src || img.mediaUrl)" class="w-full h-full object-cover" @error="$event.target.style.display='none'"></template>
+                                    <template x-if="!isYouTubeUrl(img.src || img.mediaUrl)"><video :src="normalizeMediaUrl(img.src || img.mediaUrl)" class="w-full h-full object-cover" muted playsinline preload="metadata"></video></template>
                                 </div>
                             </template>
                             <template x-if="img.type === 'image'">
@@ -5395,8 +5428,8 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                             <div class="ad-box">
                                 <div class="ad-frame" :style="publicAdStyle(ad)">
                                     <a :href="ad.link || '#'" target="_blank" rel="noopener" class="block w-full h-full relative group" @click="incrementAdClick('right', ad)">
-                                        <template x-if="ad.mediaType === 'image'"><img :src="ad.src || ad.mediaUrl" class="side-ad-media group-hover:scale-105 transition duration-500" loading="lazy" decoding="async" alt="Reklam banneri"></template>
-                                        <template x-if="ad.mediaType === 'video'"><video :src="ad.src || ad.mediaUrl" autoplay muted loop playsinline class="side-ad-media"></video></template>
+                                        <template x-if="ad.mediaType === 'image'"><img :src="normalizeMediaUrl(ad.src || ad.mediaUrl)" class="side-ad-media group-hover:scale-105 transition duration-500" loading="lazy" decoding="async" alt="Reklam banneri"></template>
+                                        <template x-if="ad.mediaType === 'video'"><video :src="normalizeMediaUrl(ad.src || ad.mediaUrl)" autoplay muted loop playsinline preload="metadata" class="side-ad-media"></video></template>
                                     </a>
                                 </div>
                                 <p class="public-ad-title" x-text="ad.title"></p>
@@ -5920,8 +5953,11 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                 <template x-if="currentGalleryItem()?.type === 'image'">
                     <img :src="currentGalleryImage()" class="w-full h-full object-contain sm:object-cover">
                 </template>
-                <template x-if="currentGalleryItem()?.type === 'video'">
-                    <iframe class="w-full h-full" :src="getYouTubeEmbed(currentGalleryItem()?.src)" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+                <template x-if="currentGalleryItem()?.type === 'video' && isYouTubeUrl(currentGalleryItem()?.src || currentGalleryItem()?.mediaUrl)">
+                    <iframe class="w-full h-full" :src="getYouTubeEmbed(currentGalleryItem()?.src || currentGalleryItem()?.mediaUrl)" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+                </template>
+                <template x-if="currentGalleryItem()?.type === 'video' && !isYouTubeUrl(currentGalleryItem()?.src || currentGalleryItem()?.mediaUrl)">
+                    <video class="w-full h-full object-contain" :src="normalizeMediaUrl(currentGalleryItem()?.src || currentGalleryItem()?.mediaUrl)" controls playsinline preload="metadata"></video>
                 </template>
                 <template x-if="currentGalleryItem()?.type === 'image' && currentGalleryImages().length > 1">
                     <div>
@@ -5981,6 +6017,18 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
             <p class="text-xs text-stone-500" x-text="toast.msg"></p>
         </div>
         <button @click="toast.show = false"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+
+
+    <div class="audio-controller" x-cloak>
+        <audio x-ref="siteAudio" :src="normalizeMediaUrl(audioSource)" preload="metadata" @play="audioPlaying = true" @pause="audioPlaying = false" @ended="audioPlaying = false"></audio>
+        <button type="button" class="audio-fab" @click="toggleAudioPanel()" aria-label="Music player"><i class="fa-solid fa-music"></i></button>
+        <div class="audio-panel" x-show="audioPanelOpen" x-transition>
+            <button type="button" class="audio-close" @click="audioPanelOpen = false" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
+            <div class="audio-title">Baltic Caspian Music</div>
+            <button type="button" class="audio-play" @click="toggleAudioPlayback()"><i class="fa-solid" :class="audioPlaying ? 'fa-pause' : 'fa-play'"></i><span x-text="audioPlaying ? 'Pause' : 'Play'"></span></button>
+            <p x-show="audioError" class="audio-error">Audio yüklənmədi</p>
+        </div>
     </div>
 
 </body>

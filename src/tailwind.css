@@ -64,3 +64,67 @@
   }
   @media (max-width: 360px) { [data-home-hero].hero-viewport .hero-desc { display: none !important; } }
 }
+
+@layer base {
+  :root {
+    --site-content-max: 1180px;
+    --site-content-compact: 1080px;
+    --site-page-padding: clamp(16px, 2vw, 28px);
+    --site-section-gap: clamp(40px, 5vw, 72px);
+    font-size: 15px;
+  }
+  body { font-size: clamp(14px, .88vw, 16px); line-height: 1.5; }
+  h1, h2, h3 { line-height: 1.1; }
+}
+
+@layer components {
+  .ad-safe-content, .projects-page, .gallery-page, .works-page, .about-section, .public-main-content {
+    width: min(calc(100% - (2 * var(--site-page-padding))), var(--site-content-max)) !important;
+    max-width: var(--site-content-max) !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+  }
+  .page-content, .page-shell { overflow-x: clip; }
+  .projects-page, .gallery-page, .works-page, .about-page-redesign { padding-top: clamp(32px, 4vw, 56px) !important; padding-bottom: clamp(42px, 5vw, 72px) !important; }
+  .projects-page h1, .gallery-page h1, .works-title, .about-intro-title { font-size: clamp(34px, 3.35vw, 52px) !important; line-height: 1.08 !important; }
+  .projects-page h2, .gallery-page h2, .section-title { font-size: clamp(28px, 2.65vw, 42px) !important; line-height: 1.1 !important; }
+  .project-grid, .work-grid { gap: clamp(14px, 1.5vw, 22px) !important; }
+  .project-card, .work-card { border-radius: 18px !important; }
+  .project-card__media, .work-card [class*="aspect-"] { max-height: 260px; }
+  .project-card__body { padding: clamp(14px, 1.6vw, 22px) !important; }
+  .project-card__title, .work-card h2 { font-size: clamp(15px, 1.1vw, 18px) !important; }
+  .project-card__desc { font-size: clamp(12px, .9vw, 14px) !important; line-height: 1.5 !important; }
+  .gallery-page .grid { grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)) !important; gap: clamp(14px, 1.45vw, 20px) !important; }
+  .gallery-page .aspect-square { aspect-ratio: 4 / 3 !important; }
+  .detail-intro h1 { max-width: 780px !important; font-size: clamp(34px, 3.1vw, 50px) !important; line-height: 1.08 !important; }
+  .detail-intro + section { grid-template-columns: minmax(0, 1.9fr) minmax(260px, .8fr) !important; gap: clamp(16px, 2vw, 28px) !important; }
+  .detail-intro + section .relative.rounded-\[22px\] { min-height: 0 !important; max-height: min(62vh, 640px) !important; aspect-ratio: 16 / 10; }
+  .detail-intro + section img { object-fit: cover !important; max-height: min(62vh, 640px) !important; }
+  .detail-intro + section aside .rounded-3xl, .detail-intro + section aside .rounded-2xl { padding: clamp(14px, 1.5vw, 20px) !important; border-radius: 18px !important; }
+  .audio-controller { position: fixed; right: 18px; bottom: 18px; z-index: 9998; }
+  .audio-controller audio { display: none; }
+  .audio-fab { width: 52px; height: 52px; border-radius: 999px; display: grid; place-items: center; color: #fff; background: linear-gradient(135deg,#245c34,#b88448); box-shadow: 0 14px 34px rgba(15,39,24,.24); }
+  .audio-panel { position: absolute; right: 0; bottom: 62px; width: min(300px, calc(100vw - 32px)); border: 1px solid rgba(231,229,228,.9); border-radius: 20px; background: rgba(255,255,255,.96); padding: 14px; box-shadow: 0 18px 48px rgba(15,39,24,.18); backdrop-filter: blur(16px); }
+  .audio-close { position: absolute; top: 8px; right: 8px; width: 28px; height: 28px; border-radius: 999px; background: #f5f5f4; }
+  .audio-title { padding-right: 32px; font-weight: 900; color: #123524; font-size: 14px; }
+  .audio-play { margin-top: 12px; height: 40px; width: 100%; border-radius: 14px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; background: #245c34; color: #fff; font-weight: 900; }
+  .audio-error { margin-top: 8px; color: #b91c1c; font-size: 12px; font-weight: 700; }
+  @media (min-width: 1280px) and (max-width: 1600px) {
+    :root { --site-content-max: 1120px; --site-page-padding: clamp(16px, 1.6vw, 24px); }
+    header .logo-title { font-size: 1rem !important; }
+    header nav { gap: .35rem !important; }
+    header a, header button { font-size: 13px; }
+    .public-page-ad-shell { gap: 16px !important; }
+    .public-ad-rail { display: none !important; }
+    .projects-page, .gallery-page, .works-page { row-gap: 2rem !important; }
+    .project-grid { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
+    .work-grid { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
+    .project-card__media { max-height: 230px; }
+  }
+  @media (max-width: 1279px) { .public-ad-rail { display: none !important; } }
+  @media (max-width: 767px) {
+    :root { font-size: 14px; }
+    .ad-safe-content, .projects-page, .gallery-page, .works-page { width: min(calc(100% - 28px), 100%) !important; }
+    .detail-intro + section { grid-template-columns: 1fr !important; }
+  }
+}

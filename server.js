@@ -71,7 +71,7 @@ app.use(session({
   }
 }));
 
-const allowedUploadBuckets = ['projects', 'gallery', 'hero', 'banners', 'home', 'works'];
+const allowedUploadBuckets = ['projects', 'gallery', 'hero', 'banners', 'home', 'works', 'audio'];
 const UPLOAD_SIZE_LIMIT_BYTES = 150 * 1024 * 1024;
 const uploadRoot = path.join(__dirname, 'uploads');
 const uploadBucketFolders = Object.fromEntries(allowedUploadBuckets.map(bucket => [bucket, path.join(uploadRoot, bucket)]));
@@ -267,7 +267,7 @@ function validateCategory(value, label = 'category') {
 }
 const workCategoryMap = Object.fromEntries(Object.entries(CATEGORY_LABELS).map(([key, labels]) => [key, { ru: labels.ru, en: labels.en }]))
 function excerptText(value = '', limit = 180) { const clean = String(value || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim(); return clean.length > limit ? `${clean.slice(0, limit).trim()}…` : clean; }
-function workOut(w, options = {}) { const list = options.list === true; const descAz = list ? excerptText(w.descriptionAz) : w.descriptionAz; const descRu = list ? excerptText(w.descriptionRu) : w.descriptionRu; const descEn = list ? excerptText(w.descriptionEn) : w.descriptionEn; const originalImages = jsonArray(w.images); return w && { id:w.id, slug:w.slug, type:'work', category:w.category, categoryNameAz:CATEGORY_LABELS[w.category]?.az || w.category, categoryRu:CATEGORY_LABELS[w.category]?.ru || w.category, categoryEn:CATEGORY_LABELS[w.category]?.en || w.category, title:w.titleAz, titleAz:w.titleAz, titleRu:w.titleRu, titleEn:w.titleEn, description:descAz, descriptionAz:descAz, descriptionRu:descRu, descriptionEn:descEn, location:w.locationAz, locationAz:w.locationAz, locationRu:w.locationRu, locationEn:w.locationEn, area:w.area, stories:w.stories, rooms:w.rooms, buildTime:w.buildTimeAz, buildTimeAz:w.buildTimeAz, buildTimeRu:w.buildTimeRu, buildTimeEn:w.buildTimeEn, completionDate:w.completionDate, coverImage:listImage(w.coverImage, list ? 'medium' : 'large'), image:listImage(w.coverImage, list ? 'medium' : 'large'), originalImage:w.coverImage, imageVariants:withImageVariants(w.coverImage), images:list ? [listImage(w.coverImage, 'medium')].filter(Boolean) : originalImages, imageItems:list ? undefined : imageItemsFor(originalImages), sortOrder:w.sortOrder, archived:w.archived, featured:w.featured, active:w.active, createdAt:w.createdAt, updatedAt:w.updatedAt, __detailLoaded: !list }; }
+function workOut(w, options = {}) { const list = options.list === true; const descAz = list ? excerptText(w.descriptionAz) : w.descriptionAz; const descRu = list ? excerptText(w.descriptionRu) : w.descriptionRu; const descEn = list ? excerptText(w.descriptionEn) : w.descriptionEn; const originalImages = uniqueMediaList([w.coverImage, ...jsonArray(w.images)]); const cover = normalizePublicMediaUrl(w.coverImage || originalImages[0] || ''); return w && { id:w.id, slug:w.slug, type:'work', category:w.category, categoryNameAz:CATEGORY_LABELS[w.category]?.az || w.category, categoryRu:CATEGORY_LABELS[w.category]?.ru || w.category, categoryEn:CATEGORY_LABELS[w.category]?.en || w.category, title:w.titleAz, titleAz:w.titleAz, titleRu:w.titleRu, titleEn:w.titleEn, description:descAz, descriptionAz:descAz, descriptionRu:descRu, descriptionEn:descEn, location:w.locationAz, locationAz:w.locationAz, locationRu:w.locationRu, locationEn:w.locationEn, area:w.area, stories:w.stories, rooms:w.rooms, buildTime:w.buildTimeAz, buildTimeAz:w.buildTimeAz, buildTimeRu:w.buildTimeRu, buildTimeEn:w.buildTimeEn, completionDate:w.completionDate, coverImage:listImage(cover, list ? 'medium' : 'large'), image:listImage(cover, list ? 'medium' : 'large'), originalImage:cover, imageVariants:withImageVariants(cover), images:list ? [listImage(cover, 'medium')].filter(Boolean) : originalImages, imageItems:list ? undefined : imageItemsFor(originalImages), sortOrder:w.sortOrder, archived:w.archived, featured:w.featured, active:w.active, createdAt:w.createdAt, updatedAt:w.updatedAt, __detailLoaded: !list }; }
 const hasOwn = (obj, key) => Object.prototype.hasOwnProperty.call(obj || {}, key);
 const firstPresent = (body, keys, fallback = undefined) => {
   for (const key of keys) if (hasOwn(body, key)) return body[key];
@@ -384,17 +384,42 @@ const settingOut = (s) => ({ id:s.id, key:s.key, value:s.value || {}, createdAt:
 
 const catMap = CATEGORY_LABELS;
 
+
+const normalizePublicMediaUrl = (url = '') => {
+  let value = String(url || '').trim();
+  if (!value) return '';
+  value = value.replace(/\\/g, '/').replace(/\/uploads\/uploads\//gi, '/uploads/');
+  if (/^(https?:)?\/\/(www\.)?(youtube\.com|youtu\.be)\//i.test(value)) return value;
+  value = value.replace(/^https?:\/\/(www\.)?balticcaspian\.com(?=\/uploads\/)/i, '');
+  const uploadIndex = value.toLowerCase().lastIndexOf('/uploads/');
+  if (uploadIndex >= 0) value = value.slice(uploadIndex);
+  if (/^uploads\//i.test(value)) value = `/${value}`;
+  value = value.replace(/\/uploads\/uploads\//gi, '/uploads/');
+  if (value.startsWith('/uploads/')) return encodeURI(decodeURI(value));
+  if (/^https?:\/\//i.test(value)) return value;
+  return value;
+};
+const uniqueMediaList = (items = []) => {
+  const seen = new Set();
+  return jsonArray(items).map(normalizePublicMediaUrl).filter(Boolean).filter(url => {
+    const key = url.split(/[?#]/)[0].toLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+};
+
 const IMAGE_VARIANT_WIDTHS = { thumb: 480, medium: 960, large: 1600 };
 const IMAGE_VARIANT_QUALITY = { thumb: 74, medium: 78, large: 82 };
 const imageVariantUrl = (url = '', variant = 'medium') => {
-  const value = String(url || '');
+  const value = normalizePublicMediaUrl(url);
   if (!value.startsWith('/uploads/') || !/\.(jpe?g|png|webp|avif|tiff?|bmp)(?:[?#].*)?$/i.test(value)) return '';
   const clean = value.split(/[?#]/)[0];
   const ext = path.extname(clean);
   return `${clean.slice(0, -ext.length)}-${variant}.webp`;
 };
 const uploadUrlToPath = (url = '') => {
-  const clean = String(url || '').split(/[?#]/)[0];
+  const clean = normalizePublicMediaUrl(url).split(/[?#]/)[0];
   if (!clean.startsWith('/uploads/')) return null;
   const resolved = path.resolve(__dirname, `.${clean}`);
   return resolved.startsWith(path.resolve(uploadRoot) + path.sep) ? resolved : null;
@@ -419,14 +444,14 @@ const existingUploadUrl = (url = '') => {
   return exists ? url : '';
 };
 const imageVariantsFor = (url = '') => {
-  const original = String(url || '');
+  const original = normalizePublicMediaUrl(url);
   if (!original) return null;
   const medium = existingUploadUrl(imageVariantUrl(original, 'medium')) || null;
   const large = existingUploadUrl(imageVariantUrl(original, 'large')) || medium || original;
   const thumb = existingUploadUrl(imageVariantUrl(original, 'thumb')) || medium || original;
   return { original, thumb, medium: medium || original, large };
 };
-const imageItemsFor = (images = []) => jsonArray(images).map(imageVariantsFor).filter(Boolean);
+const imageItemsFor = (images = []) => uniqueMediaList(images).map(imageVariantsFor).filter(Boolean);
 const withImageVariants = (url = '') => imageVariantsFor(url) || null;
 const listImage = (url = '', variant = 'medium') => existingUploadUrl(imageVariantUrl(url, variant)) || url;
 async function createImageVariants(sourcePath, publicUrl) {
@@ -442,9 +467,9 @@ async function createImageVariants(sourcePath, publicUrl) {
 
 function projectOut(p, options = {}) {
   const list = options.list === true; const descAz = list ? excerptText(p.descriptionAz) : p.descriptionAz; const descRu = list ? excerptText(p.descriptionRu) : p.descriptionRu; const descEn = list ? excerptText(p.descriptionEn) : p.descriptionEn;
-  const originalImages = jsonArray(p.images); const cover = p.coverImage || originalImages[0] || ''; const images = list ? [listImage(cover, 'medium')].filter(Boolean) : originalImages; return { id: p.id, legacyId: p.legacyId, slug:p.slug, type:'project', category: p.category, cat: p.category, categoryNameAz: p.categoryNameAz || catMap[p.category]?.az || p.category, categoryNameRu: p.categoryNameRu || catMap[p.category]?.ru || p.category, categoryNameEn: p.categoryNameEn || catMap[p.category]?.en || p.category, catName: p.categoryNameAz || catMap[p.category]?.az || p.category, catNameRu: p.categoryNameRu || catMap[p.category]?.ru || p.category, catNameEn: p.categoryNameEn || catMap[p.category]?.en || p.category, title: p.titleAz, titleAz: p.titleAz, titleRu: p.titleRu, titleEn: p.titleEn, shortDescription: descAz, shortDescriptionAz: descAz, shortDescriptionRu: descRu, shortDescriptionEn: descEn, description: descAz, desc: descAz, descriptionAz: descAz, descriptionRu: descRu, descriptionEn: descEn, descRu: descRu, descEn:descEn, area:p.area, stories:p.stories, rooms:p.rooms, buildTime:p.buildTimeAz, buildTimeAz:p.buildTimeAz, buildTimeRu:p.buildTimeRu, buildTimeEn:p.buildTimeEn, image:listImage(cover, list ? 'medium' : 'large'), coverImage:listImage(cover, list ? 'medium' : 'large'), originalImage:cover, imageVariants:withImageVariants(cover), images, imageItems:list ? undefined : imageItemsFor(originalImages), views:p.views, archived:p.archived, createdAt:p.createdAt, updatedAt:p.updatedAt, __detailLoaded: !list };
+  const originalImages = uniqueMediaList([p.coverImage, ...jsonArray(p.images)]); const cover = normalizePublicMediaUrl(p.coverImage || originalImages[0] || ''); const images = list ? [listImage(cover, 'medium')].filter(Boolean) : originalImages; return { id: p.id, legacyId: p.legacyId, slug:p.slug, type:'project', category: p.category, cat: p.category, categoryNameAz: p.categoryNameAz || catMap[p.category]?.az || p.category, categoryNameRu: p.categoryNameRu || catMap[p.category]?.ru || p.category, categoryNameEn: p.categoryNameEn || catMap[p.category]?.en || p.category, catName: p.categoryNameAz || catMap[p.category]?.az || p.category, catNameRu: p.categoryNameRu || catMap[p.category]?.ru || p.category, catNameEn: p.categoryNameEn || catMap[p.category]?.en || p.category, title: p.titleAz, titleAz: p.titleAz, titleRu: p.titleRu, titleEn: p.titleEn, shortDescription: descAz, shortDescriptionAz: descAz, shortDescriptionRu: descRu, shortDescriptionEn: descEn, description: descAz, desc: descAz, descriptionAz: descAz, descriptionRu: descRu, descriptionEn: descEn, descRu: descRu, descEn:descEn, area:p.area, stories:p.stories, rooms:p.rooms, buildTime:p.buildTimeAz, buildTimeAz:p.buildTimeAz, buildTimeRu:p.buildTimeRu, buildTimeEn:p.buildTimeEn, image:listImage(cover, list ? 'medium' : 'large'), coverImage:listImage(cover, list ? 'medium' : 'large'), originalImage:cover, imageVariants:withImageVariants(cover), images, imageItems:list ? undefined : imageItemsFor(originalImages), views:p.views, archived:p.archived, createdAt:p.createdAt, updatedAt:p.updatedAt, __detailLoaded: !list };
 }
-function galleryOut(g, options = {}) { const list = !!options.list; const originalImages = jsonArray(g.images); const primary = g.mediaUrl || originalImages[0] || ''; const src = g.type === 'image' ? listImage(primary, list ? 'medium' : 'large') : primary; return { id: g.id, src, mediaUrl: src, originalMediaUrl: primary, imageVariants: withImageVariants(primary), images: list && g.type === 'image' ? [src].filter(Boolean) : originalImages, title: g.titleAz, titleAz: g.titleAz, titleRu: g.titleRu, titleEn: g.titleEn, type: g.type, archived: g.archived, sortOrder: g.sortOrder, createdAt: g.createdAt, updatedAt: g.updatedAt }; }
+function galleryOut(g, options = {}) { const list = !!options.list; const originalImages = uniqueMediaList([g.mediaUrl, ...jsonArray(g.images)]); const primary = normalizePublicMediaUrl(g.mediaUrl || originalImages[0] || ''); const src = g.type === 'image' ? listImage(primary, list ? 'medium' : 'large') : primary; return { id: g.id, src, mediaUrl: src, originalMediaUrl: primary, imageVariants: withImageVariants(primary), images: list && g.type === 'image' ? [src].filter(Boolean) : originalImages, title: g.titleAz, titleAz: g.titleAz, titleRu: g.titleRu, titleEn: g.titleEn, type: g.type, archived: g.archived, sortOrder: g.sortOrder, createdAt: g.createdAt, updatedAt: g.updatedAt }; }
 function galleryIn(b) { const images = b.images || (b.src ? [b.src] : []); const limited = limitImageArray(images); if (limited.errors) return { errors: limited.errors }; return { mediaUrl: b.src || b.mediaUrl || '', images, titleAz: b.titleAz || b.title || '', titleRu: b.titleRu, titleEn: b.titleEn, type: b.type || 'image', sortOrder: Number(b.sortOrder) || 0 }; }
 function getYouTubeId(url = '') { const value = String(url || '').trim(); const patterns = [/[?&]v=([^&]+)/i, /youtu\.be\/([^?&#/]+)/i, /youtube\.com\/embed\/([^?&#/]+)/i, /youtube\.com\/shorts\/([^?&#/]+)/i]; for (const pattern of patterns) { const match = value.match(pattern); if (match?.[1]) return decodeURIComponent(match[1]).replace(/[^a-zA-Z0-9_-]/g, ''); } return ''; }
 function isYouTubeUrl(url = '') { return Boolean(getYouTubeId(url)); }
@@ -783,7 +808,7 @@ const injectMeta = (html, meta) => html.replaceAll('__META_TITLE__', escapeHtml(
   .replaceAll('__META_IMAGE__', escapeHtml(meta.image))
   .replaceAll('__JSON_LD__', meta.jsonLd || '{}');
 
-app.use('/uploads', express.static(path.join(__dirname, 'uploads'), { index:false, maxAge:'1y', immutable:true, etag:true, lastModified:true, setHeaders: (res) => res.setHeader('Cache-Control','public, max-age=31536000, immutable') }));
+app.use('/uploads', express.static(path.join(__dirname, 'uploads'), { index:false, fallthrough:true, maxAge:'7d', etag:true, lastModified:true, acceptRanges:true, setHeaders: (res) => res.setHeader('Cache-Control','public, max-age=604800') }));
 app.use(express.static(__dirname, { index: false, maxAge:'7d', etag:true, lastModified:true, setHeaders: (res, filePath) => { if (/\.(css|js|png|webp|avif|jpe?g|svg|ico)$/i.test(filePath)) res.setHeader('Cache-Control','public, max-age=604800'); } }));
 app.get(['/projects/:id', '/works/:id'], wrap(async (req, res, next) => {
   const isProject = req.path.startsWith('/projects/');
