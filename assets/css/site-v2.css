@@ -223,46 +223,16 @@ body {
     text-shadow: 0 3px 16px rgba(0,0,0,.78);
 }
 
-/* About page content grid. */
+/* About page mission and benefits flow. */
 .about-story-section {
     margin-top: 28px;
 }
 
-.about-story-grid {
-    display: grid;
-    grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr);
-    gap: 24px;
-    align-items: stretch;
-}
-
-.about-mission-card,
-.about-benefits-card {
-    padding: clamp(26px, 3vw, 40px);
-    border-radius: 28px;
-    overflow: hidden;
-}
-
-.about-mission-card {
-    background:
-        radial-gradient(circle at 90% 10%, rgba(90, 153, 210, .25), transparent 34%),
-        linear-gradient(145deg, #173f68 0%, #0b2038 100%) !important;
-}
-
-.about-benefits-grid {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 22px;
-}
-
-.about-benefit-item {
-    padding: 16px;
-    border: 1px solid rgba(20,57,43,.08);
-    border-radius: 18px;
-    background: #f8faf8;
+.benefit-card {
     transition: transform .28s ease, border-color .28s ease, box-shadow .28s ease;
 }
 
-.about-benefit-item:hover {
+.benefit-card:hover {
     transform: translateY(-4px);
     border-color: rgba(39, 107, 76, .22);
     box-shadow: 0 16px 34px rgba(15, 47, 36, .09);
@@ -363,8 +333,6 @@ body {
 }
 
 @media (max-width: 900px) {
-    .about-story-grid,
-    .about-benefits-grid,
     .about-company-profile-card {
         grid-template-columns: 1fr;
     }
@@ -1007,120 +975,122 @@ body.modal-scroll-locked .site-audio-player{display:none!important}
     }
 }
 
-/* About mission/benefits: protect readable card widths at 100% browser zoom. */
+/* About mission/benefits: full-width stacked sections at 100% browser zoom. */
 .about-page,
 .about-story-section,
-.about-story-grid,
-.about-benefits-card {
+.about-mission-benefits,
+.about-benefits-section {
     min-width: 0;
 }
 
-.about-story-grid {
-    gap: clamp(20px, 2vw, 32px);
-    align-items: stretch;
+.about-mission-benefits {
+    display: block;
+    width: 100%;
 }
 
-.about-mission-card {
-    min-height: 0;
-    height: auto;
-    align-self: start;
-    padding: clamp(28px, 3vw, 48px) !important;
+.about-mission-section {
+    width: 100%;
+    padding: clamp(32px, 4vw, 56px);
     border-radius: 28px;
+    background: linear-gradient(135deg, #0f2f4f, #173f68);
+    color: #fff;
 }
 
-.about-mission-card h2 {
-    font-size: clamp(30px, 2.6vw, 44px);
+.about-mission-section h2 {
+    font-size: clamp(34px, 3vw, 48px);
     line-height: 1.08;
 }
 
-.about-mission-card p {
-    max-width: 34ch;
-    font-size: clamp(16px, 1.2vw, 20px);
-    line-height: 1.55;
+.about-mission-section p {
+    max-width: 760px;
+    font-size: clamp(17px, 1.25vw, 20px);
+    line-height: 1.6;
 }
 
-.about-benefits-card {
-    padding: clamp(28px, 3vw, 48px) !important;
+.about-benefits-section {
+    width: 100%;
+    margin-top: 28px;
+    padding: clamp(28px, 3vw, 44px);
+    border-radius: 28px;
+    background: #fff;
 }
 
-.about-benefits-card > h2 {
+.about-benefits-section > h2 {
     margin-bottom: 24px;
     font-size: clamp(32px, 2.7vw, 46px);
     line-height: 1.08;
 }
 
-.about-benefits-grid {
-    grid-template-columns: 1fr;
-    gap: 20px;
-    margin-top: 0 !important;
+.benefits-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 18px;
 }
 
-.about-benefit-item {
+.benefit-card {
     display: grid !important;
     grid-template-columns: 44px minmax(0, 1fr);
     gap: 12px;
     align-items: start;
     min-width: 0;
-    min-height: 170px;
-    height: auto;
-    padding: 22px 24px;
+    min-height: 190px;
+    padding: 24px;
+    border: 1px solid rgba(15, 47, 79, .08);
+    border-radius: 20px;
+    background: #f7f9f7;
 }
 
-.about-benefit-item h3 {
-    font-size: clamp(18px, 1.35vw, 22px);
-    line-height: 1.12;
-    overflow-wrap: normal;
-    word-break: normal;
-    hyphens: none;
-}
-
-.about-benefit-item p {
-    max-width: 34ch;
-    font-size: clamp(15px, 1.05vw, 18px);
-    line-height: 1.5;
+.benefit-card h3 {
+    font-size: clamp(18px, 1.25vw, 22px);
+    line-height: 1.15;
     overflow-wrap: break-word;
     word-break: normal;
-    hyphens: none;
 }
 
-@media (min-width: 1101px) {
-    .about-story-section {
-        min-width: 980px;
-    }
+.benefit-card p {
+    font-size: 16px;
+    line-height: 1.55;
+    overflow-wrap: break-word;
+    word-break: normal;
+}
 
-    .about-story-grid {
-        grid-template-columns: minmax(360px, .9fr) minmax(620px, 1.35fr);
-    }
-
-    .about-benefits-grid {
+@media (max-width: 1500px) {
+    .benefits-grid {
         grid-template-columns: repeat(2, minmax(240px, 1fr));
     }
 }
 
-@media (min-width: 701px) and (max-width: 1100px) {
-    .about-story-grid {
-        grid-template-columns: 1fr;
-    }
-
-    .about-benefits-grid {
-        grid-template-columns: repeat(2, minmax(220px, 1fr));
+@media (max-width: 900px) {
+    .benefits-grid {
+        grid-template-columns: 1fr 1fr;
     }
 }
 
-@media (max-width: 700px) {
-    .about-story-grid,
-    .about-benefits-grid {
+@media (max-width: 640px) {
+    .benefits-grid {
         grid-template-columns: 1fr;
     }
 
-    .about-mission-card,
-    .about-benefits-card {
-        padding: 24px 20px !important;
+    .about-mission-section,
+    .about-benefits-section {
+        padding: 24px 20px;
     }
 
-    .about-benefit-item {
-        min-height: 0;
+    .benefit-card {
         padding: 20px;
+    }
+}
+
+/* About content takes priority over side advertisements on notebook screens. */
+@media (max-width: 1450px) {
+    .public-page-ad-shell:has(.about-page) {
+        display: block !important;
+        width: 100% !important;
+        max-width: none !important;
+    }
+
+    .public-page-ad-shell:has(.about-page) .public-ad-rail {
+        display: none !important;
     }
 }
 
