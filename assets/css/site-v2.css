@@ -1023,46 +1023,44 @@ body.modal-scroll-locked .site-audio-player{display:none!important}
 
 .benefits-grid {
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 18px;
+    grid-template-columns: repeat(2, minmax(280px, 1fr));
+    gap: 20px;
 }
 
 .benefit-card {
-    display: grid !important;
-    grid-template-columns: 44px minmax(0, 1fr);
-    gap: 12px;
-    align-items: start;
     min-width: 0;
-    min-height: 190px;
+    min-height: 180px;
+    height: auto;
     padding: 24px;
     border: 1px solid rgba(15, 47, 79, .08);
     border-radius: 20px;
     background: #f7f9f7;
 }
 
+.benefit-card-inner {
+    display: grid;
+    grid-template-columns: 44px minmax(0, 1fr);
+    gap: 14px;
+    align-items: start;
+}
+
 .benefit-card h3 {
     font-size: clamp(18px, 1.25vw, 22px);
     line-height: 1.15;
-    overflow-wrap: break-word;
     word-break: normal;
+    overflow-wrap: normal;
+    hyphens: none;
 }
 
 .benefit-card p {
     font-size: 16px;
     line-height: 1.55;
-    overflow-wrap: break-word;
-    word-break: normal;
+    max-width: 42ch;
 }
 
-@media (max-width: 1500px) {
+@media (max-width: 850px) {
     .benefits-grid {
-        grid-template-columns: repeat(2, minmax(240px, 1fr));
-    }
-}
-
-@media (max-width: 900px) {
-    .benefits-grid {
-        grid-template-columns: 1fr 1fr;
+        grid-template-columns: repeat(2, minmax(220px, 1fr));
     }
 }
 
@@ -1076,9 +1074,6 @@ body.modal-scroll-locked .site-audio-player{display:none!important}
         padding: 24px 20px;
     }
 
-    .benefit-card {
-        padding: 20px;
-    }
 }
 
 /* About content takes priority over side advertisements on notebook screens. */
