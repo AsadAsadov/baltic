@@ -1735,3 +1735,74 @@ body.is-home-page .header-main nav a:hover {
     .ad-frame { width: 300px; height: 600px; }
     .public-ad-rail { width: 300px; }
 }
+
+/* Desktop premium ad/gallery layout polish. */
+@media (min-width: 1280px) {
+    .public-page-ad-shell.has-ads {
+        display: grid !important;
+        width: min(calc(100% - 24px), 1900px) !important;
+        max-width: 1900px !important;
+        margin-inline: auto !important;
+        grid-template-columns: 300px minmax(0, 1fr) 300px !important;
+        column-gap: 24px !important;
+        row-gap: 0 !important;
+        align-items: start !important;
+    }
+
+    .public-page-ad-shell.has-ads .public-ad-rail {
+        display: block !important;
+        width: 300px !important;
+        max-width: 300px !important;
+    }
+
+    .public-page-ad-shell.has-ads .public-ad-sticky-stack {
+        top: calc(var(--header-height, 72px) + 16px) !important;
+        margin-top: 16px !important;
+        gap: 18px !important;
+    }
+
+    .public-page-ad-shell.has-ads .ad-frame {
+        width: 300px !important;
+        min-width: 300px !important;
+        max-width: 300px !important;
+    }
+
+    .public-page-ad-shell.has-ads .public-main-content [data-home-hero].hero-viewport {
+        width: 100% !important;
+        max-width: none !important;
+    }
+}
+
+@media (max-width: 1279px) {
+    .public-ad-rail { display: none !important; }
+}
+
+.gallery-page > .grid {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 400px)) !important;
+    justify-content: center !important;
+    align-items: start !important;
+}
+
+.gallery-page > .grid > div {
+    width: 100% !important;
+    max-width: 420px !important;
+    justify-self: center !important;
+}
+
+@media (min-width: 1280px) {
+    .gallery-page > .grid {
+        grid-template-columns: repeat(3, minmax(0, 400px)) !important;
+    }
+}
+
+@media (min-width: 768px) and (max-width: 1023px) {
+    .gallery-page > .grid {
+        grid-template-columns: repeat(2, minmax(0, 400px)) !important;
+    }
+}
+
+@media (max-width: 767px) {
+    .gallery-page > .grid {
+        grid-template-columns: minmax(0, min(100%, 420px)) !important;
+    }
+}
