@@ -1,3 +1,82 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Public UI scale/media compaction: make 100% browser zoom match the former compact 80% visual rhythm without CSS zoom. */
+:root {
+  --site-content-max: 1180px;
+  --site-content-compact: 1080px;
+  --site-page-padding: clamp(16px, 2vw, 28px);
+  --site-section-gap: clamp(40px, 5vw, 72px);
+  --site-card-padding: clamp(14px, 1.55vw, 24px);
+}
+
+html { font-size: clamp(14px, 0.42vw + 10.5px, 16px); }
+body { font-size: clamp(14px, 0.32vw + 12px, 16px); line-height: 1.5; }
+h1, h2, h3, .font-black { line-height: 1.08; }
+
+.ad-safe-content,
+.desktop-page-container,
+.projects-page,
+.gallery-page,
+.works-page,
+.contact-shell {
+  width: min(calc(100% - (2 * var(--site-page-padding))), var(--site-content-max));
+  max-width: var(--site-content-max);
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.desktop-page-container { padding-left: 0; padding-right: 0; }
+.app-main section, .projects-page, .gallery-page, .works-page, .about-section, .contact-page { scroll-margin-top: calc(var(--header-height, 72px) + 18px); }
+
+.projects-page, .gallery-page, .works-page, .contact-page { padding-top: clamp(32px, 4vw, 56px); padding-bottom: clamp(36px, 5vw, 64px); }
+.projects-page, .gallery-page { row-gap: var(--site-section-gap); }
+
+.projects-page h1, .gallery-page h1, .about-company-copy h1, .contact-title,
+.detail-intro h1 { font-size: clamp(34px, 3.2vw, 52px) !important; line-height: 1.06 !important; max-width: 880px; }
+.projects-page h2, .gallery-page h2, .about-section h2, .contact-page h2 { font-size: clamp(28px, 2.45vw, 42px); line-height: 1.1; }
+.projects-page p, .gallery-page p, .works-page p, .about-page p, .contact-page p { font-size: clamp(14px, .45vw + 10px, 16px); line-height: 1.55; }
+
+.work-grid, .projects-page .grid, .gallery-page .grid { gap: clamp(14px, 1.35vw, 22px) !important; }
+.work-card, .projects-page article, .gallery-page .group { border-radius: 18px !important; }
+.work-card > div:last-child, .projects-page article > div:last-child { padding: var(--site-card-padding) !important; }
+.work-card h2, .projects-page article h2, .projects-page article h3 { font-size: clamp(15px, .75vw + 8px, 18px) !important; line-height: 1.18 !important; }
+
+.gallery-page .grid { grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)) !important; }
+.gallery-page .group.relative { aspect-ratio: 4 / 3 !important; }
+.gallery-card-media { aspect-ratio: 4 / 3; width: 100%; height: 100%; object-fit: cover; }
+
+.detail-media-layout { grid-template-columns: minmax(0, 1.9fr) minmax(260px, .78fr) !important; gap: clamp(16px, 1.8vw, 28px) !important; }
+.detail-media-layout .relative.rounded-\[22px\] { min-height: 0 !important; max-height: min(62vh, 640px) !important; aspect-ratio: 16 / 10; }
+.detail-media-layout button.block { min-height: 0 !important; height: 100% !important; }
+.detail-media-layout img.aspect-\[4\/3\] { max-height: min(62vh, 640px) !important; object-fit: cover !important; }
+.detail-media-layout aside .rounded-3xl { border-radius: 20px !important; padding: clamp(16px, 1.6vw, 22px) !important; }
+.detail-media-layout aside strong { font-size: clamp(16px, 1.1vw, 20px) !important; }
+
+.side-ad-media { display: block; width: 100%; height: 100%; object-fit: cover; background: #e8e0d2; }
+.site-audio-player { right: clamp(14px, 2vw, 24px); bottom: clamp(82px, 4vw, 24px); }
+.site-audio-expanded { max-width: min(340px, calc(100vw - 28px)); }
+
+@media (min-width: 1280px) and (max-width: 1600px) {
+  :root { --site-content-max: 1120px; --site-content-compact: 1040px; --site-page-padding: clamp(14px, 1.5vw, 24px); --site-section-gap: clamp(34px, 4vw, 58px); --header-height: 64px; }
+  html { font-size: 14.5px; }
+  .ad-safe-content, .desktop-page-container, .projects-page, .gallery-page, .works-page, .contact-shell { max-width: var(--site-content-max); }
+  .projects-page h1, .gallery-page h1, .about-company-copy h1, .contact-title, .detail-intro h1 { font-size: clamp(34px, 2.8vw, 46px) !important; }
+  .projects-page h2, .gallery-page h2, .about-section h2, .contact-page h2 { font-size: clamp(28px, 2vw, 36px) !important; }
+  .gallery-page .grid { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
+  .work-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .public-ad-rail { max-width: 220px; } .ad-frame { max-width: 220px; max-height: 520px; }
+}
+
+@media (max-width: 1279px) {
+  .public-ad-rail { display: none !important; }
+  .detail-media-layout { grid-template-columns: 1fr !important; }
+}
+
+@media (max-width: 767px) {
+  :root { --site-page-padding: 16px; --site-section-gap: 34px; }
+  .ad-safe-content, .desktop-page-container, .projects-page, .gallery-page, .works-page, .contact-shell { width: min(calc(100% - 32px), var(--site-content-max)); }
+  .gallery-page .grid { grid-template-columns: 1fr !important; }
+  .detail-media-layout .relative.rounded-\[22px\] { max-height: 62vh !important; aspect-ratio: 4 / 3; }
+}

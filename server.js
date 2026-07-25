@@ -430,10 +430,20 @@ const imageVariantUrl = (url = '', variant = 'medium') => {
   return `${clean.slice(0, -ext.length)}-${variant}.webp`;
 };
 const normalizeStoredMediaUrl = (url = '') => {
-  const value = String(url || '').trim().replace(/\\/g, '/');
+  let value = String(url || '').trim().replace(/\\/g, '/');
   if (!value) return '';
-  if (/^https?:\/\//i.test(value) || value.startsWith('data:') || value.startsWith('blob:')) return value;
-  const clean = value.replace(/^\.?\//, '');
+  if (/^(data:|blob:)/i.test(value) || isYouTubeUrl(value)) return value;
+  value = value.replace(/\/uploads\/uploads\//ig, '/uploads/');
+  const fsMatch = value.match(/(?:^|\/)(?:var\/www\/balticcaspian\/|workspace\/baltic\/)?uploads\/(.+)$/i);
+  if (fsMatch) value = `/uploads/${fsMatch[1]}`;
+  if (/^https?:\/\//i.test(value)) {
+    try {
+      const parsed = new URL(value);
+      if (/balticcaspian\.com$/i.test(parsed.hostname) && parsed.pathname.includes('/uploads/')) return `${parsed.pathname.replace(/\/uploads\/uploads\//ig, '/uploads/')}${parsed.search || ''}`;
+    } catch (error) {}
+    return value;
+  }
+  const clean = value.replace(/^\.?\//, '').replace(/^uploads\/uploads\//i, 'uploads/');
   return clean.startsWith('uploads/') ? `/${clean}` : value;
 };
 const uploadUrlToPath = (url = '') => {
@@ -724,7 +734,7 @@ app.get('/api/audio-tracks', wrap(async (req,res)=>{
   if (admin && req.session?.adminAuthenticated !== true) return res.status(401).json({ok:false,error:'ADMIN_AUTH_REQUIRED'});
   const rows = await prisma.siteAudioTrack.findMany({ where:admin ? {} : {active:true}, orderBy:[{sortOrder:'asc'},{createdAt:'asc'}] });
   res.set('Cache-Control', admin ? 'no-store' : 'public, max-age=30');
-  res.json(rows);
+  res.json(rows.map(row => ({ ...row, audioUrl: normalizeStoredMediaUrl(row.audioUrl) })));
 }));
 app.post('/api/audio-tracks', requireAdminWrite, wrap(async (req,res)=>{
   await ensureSiteAudioSchema();
@@ -906,7 +916,7 @@ const injectMeta = (html, meta) => html.replaceAll('__META_TITLE__', escapeHtml(
   .replaceAll('__META_IMAGE__', escapeHtml(meta.image))
   .replaceAll('__JSON_LD__', meta.jsonLd || '{}');
 
-app.use('/uploads', express.static(path.join(__dirname, 'uploads'), { index:false, maxAge:'1y', immutable:true, etag:true, lastModified:true, setHeaders: (res) => res.setHeader('Cache-Control','public, max-age=31536000, immutable') }));
+app.use('/uploads', express.static(path.join(__dirname, 'uploads'), { fallthrough:true, index:false, maxAge:'7d', etag:true, lastModified:true, acceptRanges:true }));
 app.use(express.static(__dirname, { index: false, maxAge:'7d', etag:true, lastModified:true, setHeaders: (res, filePath) => { if (/\.(css|js|png|webp|avif|jpe?g|svg|ico)$/i.test(filePath)) res.setHeader('Cache-Control','public, max-age=604800'); } }));
 app.get(['/projects/:id', '/works/:id'], wrap(async (req, res, next) => {
   const isProject = req.path.startsWith('/projects/');
