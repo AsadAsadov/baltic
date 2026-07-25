@@ -187,7 +187,7 @@
                 audioPlaying: false,
                 audioVolume: (() => { const stored = Number(localStorage.getItem('bc_audio_volume')); return Number.isFinite(stored) ? Math.min(1, Math.max(0, stored)) : 0.7; })(),
                 audioAutoplayBlocked: false,
-                audioPlayerCollapsed: false,
+                audioPlayerCollapsed: true,
                 audioCollapseTimer: null,
                 homeImageForms: { why_wood: { title: '', imageUrl: '' }, advantages: { title: '', imageUrl: '' } },
                 homeImageFiles: { why_wood: null, advantages: null },
@@ -698,7 +698,22 @@
                 },
                 detailTitle(item = this.detailItem) { if (!item) return ''; return this.detailType === 'work' ? this.localizedWorkTitle(item) : (this.lang === 'en' ? (item.titleEn || item.title) : (this.lang === 'ru' ? (item.titleRu || item.title) : item.title)); },
                 detailDescription(item = this.detailItem) { if (!item) return ''; return this.detailType === 'work' ? this.localizedWorkDescription(item) : this.localizedProjectDescription(item); },
-                detailImages(item = this.detailItem) { const imageItems = Array.isArray(item?.imageItems) ? item.imageItems : []; if (imageItems.length && item?.__detailLoaded) return imageItems; const variants = this.normalizeImageVariants(item?.imageVariants || {}); const cover = variants.large || variants.medium || variants.thumb || this.normalizeImageUrl(item?.coverImage || item?.image || item?.originalImage || ''); return cover ? [{ original: item?.originalImage || cover, thumb: variants.thumb || cover, medium: variants.medium || cover, large: variants.large || cover }] : []; },
+                detailImages(item = this.detailItem) {
+                    const seen = new Set();
+                    const add = (list, entry) => {
+                        const normalized = typeof entry === 'object' ? this.normalizeImageVariants(entry) : { original: this.normalizeImageUrl(entry || '') };
+                        const key = normalized.original || normalized.large || normalized.medium || normalized.thumb || '';
+                        if (!key || seen.has(key)) return;
+                        seen.add(key);
+                        list.push({ original: normalized.original || key, thumb: normalized.thumb || key, medium: normalized.medium || key, large: normalized.large || key });
+                    };
+                    const images = [];
+                    const variants = this.normalizeImageVariants(item?.imageVariants || {});
+                    if (variants.original || variants.large || variants.medium || variants.thumb) add(images, variants);
+                    [item?.coverImage, item?.cover_image, item?.thumbnail, item?.image, item?.originalImage, ...(Array.isArray(item?.images) ? item.images : [])].forEach(value => add(images, value));
+                    if (item?.__detailLoaded) (Array.isArray(item?.imageItems) ? item.imageItems : []).forEach(value => add(images, value));
+                    return images;
+                },
                 syncDetailGalleryState() { const current = this.detailGalleryState || {}; this.detailGalleryState = { images: this.detailImages(this.detailItem), activeIndex: Math.min(current.activeIndex || 0, Math.max(0, this.detailImages(this.detailItem).length - 1)) }; },
                 detailImage(role = 'large') { const images = this.detailGalleryState.images?.length ? this.detailGalleryState.images : this.detailImages(); return this.detailImageSrc(images[this.detailGalleryState.activeIndex] || images[0], role) || this.fallbackWorkImage(); },
                 imageUrlMatches(left = '', right = '') {
@@ -820,10 +835,21 @@
                     return [];
                 },
                 normalizeImageUrl(url = '') {
-                    const value = String(url || '').trim().replace(/\\/g, '/');
+                    let value = String(url || '').trim().replace(/\\/g, '/');
                     if (!value) return '';
-                    if (/^\.?\/?uploads\//i.test(value)) return `/${value.replace(/^\.?\//, '')}`;
-                    if (/^https?:\/\//i.test(value)) return value;
+                    if (/^(data:|blob:)/i.test(value) || this.isYouTubeUrl?.(value)) return value;
+                    value = value.replace(/\/uploads\/uploads\//ig, '/uploads/');
+                    const fsMatch = value.match(/(?:^|\/)(?:var\/www\/balticcaspian\/|workspace\/baltic\/)?uploads\/(.+)$/i);
+                    if (fsMatch) value = `/uploads/${fsMatch[1]}`;
+                    if (/^https?:\/\//i.test(value)) {
+                        try {
+                            const parsed = new URL(value, location.origin);
+                            if (parsed.origin === location.origin && parsed.pathname.includes('/uploads/')) return `${parsed.pathname.replace(/\/uploads\/uploads\//ig, '/uploads/')}${parsed.search || ''}`;
+                        } catch (error) {}
+                        return value;
+                    }
+                    if (/^\.?\/?uploads\//i.test(value)) return `/${value.replace(/^\.?\//, '').replace(/^uploads\/uploads\//i, 'uploads/')}`;
+                    if (/^\/[^/]*uploads\//i.test(value)) return value.replace(/^.*?(\/uploads\/)/i, '/uploads/').replace(/\/uploads\/uploads\//ig, '/uploads/');
                     return value;
                 },
                 normalizeImageList(images = []) {
@@ -872,8 +898,10 @@
                 imageLoading(index = 0, eagerCount = 2) { return Number(index) < eagerCount ? 'eager' : 'lazy'; },
                 imageFetchPriority(index = 0, eagerCount = 2) { return Number(index) < eagerCount ? 'high' : 'low'; },
                 normalizeProject(project = {}) {
-                    const images = this.normalizeImageList(project.images);
-                    const image = this.normalizeImageUrl(project.image || project.coverImage || project.cover || images[0] || '');
+                    const rawImages = [project.coverImage, project.cover_image, project.thumbnail, project.image, project.cover, ...(Array.isArray(project.images) ? project.images : [])];
+                    const seenImages = new Set();
+                    const images = rawImages.map(image => this.normalizeImageUrl(image)).filter(image => image && !seenImages.has(image) && seenImages.add(image));
+                    const image = images[0] || '';
                     const cat = this.normalizeCategory(project.cat || project.category || 'house');
                     return {
                         id: project.id ?? '',
@@ -903,7 +931,7 @@
                         buildTimeEn: project.buildTimeEn || project.build_time_en || project.buildTime || project.build_time || '',
                         image,
                         cover: project.cover || image,
-                        coverImage: project.coverImage || image,
+                        coverImage: this.normalizeImageUrl(project.coverImage || project.cover_image || project.thumbnail || '') || image,
                         originalImage: this.normalizeImageUrl(project.originalImage || project.cover || project.coverImage || project.image || images[0] || ''),
                         imageVariants: this.normalizeImageVariants(project.imageVariants),
                         imageItems: this.normalizeImageItems(project.imageItems),
@@ -5436,11 +5464,11 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                                         <i class="fa-regular fa-circle-play text-5xl"></i>
                                     </div>
                                     <template x-if="isYouTubeUrl(img.src)"><img :src="getYouTubeThumbnail(img.src)" class="w-full h-full object-cover"></template>
-                                    <template x-if="!isYouTubeUrl(img.src)"><video :src="img.src" :poster="img.posterUrl || ''" muted playsinline preload="auto" class="w-full h-full object-cover" @loadeddata="$el.currentTime = Math.min(0.15, Number.isFinite($el.duration) ? $el.duration / 20 : 0.15)"></video></template>
+                                    <template x-if="!isYouTubeUrl(img.src)"><video :src="img.src" :poster="img.posterUrl || ''" muted playsinline preload="metadata" class="gallery-card-media w-full h-full object-cover" @loadeddata="$el.currentTime = Math.min(0.15, Number.isFinite($el.duration) ? $el.duration / 20 : 0.15)"></video></template>
                                 </div>
                             </template>
                             <template x-if="img.type === 'image'">
-                                <img :src="responsiveImageSrc(img, 'medium')" :srcset="responsiveImageSrcset(img)" sizes="(min-width: 1024px) 25vw, (min-width: 640px) 50vw, 100vw" class="w-full h-full object-cover group-hover:scale-105 transition duration-500" :loading="imageLoading(idx, 8)" decoding="async" :fetchpriority="imageFetchPriority(idx, 8)" width="960" height="960" @error="setWorkImageFallback($event, img)" :alt="img.title">
+                                <img :src="responsiveImageSrc(img, 'medium')" :srcset="responsiveImageSrcset(img)" sizes="(min-width: 1024px) 25vw, (min-width: 640px) 50vw, 100vw" class="gallery-card-media w-full h-full object-cover group-hover:scale-105 transition duration-500" :loading="imageLoading(idx, 8)" decoding="async" :fetchpriority="imageFetchPriority(idx, 8)" width="960" height="960" @error="setWorkImageFallback($event, img)" :alt="img.title">
                             </template>
                             <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition duration-300 flex items-center justify-center z-20">
                                 <p class="text-white font-bold text-sm uppercase tracking-wider text-center px-2" x-text="lang === 'en' ? img.titleEn : (lang === 'ru' ? img.titleRu : img.title)">Görüntü</p>
