@@ -15,34 +15,12 @@ const sharp = require('sharp');
 const { performance } = require('perf_hooks');
 const { execFile } = require('child_process');
 const { promisify } = require('util');
+const { VIDEO_EXT_RE, normalizeMediaUrl, uploadUrlToPath: mediaUploadUrlToPath, imageVariantUrl } = require('./media-utils');
 
 const execFileAsync = promisify(execFile);
 
 const prisma = new PrismaClient({ log: [{ level: 'error', emit: 'event' }, { level: 'warn', emit: 'stdout' }] });
 prisma.$on('error', (event) => console.error('[prisma:error]', event.message));
-let siteAudioSchemaPromise = null;
-function ensureSiteAudioSchema() {
-  if (siteAudioSchemaPromise) return siteAudioSchemaPromise;
-  siteAudioSchemaPromise = (async () => {
-    await prisma.$executeRawUnsafe(`
-      CREATE TABLE IF NOT EXISTS "site_audio_tracks" (
-        "id" UUID NOT NULL DEFAULT gen_random_uuid(),
-        "title" TEXT NOT NULL,
-        "audio_url" TEXT NOT NULL,
-        "sort_order" INTEGER NOT NULL DEFAULT 0,
-        "active" BOOLEAN NOT NULL DEFAULT true,
-        "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        CONSTRAINT "site_audio_tracks_pkey" PRIMARY KEY ("id")
-      )
-    `);
-    await prisma.$executeRawUnsafe('CREATE INDEX IF NOT EXISTS "site_audio_tracks_sort_order_idx" ON "site_audio_tracks"("sort_order")');
-  })().catch(error => {
-    siteAudioSchemaPromise = null;
-    throw error;
-  });
-  return siteAudioSchemaPromise;
-}
 const app = express();
 app.set('trust proxy', 1);
 
@@ -422,75 +400,48 @@ const catMap = CATEGORY_LABELS;
 
 const IMAGE_VARIANT_WIDTHS = { thumb: 480, medium: 960, large: 1600 };
 const IMAGE_VARIANT_QUALITY = { thumb: 74, medium: 78, large: 82 };
-const imageVariantUrl = (url = '', variant = 'medium') => {
-  const value = String(url || '');
-  if (!value.startsWith('/uploads/') || !/\.(jpe?g|png|webp|avif|tiff?|bmp)(?:[?#].*)?$/i.test(value)) return '';
-  const clean = value.split(/[?#]/)[0];
-  const ext = path.extname(clean);
-  return `${clean.slice(0, -ext.length)}-${variant}.webp`;
-};
-const normalizeStoredMediaUrl = (url = '') => {
-  let value = String(url || '').trim().replace(/\\/g, '/');
-  if (!value) return '';
-  if (/^(data:|blob:)/i.test(value) || isYouTubeUrl(value)) return value;
-  value = value.replace(/\/uploads\/uploads\//ig, '/uploads/');
-  const fsMatch = value.match(/(?:^|\/)(?:var\/www\/balticcaspian\/|workspace\/baltic\/)?uploads\/(.+)$/i);
-  if (fsMatch) value = `/uploads/${fsMatch[1]}`;
-  if (/^https?:\/\//i.test(value)) {
-    try {
-      const parsed = new URL(value);
-      if (/balticcaspian\.com$/i.test(parsed.hostname) && parsed.pathname.includes('/uploads/')) return `${parsed.pathname.replace(/\/uploads\/uploads\//ig, '/uploads/')}${parsed.search || ''}`;
-    } catch (error) {}
-    return value;
-  }
-  const clean = value.replace(/^\.?\//, '').replace(/^uploads\/uploads\//i, 'uploads/');
-  return clean.startsWith('uploads/') ? `/${clean}` : value;
-};
-const uploadUrlToPath = (url = '') => {
-  const clean = normalizeStoredMediaUrl(url).split(/[?#]/)[0];
-  if (!clean.startsWith('/uploads/')) return null;
-  const resolved = path.resolve(__dirname, `.${clean}`);
-  return resolved.startsWith(path.resolve(uploadRoot) + path.sep) ? resolved : null;
-};
+const normalizeStoredMediaUrl = normalizeMediaUrl;
+const uploadUrlToPath = (url = '') => mediaUploadUrlToPath(url, uploadRoot);
 const uploadExistsCache = new Map();
 const UPLOAD_EXISTS_TTL_MS = 5 * 60 * 1000;
 const clearUploadExistsCache = (urls = []) => {
   if (!urls || (Array.isArray(urls) && !urls.length)) return uploadExistsCache.clear();
   for (const url of new Set((Array.isArray(urls) ? urls : [urls]).filter(Boolean))) {
     const candidates = [url, imageVariantUrl(url, 'thumb'), imageVariantUrl(url, 'medium'), imageVariantUrl(url, 'large')].filter(Boolean);
-    candidates.forEach(candidate => uploadExistsCache.delete(candidate));
+    candidates.forEach(candidate => uploadExistsCache.delete(normalizeStoredMediaUrl(candidate)));
   }
 };
 const existingUploadUrl = (url = '') => {
+  url = normalizeStoredMediaUrl(url);
   const filePath = uploadUrlToPath(url);
   if (!filePath) return '';
   const now = Date.now();
   const cached = uploadExistsCache.get(url);
   if (cached && cached.expiresAt > now) return cached.exists ? url : '';
-  const exists = fs.existsSync(filePath);
+  const exists = fs.existsSync(filePath) && fs.statSync(filePath).size > 0;
   uploadExistsCache.set(url, { exists, expiresAt: now + UPLOAD_EXISTS_TTL_MS });
   return exists ? url : '';
 };
 const imageVariantsFor = (url = '') => {
   const original = normalizeStoredMediaUrl(url);
   if (!original) return null;
-  if (!original.startsWith('/uploads/')) return { original, thumb:original, medium:original, large:original };
+  if (!original.startsWith('/uploads/')) return { original, thumb: original, medium: original, large: original };
   const originalFile = existingUploadUrl(original);
-  const medium = existingUploadUrl(imageVariantUrl(original, 'medium'));
-  const large = existingUploadUrl(imageVariantUrl(original, 'large'));
-  const thumb = existingUploadUrl(imageVariantUrl(original, 'thumb'));
-  const stableSource = originalFile || large || medium || thumb;
-  if (!stableSource) return null;
-  // Public cards deliberately use one verified URL. This prevents stale/missing
-  // generated variants from breaking thumbnails while the original still exists.
-  return { original:stableSource, thumb:stableSource, medium:stableSource, large:stableSource };
+  if (!originalFile) return null;
+  return {
+    original: originalFile,
+    thumb: existingUploadUrl(imageVariantUrl(original, 'thumb')) || null,
+    medium: existingUploadUrl(imageVariantUrl(original, 'medium')) || null,
+    large: existingUploadUrl(imageVariantUrl(original, 'large')) || null
+  };
 };
 const imageItemsFor = (images = []) => jsonArray(images).map(imageVariantsFor).filter(Boolean);
 const withImageVariants = (url = '') => imageVariantsFor(url) || null;
-const listImage = (url = '') => imageVariantsFor(url)?.original || (String(url || '').startsWith('/uploads/') ? '' : url);
+const listImage = (url = '') => { const variants = imageVariantsFor(url); return variants ? (variants.medium || variants.thumb || variants.original) : (String(url || '').startsWith('/uploads/') ? '' : url); };
+const detailImageUrl = (url = '') => { const variants = imageVariantsFor(url); return variants ? (variants.large || variants.medium || variants.original) : ''; };
 const videoPosterUrl = (url = '') => {
   const value = normalizeStoredMediaUrl(url).split(/[?#]/)[0];
-  if (!value.startsWith('/uploads/') || !/\.(mp4|webm|mov)$/i.test(value)) return '';
+  if (!value.startsWith('/uploads/') || !VIDEO_EXT_RE.test(value)) return '';
   return value.replace(/\.[^.]+$/, '-poster.jpg');
 };
 async function createVideoPoster(sourcePath, publicUrl) {
@@ -729,7 +680,6 @@ app.delete('/api/gallery/:id', requireAdminWrite, wrap(async (req,res)=>{ await 
 app.patch('/api/gallery/:id/archive', requireAdminWrite, wrap(async (req,res)=>{ const g=await prisma.galleryItem.findUniqueOrThrow({where:{id:intId(req)}}); invalidateCache(['gallery:list']); res.json(galleryOut(await prisma.galleryItem.update({where:{id:g.id},data:{archived:req.body.archived ?? !g.archived}}))); }));
 
 app.get('/api/audio-tracks', wrap(async (req,res)=>{
-  await ensureSiteAudioSchema();
   const admin = req.query.admin === 'true';
   if (admin && req.session?.adminAuthenticated !== true) return res.status(401).json({ok:false,error:'ADMIN_AUTH_REQUIRED'});
   const rows = await prisma.siteAudioTrack.findMany({ where:admin ? {} : {active:true}, orderBy:[{sortOrder:'asc'},{createdAt:'asc'}] });
@@ -737,28 +687,24 @@ app.get('/api/audio-tracks', wrap(async (req,res)=>{
   res.json(rows.map(row => ({ ...row, audioUrl: normalizeStoredMediaUrl(row.audioUrl) })));
 }));
 app.post('/api/audio-tracks', requireAdminWrite, wrap(async (req,res)=>{
-  await ensureSiteAudioSchema();
   const title=String(req.body?.title||'').trim(), audioUrl=String(req.body?.audioUrl||'').trim();
   if(!title || !audioUrl) return res.status(400).json({ok:false,error:'TITLE_AND_AUDIO_REQUIRED'});
   res.status(201).json(await prisma.siteAudioTrack.create({data:{title,audioUrl,active:req.body.active!==false,sortOrder:Number(req.body.sortOrder)||0}}));
 }));
 app.put('/api/audio-tracks/reorder', requireAdminWrite, wrap(async (req,res)=>{
-  await ensureSiteAudioSchema();
   await Promise.all((req.body.items||[]).map((item,index)=>prisma.siteAudioTrack.update({where:{id:String(item.id)},data:{sortOrder:Number(item.sortOrder??index)}})));
   res.json({ok:true});
 }));
 app.put('/api/audio-tracks/:id', requireAdminWrite, wrap(async (req,res)=>{
-  await ensureSiteAudioSchema();
   const title=String(req.body?.title||'').trim(), audioUrl=String(req.body?.audioUrl||'').trim();
   if(!title || !audioUrl) return res.status(400).json({ok:false,error:'TITLE_AND_AUDIO_REQUIRED'});
   res.json(await prisma.siteAudioTrack.update({where:{id:String(req.params.id)},data:{title,audioUrl,active:req.body.active!==false,sortOrder:Number(req.body.sortOrder)||0}}));
 }));
 app.patch('/api/audio-tracks/:id/toggle', requireAdminWrite, wrap(async (req,res)=>{
-  await ensureSiteAudioSchema();
   const row=await prisma.siteAudioTrack.findUniqueOrThrow({where:{id:String(req.params.id)}});
   res.json(await prisma.siteAudioTrack.update({where:{id:row.id},data:{active:req.body.active??!row.active}}));
 }));
-app.delete('/api/audio-tracks/:id', requireAdminWrite, wrap(async (req,res)=>{ await ensureSiteAudioSchema(); await prisma.siteAudioTrack.delete({where:{id:String(req.params.id)}}); res.json({ok:true}); }));
+app.delete('/api/audio-tracks/:id', requireAdminWrite, wrap(async (req,res)=>{ await prisma.siteAudioTrack.delete({where:{id:String(req.params.id)}}); res.json({ok:true}); }));
 
 app.get('/api/hero-slides', async (req, res) => {
   try {
@@ -851,6 +797,11 @@ app.post('/api/uploads', requireAdminWrite, upload.single('file'), wrap(async (r
   const filename = `${Date.now()}-${crypto.randomUUID()}-${safeUploadFilename(req.file.originalname)}`;
   const originalFilePath = path.join(bucketFolder, filename);
   await fs.promises.writeFile(originalFilePath, req.file.buffer, { flag: 'wx' });
+  const savedStat = await fs.promises.stat(originalFilePath);
+  if (!savedStat.isFile() || savedStat.size <= 0) {
+    await fs.promises.unlink(originalFilePath).catch(() => {});
+    return res.status(500).json({ ok:false, error:'UPLOAD_WRITE_FAILED', message:'Yüklənən fayl diskdə təsdiqlənmədi.' });
+  }
   let publicUrl = `/uploads/${bucket}/${filename}`;
   let filePath = originalFilePath;
   if (isAllowedVideoUpload(req.file) && /\.mov$/i.test(filename)) {
@@ -864,6 +815,11 @@ app.post('/api/uploads', requireAdminWrite, upload.single('file'), wrap(async (r
   }
   const objectPath = path.join(bucket, path.basename(filePath));
   clearUploadExistsCache(publicUrl);
+  const mappedPath = uploadUrlToPath(publicUrl);
+  if (!mappedPath || path.resolve(mappedPath) !== path.resolve(filePath) || !fs.existsSync(mappedPath) || fs.statSync(mappedPath).size <= 0) {
+    await fs.promises.unlink(filePath).catch(() => {});
+    return res.status(500).json({ ok:false, error:'UPLOAD_PUBLIC_URL_INVALID', message:'Yükləmə URL-i saxlanılan fayla uyğun gəlmir.' });
+  }
   const variants = isAllowedImageUpload(req.file) ? await createImageVariants(filePath, publicUrl).catch(error => { console.warn('[uploads:variants]', { message: error?.message, bucket }); return null; }) : null;
   const posterUrl = isAllowedVideoUpload(req.file)
     ? await createVideoPoster(filePath, publicUrl).catch(error => { console.warn('[uploads:video-poster]', { message:error?.message, bucket }); return null; })
@@ -985,13 +941,7 @@ const PORT = process.env.PORT || 3000;
 console.log(`DATABASE_URL exists: ${process.env.DATABASE_URL ? 'yes' : 'no'}`);
 console.log(`NODE_ENV: ${process.env.NODE_ENV || 'development'}`);
 console.log(`Server port: ${PORT}`);
-async function startServer() {
-  try {
-    await ensureSiteAudioSchema();
-    console.log('Site audio schema ready');
-  } catch (error) {
-    console.error('[site-audio:schema:error]', error?.message || error);
-  }
+function startServer() {
   app.listen(PORT, () => console.log(`Baltic Caspian LTD API running on ${PORT}`));
 }
 startServer();
