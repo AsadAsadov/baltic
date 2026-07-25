@@ -562,6 +562,10 @@
                     const slides = Array.isArray(this.slides) ? this.slides.filter(slide => slide?.active !== false && slide?.archived !== true) : [];
                     return slides.length ? slides : (Array.isArray(this.slides) ? this.slides : []);
                 },
+                heroText(slide = {}, field = '') {
+                    const localizedKey = this.lang === 'en' ? `${field}En` : (this.lang === 'ru' ? `${field}Ru` : field);
+                    return slide[localizedKey] ?? slide[field] ?? '';
+                },
 
                 startHeroRotation() {
                     if (this.heroRotationTimer) clearInterval(this.heroRotationTimer);
@@ -977,7 +981,8 @@
                     const image = this.normalizeImageUrl(slide.image || slide.mediaUrl || slide.media_url || slide.src || slide.url || '');
                     const mediaType = this.getHeroMediaKind({ ...slide, mediaUrl: slide.mediaUrl || slide.media_url || image });
                     const mediaFit = ['cover', 'contain'].includes(slide.mediaFit || slide.media_fit) ? (slide.mediaFit || slide.media_fit) : 'cover';
-                    return { id: slide.id ?? '', image, mediaUrl: slide.mediaUrl || slide.media_url || image, src: slide.src || image, url: slide.url || image, mediaType, media_type: mediaType, mediaFit, media_fit: mediaFit, tag: slide.tag || slide.tagAz || '', tagAz: slide.tagAz || slide.tag || '', tagRu: slide.tagRu || slide.tag || '', tagEn: slide.tagEn || slide.tag || '', title1: slide.title1 || slide.title1Az || '', title1Az: slide.title1Az || slide.title1 || '', title1Ru: slide.title1Ru || slide.title1 || '', title1En: slide.title1En || slide.title1 || '', title2: slide.title2 || slide.title2Az || '', title2Az: slide.title2Az || slide.title2 || '', title2Ru: slide.title2Ru || slide.title2 || '', title2En: slide.title2En || slide.title2 || '', desc: slide.desc || slide.descAz || '', descAz: slide.descAz || slide.desc || '', descRu: slide.descRu || slide.desc || '', descEn: slide.descEn || slide.desc || '', active: slide.active ?? true, archived: Boolean(slide.archived), sortOrder: Number(slide.sortOrder) || 0 };
+                    const value = (primary, legacy) => slide[primary] ?? slide[legacy] ?? '';
+                    return { id: slide.id ?? '', image, mediaUrl: slide.mediaUrl || slide.media_url || image, src: slide.src || image, url: slide.url || image, mediaType, media_type: mediaType, mediaFit, media_fit: mediaFit, tag: value('tagAz', 'tag'), tagAz: value('tagAz', 'tag'), tagRu: slide.tagRu ?? '', tagEn: slide.tagEn ?? '', title1: value('title1Az', 'title1'), title1Az: value('title1Az', 'title1'), title1Ru: slide.title1Ru ?? '', title1En: slide.title1En ?? '', title2: value('title2Az', 'title2'), title2Az: value('title2Az', 'title2'), title2Ru: slide.title2Ru ?? '', title2En: slide.title2En ?? '', desc: value('descAz', 'desc'), descAz: value('descAz', 'desc'), descRu: slide.descRu ?? '', descEn: slide.descEn ?? '', active: slide.active ?? true, archived: Boolean(slide.archived), sortOrder: Number(slide.sortOrder) || 0 };
                 },
                 normalizeSlides(payload, fallback = []) {
                     const items = this.asArray(payload).map(item => this.normalizeSlide(item));
@@ -2535,7 +2540,14 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
                             return;
                         }
                         const isExisting = this.isPersistedHero(this.newHero);
-                        const payload = { ...this.newHero, active: this.newHero.active ?? true };
+                        const payload = {
+                            ...this.newHero,
+                            tagAz: this.newHero.tag ?? '', tagRu: this.newHero.tagRu ?? '', tagEn: this.newHero.tagEn ?? '',
+                            title1Az: this.newHero.title1 ?? '', title1Ru: this.newHero.title1Ru ?? '', title1En: this.newHero.title1En ?? '',
+                            title2Az: this.newHero.title2 ?? '', title2Ru: this.newHero.title2Ru ?? '', title2En: this.newHero.title2En ?? '',
+                            descAz: this.newHero.desc ?? '', descRu: this.newHero.descRu ?? '', descEn: this.newHero.descEn ?? '',
+                            active: this.newHero.active ?? true
+                        };
                         delete payload.mediaFit;
                         delete payload.media_fit;
                         if (finalImage) Object.assign(payload, { image: finalImage, mediaUrl: finalImage, media_url: finalImage, src: finalImage, url: finalImage, mediaType, media_type: mediaType, type: mediaType });
@@ -5166,17 +5178,17 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
 
                     <div class="hero-content">
                         <div x-show="slidesLoaded && activeHeroSlides().length" class="hero-copy-panel space-y-4 sm:space-y-5">
-                            <span x-show="(activeHeroSlides()[activeSlide] || {}).tag || (lang === 'en' && (activeHeroSlides()[activeSlide] || {}).tagEn) || (lang === 'ru' && (activeHeroSlides()[activeSlide] || {}).tagRu)" class="hero-kicker inline-flex items-center gap-2 bg-wood-600/90 text-stone-50 rounded-full font-bold uppercase tracking-wider shadow-md">
+                            <span x-show="heroText(activeHeroSlides()[activeSlide], 'tag').trim()" class="hero-kicker inline-flex items-center gap-2 bg-wood-600/90 text-stone-50 rounded-full font-bold uppercase tracking-wider shadow-md">
                                 <i class="fa-solid fa-tree"></i>
-                                <span x-text="lang === 'en' ? (activeHeroSlides()[activeSlide] || {}).tagEn || (activeHeroSlides()[activeSlide] || {}).tag : (lang === 'ru' ? (activeHeroSlides()[activeSlide] || {}).tagRu || (activeHeroSlides()[activeSlide] || {}).tag : (activeHeroSlides()[activeSlide] || {}).tag)"></span>
+                                <span x-text="heroText(activeHeroSlides()[activeSlide], 'tag')"></span>
                             </span>
                             
-                            <h1 x-show="(activeHeroSlides()[activeSlide] || {}).title1 || (activeHeroSlides()[activeSlide] || {}).title2 || (lang === 'en' && ((activeHeroSlides()[activeSlide] || {}).title1En || (activeHeroSlides()[activeSlide] || {}).title2En)) || (lang === 'ru' && ((activeHeroSlides()[activeSlide] || {}).title1Ru || (activeHeroSlides()[activeSlide] || {}).title2Ru))" class="hero-title drop-shadow-sm">
-                                <span x-show="(activeHeroSlides()[activeSlide] || {}).title1 || (lang === 'en' && (activeHeroSlides()[activeSlide] || {}).title1En) || (lang === 'ru' && (activeHeroSlides()[activeSlide] || {}).title1Ru)" class="block" x-text="lang === 'en' ? (activeHeroSlides()[activeSlide] || {}).title1En || (activeHeroSlides()[activeSlide] || {}).title1 : (lang === 'ru' ? (activeHeroSlides()[activeSlide] || {}).title1Ru || (activeHeroSlides()[activeSlide] || {}).title1 : (activeHeroSlides()[activeSlide] || {}).title1)"></span>
-                                <span x-show="(activeHeroSlides()[activeSlide] || {}).title2 || (lang === 'en' && (activeHeroSlides()[activeSlide] || {}).title2En) || (lang === 'ru' && (activeHeroSlides()[activeSlide] || {}).title2Ru)" class="block text-wood-400 mt-2" x-text="lang === 'en' ? (activeHeroSlides()[activeSlide] || {}).title2En || (activeHeroSlides()[activeSlide] || {}).title2 : (lang === 'ru' ? (activeHeroSlides()[activeSlide] || {}).title2Ru || (activeHeroSlides()[activeSlide] || {}).title2 : (activeHeroSlides()[activeSlide] || {}).title2)"></span>
+                            <h1 x-show="heroText(activeHeroSlides()[activeSlide], 'title1').trim() || heroText(activeHeroSlides()[activeSlide], 'title2').trim()" class="hero-title drop-shadow-sm">
+                                <span x-show="heroText(activeHeroSlides()[activeSlide], 'title1').trim()" class="block" x-text="heroText(activeHeroSlides()[activeSlide], 'title1')"></span>
+                                <span x-show="heroText(activeHeroSlides()[activeSlide], 'title2').trim()" class="block text-wood-400 mt-2" x-text="heroText(activeHeroSlides()[activeSlide], 'title2')"></span>
                             </h1>
                             
-                            <p x-show="(activeHeroSlides()[activeSlide] || {}).desc || (lang === 'en' && (activeHeroSlides()[activeSlide] || {}).descEn) || (lang === 'ru' && (activeHeroSlides()[activeSlide] || {}).descRu)" class="hero-desc font-light" x-text="lang === 'en' ? (activeHeroSlides()[activeSlide] || {}).descEn || (activeHeroSlides()[activeSlide] || {}).desc : (lang === 'ru' ? (activeHeroSlides()[activeSlide] || {}).descRu || (activeHeroSlides()[activeSlide] || {}).desc : (activeHeroSlides()[activeSlide] || {}).desc)"></p>
+                            <p x-show="heroText(activeHeroSlides()[activeSlide], 'desc').trim()" class="hero-desc font-light" x-text="heroText(activeHeroSlides()[activeSlide], 'desc')"></p>
 
                         </div>
                     </div>

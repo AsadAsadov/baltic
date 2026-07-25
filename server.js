@@ -506,7 +506,25 @@ function getYouTubeId(url = '') { const value = String(url || '').trim(); const 
 function isYouTubeUrl(url = '') { return Boolean(getYouTubeId(url)); }
 function isVideoUrl(url = '') { return isYouTubeUrl(url) || /\.(mp4|webm|mov)(?:[?#].*)?$/i.test(String(url)); }
 function slideOut(s) { const originalMediaUrl = normalizeStoredMediaUrl(s.mediaUrl || s.image || ''); const mediaType = s.mediaType || (isVideoUrl(originalMediaUrl) ? 'video' : 'image'); const variants = mediaType === 'image' ? withImageVariants(originalMediaUrl) : null; const mediaUrl = variants?.large || originalMediaUrl; return { id: s.id, legacyId: s.legacyId, image: mediaUrl, mediaUrl, originalMediaUrl, imageVariants: variants, mediaType, media_type: mediaType, tag: s.tagAz, tagAz: s.tagAz, tagRu: s.tagRu, tagEn: s.tagEn, title: s.titleAz, titleAz: s.titleAz, titleRu: s.titleRu, titleEn: s.titleEn, subtitleAz: s.subtitleAz, subtitleRu: s.subtitleRu, subtitleEn: s.subtitleEn, buttonTextAz: s.buttonTextAz, buttonTextRu: s.buttonTextRu, buttonTextEn: s.buttonTextEn, buttonLink: s.buttonLink, title1: s.title1Az, title1Az: s.title1Az, title1Ru: s.title1Ru, title1En: s.title1En, title2: s.title2Az, title2Az: s.title2Az, title2Ru: s.title2Ru, title2En: s.title2En, desc: s.descAz, descAz: s.descAz, descRu: s.descRu, descEn: s.descEn, active: s.active, sortOrder: s.sortOrder }; }
-function slideIn(b = {}, options = {}) { const mediaUrl = b.mediaUrl || b.media_url || b.image || b.src || b.url; const explicitType = b.mediaType || b.media_type || b.type; const mediaType = isVideoUrl(mediaUrl) ? 'video' : (explicitType || 'image'); const data = { tagAz: b.tagAz || b.tag, tagRu: b.tagRu, tagEn: b.tagEn, titleAz: b.titleAz || b.title, titleRu: b.titleRu, titleEn: b.titleEn, subtitleAz: b.subtitleAz, subtitleRu: b.subtitleRu, subtitleEn: b.subtitleEn, buttonTextAz: b.buttonTextAz, buttonTextRu: b.buttonTextRu, buttonTextEn: b.buttonTextEn, buttonLink: b.buttonLink, title1Az: b.title1Az || b.title1, title1Ru: b.title1Ru, title1En: b.title1En, title2Az: b.title2Az || b.title2, title2Ru: b.title2Ru, title2En: b.title2En, descAz: b.descAz || b.desc, descRu: b.descRu, descEn: b.descEn, active: b.active ?? true };
+function slideIn(b = {}, options = {}) {
+  const hasOwn = key => Object.prototype.hasOwnProperty.call(b, key);
+  const firstPresent = keys => {
+    const key = keys.find(hasOwn);
+    return key === undefined ? undefined : b[key];
+  };
+  const mediaUrl = firstPresent(['mediaUrl', 'media_url', 'image', 'src', 'url']);
+  const explicitType = firstPresent(['mediaType', 'media_type', 'type']);
+  const mediaType = isVideoUrl(mediaUrl) ? 'video' : (explicitType || 'image');
+  const data = {
+    tagAz: firstPresent(['tagAz', 'tag']), tagRu: firstPresent(['tagRu']), tagEn: firstPresent(['tagEn']),
+    titleAz: firstPresent(['titleAz', 'title']), titleRu: firstPresent(['titleRu']), titleEn: firstPresent(['titleEn']),
+    subtitleAz: firstPresent(['subtitleAz']), subtitleRu: firstPresent(['subtitleRu']), subtitleEn: firstPresent(['subtitleEn']),
+    buttonTextAz: firstPresent(['buttonTextAz']), buttonTextRu: firstPresent(['buttonTextRu']), buttonTextEn: firstPresent(['buttonTextEn']), buttonLink: firstPresent(['buttonLink']),
+    title1Az: firstPresent(['title1Az', 'title1']), title1Ru: firstPresent(['title1Ru']), title1En: firstPresent(['title1En']),
+    title2Az: firstPresent(['title2Az', 'title2']), title2Ru: firstPresent(['title2Ru']), title2En: firstPresent(['title2En']),
+    descAz: firstPresent(['descAz', 'desc']), descRu: firstPresent(['descRu']), descEn: firstPresent(['descEn']),
+    active: hasOwn('active') ? b.active : (options.defaultActive ? true : undefined)
+  };
   if (mediaUrl) { data.mediaUrl = mediaUrl; data.image = b.image || mediaUrl; data.mediaType = mediaType; }
   if (options.includeSortOrder || Object.prototype.hasOwnProperty.call(b, 'sortOrder')) data.sortOrder = Number(b.sortOrder) || 0;
   return Object.fromEntries(Object.entries(data).filter(([,v]) => v !== undefined)); }
@@ -744,7 +762,7 @@ app.post('/api/hero-slides', requireAdminWrite, async (req, res) => {
     if (!mediaUrl) return res.status(400).json({ ok: false, error: 'MEDIA_REQUIRED', message: 'Hero slayd üçün şəkil və ya video mütləqdir.' });
     const last = await prisma.heroSlide.findFirst({ select: { sortOrder: true }, orderBy: { sortOrder: 'desc' } });
     const mediaType = isVideoUrl(mediaUrl) ? 'video' : (body.mediaType || body.media_type || body.type || 'image');
-    const data = slideIn({ ...body, mediaUrl, image: body.image || mediaUrl, mediaType, sortOrder: (last?.sortOrder ?? -1) + 1 }, { includeSortOrder: true });
+    const data = slideIn({ ...body, mediaUrl, image: body.image || mediaUrl, mediaType, sortOrder: (last?.sortOrder ?? -1) + 1 }, { includeSortOrder: true, defaultActive: true });
     console.info('[hero-slides:post:data]', { keys: Object.keys(data) });
     res.status(201).json(slideOut(await prisma.heroSlide.create({ select: heroSlideSelect, data })));
   } catch (err) {
