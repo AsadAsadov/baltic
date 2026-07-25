@@ -1,0 +1,202 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Project {
+  id             String   @id @default(uuid()) @db.Uuid
+  category       String   @default("house") @map("category")
+  titleAz        String   @map("title_az")
+  titleRu        String?  @map("title_ru")
+  titleEn        String?  @map("title_en")
+  descriptionAz  String?  @map("description_az")
+  descriptionRu  String?  @map("description_ru")
+  descriptionEn  String?  @map("description_en")
+  area           String?  @default("0")
+  buildTimeAz    String?  @map("build_time_az")
+  buildTimeRu    String?  @map("build_time_ru")
+  buildTimeEn    String?  @map("build_time_en")
+  coverImage     String?  @map("cover_image")
+  images         Json?    @default("[]")
+  views          Int      @default(0)
+  archived       Boolean  @default(false)
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+  categoryNameAz String?  @map("category_name_az")
+  categoryNameRu String?  @map("category_name_ru")
+  categoryNameEn String?  @map("category_name_en")
+  legacyId       Int?     @unique @map("legacy_id")
+  stories        Int      @default(1)
+  rooms          Int      @default(1)
+
+  @@map("projects")
+}
+
+model GalleryItem {
+  titleAz   String   @map("title_az")
+  titleRu   String?  @map("title_ru")
+  titleEn   String?  @map("title_en")
+  mediaUrl  String   @map("media_url")
+  sortOrder Int      @default(0) @map("sort_order")
+  archived  Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  images    Json?    @default("[]")
+  type      String   @default("image")
+  id        Int      @id @default(autoincrement())
+
+  @@map("gallery_items")
+}
+
+model HeroSlide {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  titleAz      String?  @map("title_az")
+  titleRu      String?  @map("title_ru")
+  titleEn      String?  @map("title_en")
+  subtitleAz   String?  @map("subtitle_az")
+  subtitleRu   String?  @map("subtitle_ru")
+  subtitleEn   String?  @map("subtitle_en")
+  mediaType    String   @default("image") @map("media_type")
+  mediaUrl     String   @map("media_url")
+  buttonTextAz String?  @map("button_text_az")
+  buttonTextRu String?  @map("button_text_ru")
+  buttonTextEn String?  @map("button_text_en")
+  buttonLink   String?  @map("button_link")
+  sortOrder    Int      @default(0) @map("sort_order")
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+  image        String?
+  tagAz        String?  @map("tag_az")
+  tagRu        String?  @map("tag_ru")
+  tagEn        String?  @map("tag_en")
+  title1Az     String?  @map("title1_az")
+  title1Ru     String?  @map("title1_ru")
+  title1En     String?  @map("title1_en")
+  title2Az     String?  @map("title2_az")
+  title2Ru     String?  @map("title2_ru")
+  title2En     String?  @map("title2_en")
+  descAz       String?  @map("desc_az")
+  descRu       String?  @map("desc_ru")
+  descEn       String?  @map("desc_en")
+  legacyId     Int?     @unique @map("legacy_id")
+
+  @@map("hero_slides")
+}
+
+model Banner {
+  id            String   @id @default(uuid()) @db.Uuid
+  placement     String   @default("both")
+  titleAz       String?  @map("title_az")
+  titleRu       String?  @map("title_ru")
+  titleEn       String?  @map("title_en")
+  descriptionAz String?  @map("description_az")
+  descriptionRu String?  @map("description_ru")
+  descriptionEn String?  @map("description_en")
+  mediaType     String   @default("image") @map("media_type")
+  mediaUrl      String?  @map("media_url")
+  linkUrl       String?  @map("link_url")
+  views         Int      @default(0)
+  clicks        Int      @default(0)
+  active        Boolean  @default(true)
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+  title         String?
+  width         Int      @default(260)
+  height        Int      @default(600)
+  duration      Int      @default(15)
+  type          String?
+  displayOrder  Int      @default(0) @map("display_order")
+  legacyId      Int?     @unique @map("legacy_id")
+
+  @@map("banners")
+}
+
+model ContactMessage {
+  fullname  String?
+  phone     String?
+  email     String?
+  message   String
+  isRead    Boolean  @default(false) @map("is_read")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  name      String?
+  id        Int      @id @default(autoincrement())
+  legacyId  Int?     @unique @map("legacy_id")
+
+  @@map("contact_messages")
+}
+
+model HomeSectionImage {
+  id         String   @id @default(uuid()) @db.Uuid
+  sectionKey String   @map("section_key")
+  title      String?
+  imageUrl   String   @map("image_url")
+  sortOrder  Int      @default(0) @map("sort_order")
+  active     Boolean  @default(true)
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@map("home_section_images")
+}
+
+model SiteStat {
+  key       String   @id
+  value     Int      @default(0)
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("site_stats")
+}
+
+model StatEvent {
+  metadata  Json?    @default("{}")
+  createdAt DateTime @default(now()) @map("created_at")
+  targetId  Int?     @map("target_id")
+  type      String
+  id        Int      @id @default(autoincrement())
+
+  @@map("stat_events")
+}
+
+model AdminPanelSetting {
+  id        String   @id @default(uuid()) @db.Uuid
+  key       String   @unique
+  value     Json     @default("{}")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("admin_panel_settings")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model work_items {
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  category        String    @default("Taxta Ev") @db.VarChar(100)
+  title_az        String    @db.VarChar(255)
+  title_ru        String?   @db.VarChar(255)
+  title_en        String?   @db.VarChar(255)
+  description_az  String?
+  description_ru  String?
+  description_en  String?
+  location_az     String?   @db.VarChar(255)
+  location_ru     String?   @db.VarChar(255)
+  location_en     String?   @db.VarChar(255)
+  completion_date DateTime? @db.Date
+  cover_image     String
+  images          Json      @default("[]")
+  sort_order      Int       @default(0)
+  featured        Boolean   @default(false)
+  active          Boolean   @default(true)
+  created_at      DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime  @default(now()) @db.Timestamptz(6)
+
+  @@index([active], map: "idx_work_items_active")
+  @@index([category], map: "idx_work_items_category")
+  @@index([sort_order, created_at(sort: Desc)], map: "idx_work_items_sort_order")
+}
