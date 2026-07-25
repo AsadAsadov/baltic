@@ -80,3 +80,21 @@ h1, h2, h3, .font-black { line-height: 1.08; }
   .gallery-page .grid { grid-template-columns: 1fr !important; }
   .detail-media-layout .relative.rounded-\[22px\] { max-height: 62vh !important; aspect-ratio: 4 / 3; }
 }
+
+@media (min-width: 1200px) and (max-width: 1599px) {
+  .public-ad-rail { display: none !important; }
+  .public-page-ad-shell { display: block !important; grid-template-columns: minmax(0, 1fr) !important; width: 100% !important; max-width: none !important; }
+  .public-page-ad-shell.has-ads .projects-page,
+  .public-page-ad-shell.has-ads .works-page,
+  .public-page-ad-shell.has-ads .gallery-page,
+  .public-page-ad-shell.has-ads .about-page,
+  .public-page-ad-shell.has-ads .ad-safe-content { width: min(calc(100% - 48px), 1160px) !important; max-width: 1160px !important; margin-left: auto !important; margin-right: auto !important; padding-left: 0 !important; padding-right: 0 !important; }
+  .public-page-ad-shell.has-ads .project-grid,
+  .public-page-ad-shell.has-ads .work-grid { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; gap: 16px !important; }
+  .public-page-ad-shell.has-ads .gallery-page > .grid { grid-template-columns: repeat(3, minmax(0, 340px)) !important; justify-content: center !important; gap: 16px !important; }
+}
+
+@media (min-width: 1600px) {
+  .ad-frame { width: 300px; height: 600px; }
+  .public-ad-rail { width: 300px; }
+}

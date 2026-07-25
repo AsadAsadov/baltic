@@ -184,7 +184,10 @@
                 newAudio: { id: null, title: '', audioUrl: '', active: true, sortOrder: 0 },
                 audioPreviewFile: null,
                 activeAudioIndex: 0,
+                audioPanelOpen: false,
                 audioPlaying: false,
+                audioTrack: null,
+                audioError: '',
                 audioVolume: (() => { const stored = Number(localStorage.getItem('bc_audio_volume')); return Number.isFinite(stored) ? Math.min(1, Math.max(0, stored)) : 0.7; })(),
                 audioAutoplayBlocked: false,
                 audioPlayerCollapsed: true,
@@ -873,11 +876,8 @@
                     return item.large || item.medium || item.original || item.thumb || '';
                 },
                 imageVariant(url = '', variant = 'medium') {
-                    const value = this.normalizeImageUrl(url);
-                    if (!value || !value.startsWith('/uploads/') || !/\.(jpe?g|png|webp|avif|tiff?|bmp)(?:[?#].*)?$/i.test(value)) return value;
-                    const clean = value.split(/[?#]/)[0];
-                    if (/-((thumb)|(medium)|(large))\.webp$/i.test(clean)) return clean.replace(/-(thumb|medium|large)\.webp$/i, `-${variant}.webp`);
-                    return clean.replace(/\.[^.\/]+$/, `-${variant}.webp`);
+                    // Variants are server-confirmed only; the frontend must not fabricate WebP URLs.
+                    return this.normalizeImageUrl(url);
                 },
                 responsiveImageSrc(item = {}, preferred = 'medium') {
                     const variants = item.imageVariants || {};
@@ -1787,67 +1787,63 @@
                         const tracks = await this.api(admin ? '/api/audio-tracks?admin=true' : '/api/audio-tracks', admin ? { cache:'no-store' } : {});
                         this.audioTracks = (Array.isArray(tracks) ? tracks : []).map(track => ({ ...track, audioUrl: this.normalizeImageUrl(track.audioUrl || '') }));
                         if (this.activeAudioIndex >= this.activeAudioTracks().length) this.activeAudioIndex = 0;
-                        this.$nextTick(() => this.prepareCurrentAudio(!admin));
+                        this.$nextTick(() => this.prepareCurrentAudio(false));
                     } catch (error) { if (admin) throw error; console.warn('Audio siyahısı yüklənmədi', error); }
                 },
                 ensureCurrentAudioSource() {
                     const audio = this.$refs.siteAudio;
                     const track = this.currentAudioTrack();
-                    if (!audio || !track?.audioUrl) return null;
-                    const expected = new URL(track.audioUrl, location.origin).href;
-                    if (!audio.src || audio.src !== expected) {
-                        audio.src = track.audioUrl;
+                    const source = this.normalizeImageUrl(track?.audioUrl || '');
+                    if (!audio || !source) return null;
+                    const expected = new URL(source, location.origin).href;
+                    if (audio.src !== expected) {
+                        audio.src = source;
                         audio.load();
                     }
                     const volume = Number(this.audioVolume);
                     audio.volume = Number.isFinite(volume) ? Math.min(1, Math.max(0, volume)) : 0.7;
+                    this.audioTrack = track;
                     return audio;
                 },
-                async prepareCurrentAudio(autoplay = false) {
-                    const audio = this.ensureCurrentAudioSource();
-                    if (!audio) return;
-                    if (autoplay && !['admin','login'].includes(this.page)) {
-                        try { await audio.play(); this.audioAutoplayBlocked = false; }
-                        catch (_) {
-                            this.audioAutoplayBlocked = true;
-                        }
-                    }
-                },
+                async prepareCurrentAudio() { this.ensureCurrentAudioSource(); },
                 scheduleAudioCollapse() {
                     if (this.audioCollapseTimer) clearTimeout(this.audioCollapseTimer);
-                    this.audioCollapseTimer = setTimeout(() => { if (this.audioPlaying) this.audioPlayerCollapsed = true; }, 2600);
+                    this.audioCollapseTimer = setTimeout(() => { if (this.audioPlaying) { this.audioPanelOpen = false; this.audioPlayerCollapsed = true; } }, 2500);
                 },
-                handleSiteAudioPlay() {
-                    this.audioPlaying = true;
-                    this.audioAutoplayBlocked = false;
-                    this.scheduleAudioCollapse();
-                },
-                expandAudioPlayer() {
+                handleSiteAudioPlay() { this.audioPlaying = true; this.audioAutoplayBlocked = false; },
+                expandAudioPlayer() { this.toggleAudioPanel(); },
+                toggleAudioPanel() {
                     if (this.audioCollapseTimer) clearTimeout(this.audioCollapseTimer);
-                    this.audioPlayerCollapsed = false;
+                    this.audioPanelOpen = !this.audioPanelOpen;
+                    this.audioPlayerCollapsed = !this.audioPanelOpen;
+                    if (this.audioPanelOpen) this.prepareCurrentAudio();
                 },
                 async playSiteAudio() {
+                    this.audioError = '';
                     const audio = this.ensureCurrentAudioSource();
-                    if (!audio) { this.audioAutoplayBlocked = true; return; }
+                    if (!audio || !audio.src) { this.audioError = 'Musiqi əlavə edilməyib'; this.audioAutoplayBlocked = true; this.audioPanelOpen = true; this.audioPlayerCollapsed = false; return; }
                     try {
                         await audio.play();
+                        this.audioPlaying = true;
                         this.audioAutoplayBlocked = false;
                         this.scheduleAudioCollapse();
                     } catch (error) {
-                        console.warn('Audio playback blocked or unsupported', error);
+                        console.error('Audio playback failed', error);
+                        this.audioError = error?.message || 'Audio səsləndirilə bilmədi';
                         this.audioAutoplayBlocked = true;
+                        this.audioPanelOpen = true;
                         this.audioPlayerCollapsed = false;
                     }
                 },
-                pauseSiteAudio() { this.$refs.siteAudio?.pause(); },
+                pauseSiteAudio() { if (this.audioCollapseTimer) clearTimeout(this.audioCollapseTimer); this.$refs.siteAudio?.pause(); this.audioPlaying = false; },
                 toggleSiteAudio() { this.audioPlaying ? this.pauseSiteAudio() : this.playSiteAudio(); },
                 restartSiteAudio() { const audio=this.$refs.siteAudio; if(!audio)return; audio.currentTime=0; this.playSiteAudio(); },
                 changeAudioTrack(direction=1) {
                     const tracks=this.activeAudioTracks(); if(!tracks.length)return;
                     this.activeAudioIndex=(this.activeAudioIndex+direction+tracks.length)%tracks.length;
                     if(tracks.length===1 && this.$refs.siteAudio)this.$refs.siteAudio.currentTime=0;
-                    this.audioPlayerCollapsed = false;
-                    this.$nextTick(()=>this.prepareCurrentAudio(true));
+                    this.audioPanelOpen = true; this.audioPlayerCollapsed = false;
+                    this.$nextTick(()=>this.prepareCurrentAudio());
                 },
                 updateAudioVolume() { const value=Math.min(1,Math.max(0,Number(this.audioVolume)||0)); this.audioVolume=value; if(this.$refs.siteAudio)this.$refs.siteAudio.volume=value; localStorage.setItem('bc_audio_volume',String(value)); },
                 handleAudioFileSelect(event) {
@@ -6107,17 +6103,17 @@ Zəhmət olmasa ətraflı məlumat göndərin.`;
 
     </div>
 
-    <div x-show="!['admin','login'].includes(page) && activeAudioTracks().length" x-cloak class="site-audio-player" :class="{ 'is-collapsed': audioPlayerCollapsed }">
+    <div x-show="!['admin','login'].includes(page)" x-cloak class="site-audio-player" :class="{ 'is-collapsed': audioPlayerCollapsed }">
         <audio x-ref="siteAudio" :src="currentAudioTrack()?.audioUrl || ''" preload="metadata" @play="handleSiteAudioPlay()" @pause="audioPlaying=false" @ended="changeAudioTrack(1)" @volumechange="audioVolume=$event.target.volume"></audio>
-        <button x-show="audioPlayerCollapsed" type="button" class="site-audio-collapsed-button" @click="expandAudioPlayer()" :aria-label="audioPlaying ? 'Səs pleyerini aç' : 'Səsi başladın'">
+        <button x-show="audioPlayerCollapsed" type="button" class="site-audio-collapsed-button" @click="toggleAudioPanel()" :aria-label="audioPlaying ? 'Səs pleyerini aç' : 'Səsi başladın'">
             <i class="fa-solid" :class="audioPlaying ? 'fa-music' : 'fa-play'"></i>
         </button>
-        <div x-show="!audioPlayerCollapsed" class="site-audio-expanded">
+        <div x-show="audioPanelOpen" class="site-audio-expanded">
             <div class="site-audio-topline">
                 <div class="site-audio-copy"><i class="fa-solid fa-wave-square"></i><div><b x-text="currentAudioTrack()?.title || 'Baltic Caspian'"></b><small x-text="audioAutoplayBlocked ? 'Səsi başlatmaq üçün toxunun' : 'Reklam çarxı'"></small></div></div>
                 <button type="button" class="site-audio-minimize" @click="audioPlayerCollapsed=true" aria-label="Pleyeri yığ"><i class="fa-solid fa-chevron-right"></i></button>
             </div>
-            <div class="site-audio-controls"><button @click="changeAudioTrack(-1)" aria-label="Əvvəlki səs"><i class="fa-solid fa-backward-step"></i></button><button @click="toggleSiteAudio()" class="site-audio-main" :aria-label="audioPlaying?'Pauza':'Oynat'"><i class="fa-solid" :class="audioPlaying?'fa-pause':'fa-play'"></i></button><button @click="changeAudioTrack(1)" aria-label="Növbəti səs"><i class="fa-solid fa-forward-step"></i></button><button @click="restartSiteAudio()" aria-label="Yenidən başlat"><i class="fa-solid fa-rotate-left"></i></button></div>
+            <p x-show="!activeAudioTracks().length" class="px-4 py-2 text-sm text-stone-600">Musiqi əlavə edilməyib</p><p x-show="audioError" class="px-4 py-2 text-xs text-red-600" x-text="audioError"></p><div class="site-audio-controls"><button @click="changeAudioTrack(-1)" aria-label="Əvvəlki səs"><i class="fa-solid fa-backward-step"></i></button><button @click="toggleSiteAudio()" class="site-audio-main" :aria-label="audioPlaying?'Pauza':'Oynat'"><i class="fa-solid" :class="audioPlaying?'fa-pause':'fa-play'"></i></button><button @click="changeAudioTrack(1)" aria-label="Növbəti səs"><i class="fa-solid fa-forward-step"></i></button><button @click="restartSiteAudio()" aria-label="Yenidən başlat"><i class="fa-solid fa-rotate-left"></i></button></div>
             <label class="site-audio-volume"><i class="fa-solid fa-volume-low"></i><input type="range" min="0" max="1" step="0.05" x-model.number="audioVolume" @input="updateAudioVolume()"></label>
         </div>
     </div>
